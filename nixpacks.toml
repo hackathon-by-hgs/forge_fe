@@ -1,0 +1,9 @@
+# Nixpacks build environment for both Railway services in this monorepo.
+# Without this file, Nixpacks fails to detect Node when railway.json
+# overrides the build phase, leading to `npm: command not found`.
+#
+# This file applies to both forge-employer and forge-bank because both
+# services use this monorepo root as their build context.
+
+[phases.setup]
+nixPkgs = ["nodejs_20"]

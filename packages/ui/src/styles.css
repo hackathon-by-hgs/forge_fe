@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-inter: 'Inter', system-ui, sans-serif;
+    --font-jetbrains-mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-neutral-50 text-neutral-900;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  /* Tabular numerals for any element that displays money or metrics. */
+  .tnum,
+  [data-numeric] {
+    font-feature-settings: 'tnum' on, 'lnum' on;
+  }
+
+  *:focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent-500;
+  }
+}

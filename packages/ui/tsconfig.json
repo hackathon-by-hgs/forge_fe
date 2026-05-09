@@ -1,0 +1,9 @@
+{
+  "extends": "@forge/tsconfig/library.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "types": ["react", "react-dom"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx", "tailwind.preset.ts"],
+  "exclude": ["node_modules", "dist"]
+}
