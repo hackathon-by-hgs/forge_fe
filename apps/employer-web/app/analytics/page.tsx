@@ -16,7 +16,7 @@ import {
   Select,
 } from '@forge/ui';
 import { formatCurrency, formatNumber } from '@forge/ui/utils';
-import { MOCK_JOBS, MOCK_WORKERS } from '@forge/mock-data';
+import { MOCK_WORKERS } from '@forge/mock-data';
 
 const HOURS = Array.from({ length: 12 }, (_, i) => `${i + 6}:00`);
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];

@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import {
   AreaChart,
-  Avatar,
   Badge,
   Button,
   Card,
@@ -18,7 +17,6 @@ import {
 } from '@forge/ui';
 import {
   IconAdd,
-  IconBriefcase,
   IconCredit,
   IconLocation,
   IconUser,
