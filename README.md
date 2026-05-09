@@ -74,15 +74,15 @@ Each `railway.json` runs from the repo root, so commands stay simple:
 // apps/employer-web/railway.json
 {
   "build": {
-    "buildCommand": "npm install -g pnpm@9 && pnpm install --frozen-lockfile && pnpm --filter employer-web... build"
+    "buildCommand": "pnpm install --frozen-lockfile && pnpm --filter employer-web... build"
   },
   "deploy": {
-    "startCommand": "npx -y pnpm@9 --filter employer-web start"
+    "startCommand": "pnpm --filter employer-web start"
   }
 }
 ```
 
-`npm install -g pnpm@9` installs pnpm via `npm` (always present in Nixpacks' Node image). We do not use `corepack enable` here because Railway's Nixpacks Node images don't expose `corepack` on `PATH`. `--filter employer-web...` (three dots) builds the app and only its workspace dependencies. `npx -y pnpm@9` at start time is a belt-and-braces fallback in case the runtime user's `PATH` doesn't include the build-time global pnpm.
+We do not install pnpm explicitly: Nixpacks' `nodejs_20` Nix package ships with pnpm pre-installed in the Nix store and on `PATH`. Trying to `npm install -g pnpm@9` fails with `EEXIST` because the Nix store is immutable. We also do not use `corepack enable` because Railway's Nixpacks Node images don't expose `corepack` on `PATH`. `--filter employer-web...` (three dots) builds the app and only its workspace dependencies.
 
 The `start` script in each app's `package.json` does NOT pin a port — it's just `next start`, which reads `$PORT` from the environment. Railway injects `$PORT` per service.
 
