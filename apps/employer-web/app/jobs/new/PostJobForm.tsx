@@ -164,7 +164,7 @@ export function PostJobForm() {
                     className={`flex flex-col items-start gap-1 rounded-lg border p-3 text-left transition-colors ${
                       active
                         ? 'border-accent-500 bg-accent-50/60 text-accent-700'
-                        : 'border-neutral-200 bg-white text-neutral-700 hover:border-neutral-300'
+                        : 'border-outline bg-surface text-neutral-700 hover:bg-surface-container-high'
                     }`}
                   >
                     <IconBriefcase className="!h-4 !w-4" />
@@ -260,7 +260,7 @@ export function PostJobForm() {
           <CardTitle>Audience</CardTitle>
         </CardHeader>
         <CardBody className="space-y-3">
-          <label className="flex items-start gap-3 rounded-lg border border-neutral-200 p-3 hover:border-neutral-300">
+          <label className="flex items-start gap-3 rounded-lg border border-outline p-3 hover:border-outline hover:bg-surface-container-high">
             <input
               type="radio"
               value="public"
@@ -274,7 +274,7 @@ export function PostJobForm() {
               </p>
             </div>
           </label>
-          <label className="flex items-start gap-3 rounded-lg border border-neutral-200 p-3 hover:border-neutral-300">
+          <label className="flex items-start gap-3 rounded-lg border border-outline p-3 hover:border-outline hover:bg-surface-container-high">
             <input
               type="radio"
               value="team_first"
@@ -289,7 +289,7 @@ export function PostJobForm() {
             </div>
           </label>
 
-          <div className="flex items-center justify-between rounded-lg border border-neutral-200 p-3">
+          <div className="flex items-center justify-between rounded-lg border border-outline p-3">
             <div>
               <p className="text-sm font-medium text-neutral-900">Post immediately</p>
               <p className="text-xs text-neutral-500">
@@ -305,7 +305,7 @@ export function PostJobForm() {
       </Card>
 
       {/* Sticky action bar */}
-      <div className="sticky bottom-0 -mx-6 border-t border-neutral-200 bg-white/95 px-6 py-3 backdrop-blur">
+      <div className="sticky bottom-0 -mx-6 border-t border-outline bg-surface/95 px-6 py-3 backdrop-blur">
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs text-neutral-500">
             <IconClock className="!h-3.5 !w-3.5 -mt-0.5 mr-0.5 inline-block" />

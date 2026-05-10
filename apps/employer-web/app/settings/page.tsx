@@ -141,7 +141,7 @@ export default function SettingsPage() {
                 ].map((n) => (
                   <div
                     key={n.label}
-                    className="flex items-center justify-between rounded-lg border border-neutral-200 p-3"
+                    className="flex items-center justify-between rounded-lg border border-outline p-3"
                   >
                     <div>
                       <p className="text-sm font-medium text-neutral-900">{n.label}</p>
@@ -164,7 +164,7 @@ export default function SettingsPage() {
                 <p className="text-sm text-neutral-600">
                   Funded payouts settle to this Squad wallet within minutes.
                 </p>
-                <div className="rounded-lg border border-neutral-200 bg-neutral-50/60 p-4">
+                <div className="rounded-lg border border-outline bg-surface-container-high p-4">
                   <p className="text-xs text-neutral-500">Wallet ID</p>
                   <p className="font-mono text-sm text-neutral-900">SQW-3087-0142-9913</p>
                 </div>
@@ -182,7 +182,7 @@ export default function SettingsPage() {
                 <CardTitle>Plan & invoicing</CardTitle>
               </CardHeader>
               <CardBody className="space-y-4">
-                <div className="flex items-center justify-between rounded-lg border border-neutral-200 p-4">
+                <div className="flex items-center justify-between rounded-lg border border-outline p-4">
                   <div>
                     <p className="text-sm font-medium text-neutral-900">Growth plan</p>
                     <p className="text-xs text-neutral-500">

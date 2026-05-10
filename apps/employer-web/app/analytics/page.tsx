@@ -169,7 +169,7 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardBody className="overflow-x-auto p-0">
             <table className="w-full text-sm">
-              <thead className="border-b border-neutral-200 bg-neutral-50/60">
+              <thead className="border-b border-outline bg-surface-container-high">
                 <tr>
                   {['Type', 'Jobs', 'Avg cost', 'Avg fill time', 'Completion rate'].map(
                     (h) => (

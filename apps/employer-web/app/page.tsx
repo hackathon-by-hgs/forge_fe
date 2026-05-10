@@ -301,7 +301,7 @@ export default function OverviewPage() {
                 <Link
                   key={j.id}
                   href={`/jobs/${j.id}`}
-                  className="flex items-center justify-between rounded-lg border border-neutral-200 p-3 hover:border-neutral-300"
+                  className="flex items-center justify-between rounded-lg border border-outline p-3 hover:bg-surface-container-high"
                 >
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-neutral-900">{j.title}</p>

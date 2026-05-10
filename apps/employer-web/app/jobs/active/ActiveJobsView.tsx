@@ -111,7 +111,7 @@ export function ActiveJobsView({ jobs }: { jobs: readonly Job[] }) {
               return (
                 <div
                   key={col.status}
-                  className="flex min-h-[60vh] flex-col gap-2 rounded-xl border border-neutral-200 bg-neutral-50/60 p-2"
+                  className="flex min-h-[60vh] flex-col gap-2 rounded-xl border border-outline bg-surface-container-high p-2"
                 >
                   <div className="flex items-center justify-between px-1.5 py-1">
                     <p className="text-xs font-semibold uppercase tracking-wide text-neutral-600">
@@ -133,7 +133,7 @@ export function ActiveJobsView({ jobs }: { jobs: readonly Job[] }) {
                           <Link
                             key={j.id}
                             href={`/jobs/${j.id}`}
-                            className="block rounded-lg border border-neutral-200 bg-white p-2.5 text-sm transition-colors hover:border-neutral-300"
+                            className="block rounded-lg border border-outline bg-surface p-2.5 text-sm transition-colors hover:bg-surface-container-high"
                           >
                             <p className="line-clamp-2 font-medium text-neutral-900">
                               {j.title}

@@ -105,7 +105,7 @@ export default function MyTeamPage() {
         </div>
 
         {team.length > pageSize ? (
-          <div className="rounded-xl border border-neutral-200 bg-white">
+          <div className="rounded-xl border border-outline bg-surface-container">
             <Pagination
               page={page}
               pageSize={pageSize}

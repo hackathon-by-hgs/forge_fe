@@ -41,7 +41,7 @@ export default function PostAJobPage() {
                 <button
                   key={j.id}
                   type="button"
-                  className="rounded-lg border border-neutral-200 bg-white p-3 text-left transition-colors hover:border-accent-300 hover:bg-accent-50/40"
+                  className="rounded-lg border border-outline bg-surface p-3 text-left transition-colors hover:border-accent-300 hover:bg-accent-50/40"
                 >
                   <p className="line-clamp-1 text-sm font-medium text-neutral-900">
                     {j.title}
