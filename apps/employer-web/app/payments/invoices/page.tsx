@@ -113,6 +113,7 @@ export default function InvoicesPage() {
           emptyTitle="No invoices yet"
           emptyDescription="Generate your first invoice from a completed job."
           emptyIcon={<IconReceipt className="!h-5 !w-5" />}
+          pagination={{ pageSizeOptions: [10, 25, 50, 100], itemLabel: 'invoice' }}
         />
       </div>
     </>

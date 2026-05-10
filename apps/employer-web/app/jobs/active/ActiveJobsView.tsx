@@ -176,6 +176,7 @@ export function ActiveJobsView({ jobs }: { jobs: readonly Job[] }) {
           rowKey={(j) => j.id}
           emptyTitle="No active jobs"
           emptyDescription="Post a job to start hiring."
+          pagination={{ pageSizeOptions: [10, 25, 50, 100], itemLabel: 'job' }}
         />
       </TabsContent>
     </Tabs>

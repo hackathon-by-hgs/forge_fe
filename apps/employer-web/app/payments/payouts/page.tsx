@@ -147,6 +147,7 @@ export default function PayoutsPage() {
                 columns={columns}
                 rowKey={(p) => p.id}
                 density="compact"
+                pagination={{ defaultPageSize: 10, pageSizeOptions: [10, 25, 50], itemLabel: 'payout' }}
               />
             </CardBody>
           </Card>

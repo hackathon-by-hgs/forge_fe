@@ -145,6 +145,7 @@ export default function BrowseTalentPage() {
           rowKey={(w) => w.id}
           emptyTitle="No workers found"
           emptyDescription="Try widening your filters or your job radius."
+          pagination={{ pageSizeOptions: [10, 25, 50, 100], itemLabel: 'worker' }}
         />
       </div>
     </>

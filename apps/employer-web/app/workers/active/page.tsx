@@ -154,6 +154,7 @@ export default function WorkersActivePage() {
           rowKey={({ job }) => job.id}
           emptyTitle="No workers on the clock"
           emptyDescription="When workers start a job for you, they appear here."
+          pagination={{ pageSizeOptions: [10, 25, 50, 100], itemLabel: 'worker' }}
         />
       </div>
     </>

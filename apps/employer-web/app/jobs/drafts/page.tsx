@@ -95,6 +95,7 @@ export default function JobsDraftsPage() {
               <Button>Start a draft</Button>
             </Link>
           }
+          pagination={{ pageSizeOptions: [10, 25, 50, 100], itemLabel: 'draft' }}
         />
       </div>
     </>

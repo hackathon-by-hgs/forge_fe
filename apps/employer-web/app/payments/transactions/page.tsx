@@ -162,6 +162,7 @@ export default function TransactionsPage() {
           rowKey={(t) => t.id}
           emptyTitle="No transactions"
           emptyDescription="Payments to workers will appear here in real-time."
+          pagination={{ pageSizeOptions: [10, 25, 50, 100], itemLabel: 'transaction' }}
         />
       </div>
     </>

@@ -98,6 +98,7 @@ export default function JobsHistoryPage() {
           rowKey={(j) => j.id}
           emptyTitle="No past jobs"
           emptyDescription="Completed and cancelled jobs will appear here."
+          pagination={{ pageSizeOptions: [10, 25, 50, 100], itemLabel: 'job' }}
         />
       </div>
     </>

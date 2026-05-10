@@ -1,4 +1,7 @@
+'use client';
+
 import Link from 'next/link';
+import { useState } from 'react';
 import {
   Avatar,
   Badge,
@@ -7,19 +10,26 @@ import {
   CardBody,
   Input,
   PageHeader,
+  Pagination,
   RadialProgress,
   RoutedTabs,
   Select,
+  paginate,
 } from '@forge/ui';
 import { IconAdd, IconSearch } from '@forge/ui/icons';
 import { MOCK_WORKERS } from '@forge/mock-data';
 import { workersTabs } from '../../../lib/nav';
 
+const PAGE_SIZE_OPTIONS = [12, 24, 48] as const;
+
 export default function MyTeamPage() {
   const team = [...MOCK_WORKERS]
     .filter((w) => w.eligibility !== 'ineligible')
-    .sort((a, b) => b.reliabilityScore - a.reliabilityScore)
-    .slice(0, 12);
+    .sort((a, b) => b.reliabilityScore - a.reliabilityScore);
+
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(PAGE_SIZE_OPTIONS[0]);
+  const visible = paginate(team, page, pageSize);
 
   return (
     <>
@@ -55,7 +65,7 @@ export default function MyTeamPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {team.map((w) => (
+          {visible.map((w) => (
             <Card key={w.id}>
               <CardBody className="space-y-3">
                 <div className="flex items-center gap-3">
@@ -93,6 +103,21 @@ export default function MyTeamPage() {
             </Card>
           ))}
         </div>
+
+        {team.length > pageSize ? (
+          <div className="rounded-xl border border-neutral-200 bg-white">
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              total={team.length}
+              onPageChange={setPage}
+              pageSizeOptions={PAGE_SIZE_OPTIONS}
+              onPageSizeChange={setPageSize}
+              itemLabel="worker"
+              className="border-t-0"
+            />
+          </div>
+        ) : null}
       </div>
     </>
   );
