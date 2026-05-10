@@ -41,7 +41,7 @@ import {
   STATUS_LABEL,
   STATUS_TONE,
   getLoanAudit,
-} from '../../../lib/loanUtils';
+} from '../../../../lib/loanUtils';
 
 const REPAYMENT_TONE: Record<LoanRepayment['status'], 'success' | 'danger' | 'neutral'> = {
   paid: 'success',

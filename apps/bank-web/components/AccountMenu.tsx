@@ -19,17 +19,27 @@ import {
   IconShield,
   IconUser,
 } from '@forge/ui/icons';
+import { useAuthStore } from '../lib/auth/store';
+import { roleLabel } from '../lib/auth/roleLabel';
 
-interface AccountMenuProps {
-  userName: string;
-  userEmail: string;
-  bankName: string;
-  role: string;
-}
-
-export function AccountMenu({ userName, userEmail, bankName, role }: AccountMenuProps) {
+export function AccountMenu() {
   const router = useRouter();
+  const { user, signingOut, signOut } = useAuthStore((s) => ({
+    user: s.user,
+    signingOut: s.signingOut,
+    signOut: s.signOut,
+  }));
+
+  const userName = user?.fullName ?? 'Forge Lender';
+  const userEmail = user?.email ?? '—';
+
   const go = (href: string) => () => router.push(href);
+
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    await signOut();
+    router.replace('/login');
+  };
 
   return (
     <DropdownMenu>
@@ -50,7 +60,7 @@ export function AccountMenu({ userName, userEmail, bankName, role }: AccountMenu
             <p className="truncate text-xs text-ink-muted">{userEmail}</p>
             <p className="mt-0.5 inline-flex items-center gap-1 text-[10px] text-ink-muted">
               <IconBank className="!h-3 !w-3" />
-              {bankName} · {role}
+              {roleLabel(user?.role)}
             </p>
           </div>
         </div>
@@ -97,8 +107,13 @@ export function AccountMenu({ userName, userEmail, bankName, role }: AccountMenu
         <DropdownMenuItem
           variant="danger"
           icon={<IconLogout className="!h-4 !w-4" />}
+          onSelect={(e) => {
+            e.preventDefault();
+            void handleSignOut();
+          }}
+          disabled={signingOut}
         >
-          Sign out
+          {signingOut ? 'Signing out…' : 'Sign out'}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

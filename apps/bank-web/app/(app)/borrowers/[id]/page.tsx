@@ -45,7 +45,7 @@ import {
   RISK_TONE,
   STATUS_LABEL,
   STATUS_TONE,
-} from '../../../lib/loanUtils';
+} from '../../../../lib/loanUtils';
 
 export default function BorrowerProfilePage({
   params,

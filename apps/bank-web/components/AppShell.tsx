@@ -1,6 +1,5 @@
 import { type ReactNode } from 'react';
 import {
-  Avatar,
   Input,
   PageShell,
   Sidebar,
@@ -10,13 +9,7 @@ import { IconBank, IconCommand, IconSearch } from '@forge/ui/icons';
 import { bankNav } from '../lib/nav';
 import { NotificationsPopover } from './NotificationsPopover';
 import { AccountMenu } from './AccountMenu';
-
-const USER = {
-  name: 'Chinwe Okafor',
-  email: 'chinwe.okafor@gtbank.ng',
-  bank: 'GTBank Lagos',
-  role: 'Credit Officer',
-};
+import { SidebarUserCard } from './SidebarUserCard';
 
 const Brand = (
   <div className="flex items-center gap-2">
@@ -30,20 +23,16 @@ const Brand = (
   </div>
 );
 
-const SidebarFooter = (
-  <div className="flex items-center gap-2.5">
-    <Avatar name={USER.bank} size="sm" />
-    <div className="min-w-0 flex-1">
-      <p className="truncate text-xs font-medium text-ink">{USER.bank}</p>
-      <p className="truncate text-[10px] text-ink-muted">{USER.email}</p>
-    </div>
-  </div>
-);
-
 export function AppShell({ children }: { children: ReactNode }) {
   return (
     <PageShell
-      sidebar={<Sidebar brand={Brand} sections={bankNav} footer={SidebarFooter} />}
+      sidebar={
+        <Sidebar
+          brand={Brand}
+          sections={bankNav}
+          footer={<SidebarUserCard />}
+        />
+      }
       topBar={
         <TopBar
           search={
@@ -62,12 +51,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           end={
             <>
               <NotificationsPopover />
-              <AccountMenu
-                userName={USER.name}
-                userEmail={USER.email}
-                bankName={USER.bank}
-                role={USER.role}
-              />
+              <AccountMenu />
             </>
           }
         />

@@ -30,7 +30,7 @@ import {
   MOCK_LOAN_APPLICATIONS,
   MOCK_WORKERS,
 } from '@forge/mock-data';
-import { DECISION_LABEL, DECISION_TONE } from '../../lib/loanUtils';
+import { DECISION_LABEL, DECISION_TONE } from '../../../lib/loanUtils';
 
 function resolveBorrower(app: LoanApplication) {
   if (app.borrowerType === 'worker') {

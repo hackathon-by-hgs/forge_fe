@@ -1,15 +1,13 @@
+'use client';
+
 import { type ReactNode } from 'react';
-import { Avatar, Input, PageShell, Sidebar, TopBar } from '@forge/ui';
-import { IconBuilding, IconCommand, IconSearch } from '@forge/ui/icons';
-import { employerNav } from '../lib/nav';
+import { Avatar, PageShell, Sidebar, TopBar } from '@forge/ui';
+import { IconBuilding } from '@forge/ui/icons';
+import { employerNavForRole } from '../lib/nav';
+import { useAuth } from '../lib/auth';
 import { NotificationsPopover } from './NotificationsPopover';
 import { AccountMenu } from './AccountMenu';
-
-const USER = {
-  name: 'Adeolu Adeyemi',
-  email: 'adeolu@apapatrade.ng',
-  business: 'Apapa Trade Co.',
-};
+import { GlobalSearch } from './GlobalSearch';
 
 const Brand = (
   <div className="flex items-center gap-2">
@@ -23,42 +21,37 @@ const Brand = (
   </div>
 );
 
-const SidebarFooter = (
-  <div className="flex items-center gap-2.5">
-    <Avatar name={USER.business} size="sm" />
-    <div className="min-w-0 flex-1">
-      <p className="truncate text-xs font-medium text-ink">{USER.business}</p>
-      <p className="truncate text-[10px] text-ink-muted">{USER.email}</p>
-    </div>
-  </div>
-);
-
 export function AppShell({ children }: { children: ReactNode }) {
+  // This component stays renderable even during auth boot; it can show placeholders.
+  const user = useAuth((s) => s.user);
+  const userName = user?.fullName ?? '—';
+  const userEmail = user?.email ?? '—';
+  const businessName = 'Employer';
+  const navSections = employerNavForRole(user?.role);
+
+  const sidebarFooter = (
+    <div className="flex items-center gap-2.5">
+      <Avatar name={businessName} size="sm" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-medium text-ink">{businessName}</p>
+        <p className="truncate text-[10px] text-ink-muted">{userEmail}</p>
+      </div>
+    </div>
+  );
+
   return (
     <PageShell
-      sidebar={<Sidebar brand={Brand} sections={employerNav} footer={SidebarFooter} />}
+      sidebar={<Sidebar brand={Brand} sections={navSections} footer={sidebarFooter} />}
       topBar={
         <TopBar
-          search={
-            <Input
-              type="search"
-              placeholder="Search jobs, workers, transactions…"
-              leadingIcon={<IconSearch className="!h-4 !w-4" />}
-              trailingIcon={
-                <kbd className="hidden items-center gap-1 rounded border border-outline bg-surface-container-high px-1.5 py-0.5 font-mono text-[10px] text-ink-muted sm:inline-flex">
-                  <IconCommand className="!h-3 !w-3" />K
-                </kbd>
-              }
-              className="max-w-md"
-            />
-          }
+          search={<GlobalSearch />}
           end={
             <>
               <NotificationsPopover />
               <AccountMenu
-                userName={USER.name}
-                userEmail={USER.email}
-                businessName={USER.business}
+                userName={userName}
+                userEmail={userEmail}
+                businessName={businessName}
               />
             </>
           }

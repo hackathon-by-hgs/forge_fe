@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import { type ReactNode } from 'react';
 import { ThemeProvider, ThemeScript } from '@forge/ui';
-import { AppShell } from '../components/AppShell';
+import { SessionProvider } from '../lib/auth/SessionProvider';
 import './globals.css';
 
 const inter = Inter({
@@ -34,7 +34,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className="font-sans antialiased">
         <ThemeProvider>
-          <AppShell>{children}</AppShell>
+          <SessionProvider>{children}</SessionProvider>
         </ThemeProvider>
       </body>
     </html>

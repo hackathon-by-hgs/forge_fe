@@ -25,7 +25,7 @@ import {
   RISK_TONE,
   STATUS_LABEL,
   STATUS_TONE,
-} from '../../lib/loanUtils';
+} from '../../../lib/loanUtils';
 
 const SCORE_BANDS: ReadonlyArray<{ label: string; min: number; max: number }> = [
   { label: '90–100', min: 90, max: 100 },

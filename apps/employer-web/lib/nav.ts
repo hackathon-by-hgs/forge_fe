@@ -1,4 +1,5 @@
 import type { RoutedTab, SidebarSection } from '@forge/ui';
+import type { components } from '@forge/types/api';
 import {
   IconDashboard,
   IconBriefcase,
@@ -9,7 +10,9 @@ import {
   IconSettings,
 } from '@forge/ui/icons';
 
-export const employerNav: SidebarSection[] = [
+export type DashboardRole = components['schemas']['SessionUserDto']['role'];
+
+const employerNavBase: SidebarSection[] = [
   {
     items: [{ label: 'Overview', href: '/', icon: IconDashboard }],
   },
@@ -32,6 +35,20 @@ export const employerNav: SidebarSection[] = [
     items: [{ label: 'Settings', href: '/settings', icon: IconSettings }],
   },
 ];
+
+export const employerNav: SidebarSection[] = employerNavBase;
+
+export function employerNavForRole(role: DashboardRole | null | undefined): SidebarSection[] {
+  if (role === 'business_hiring_manager') {
+    return employerNavBase
+      .map((section) => ({
+        ...section,
+        items: section.items?.filter((item) => item.href !== '/settings'),
+      }))
+      .filter((section) => (section.items?.length ?? 0) > 0 || section.label);
+  }
+  return employerNavBase;
+}
 
 export const jobsTabs: RoutedTab[] = [
   { label: 'Active', href: '/jobs/active' },

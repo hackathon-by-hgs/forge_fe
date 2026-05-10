@@ -18,6 +18,7 @@ import {
   IconShield,
   IconUser,
 } from '@forge/ui/icons';
+import { useAuth } from '../lib/auth';
 
 interface AccountMenuProps {
   userName: string;
@@ -28,6 +29,7 @@ interface AccountMenuProps {
 export function AccountMenu({ userName, userEmail, businessName }: AccountMenuProps) {
   const router = useRouter();
   const go = (href: string) => () => router.push(href);
+  const logout = useAuth((s) => s.logout);
 
   return (
     <DropdownMenu>
@@ -95,6 +97,7 @@ export function AccountMenu({ userName, userEmail, businessName }: AccountMenuPr
         <DropdownMenuItem
           variant="danger"
           icon={<IconLogout className="!h-4 !w-4" />}
+          onSelect={() => void logout()}
         >
           Sign out
         </DropdownMenuItem>

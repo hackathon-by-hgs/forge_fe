@@ -39,7 +39,7 @@ import {
   DECISION_LABEL,
   DECISION_TONE,
   getApplicationAudit,
-} from '../../../lib/loanUtils';
+} from '../../../../lib/loanUtils';
 
 export default function ApplicationDetailPage({
   params,

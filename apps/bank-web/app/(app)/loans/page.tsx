@@ -31,7 +31,7 @@ import {
   RISK_TONE,
   STATUS_LABEL,
   STATUS_TONE,
-} from '../../lib/loanUtils';
+} from '../../../lib/loanUtils';
 
 function resolveBorrower(loan: Loan) {
   if (loan.borrowerType === 'worker') {

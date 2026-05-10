@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Badge,
+  Button,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -17,8 +18,11 @@ import {
   IconUser,
 } from '@forge/ui/icons';
 import { formatRelativeTime } from '@forge/ui/utils';
+import { api } from '../lib/api';
 import {
-  getMockNotifications,
+  mapApiNotification,
+  parseNotificationRows,
+  parseUnreadCount,
   type AppNotification,
   type NotificationKind,
 } from '../lib/notifications';
@@ -40,12 +44,45 @@ const TONE: Record<NotificationKind, string> = {
 };
 
 export function NotificationsPopover() {
-  const [items, setItems] = useState<AppNotification[]>(() => getMockNotifications());
-  const unreadCount = items.filter((n) => n.unread).length;
+  const queryClient = useQueryClient();
 
-  const markAllRead = () => {
-    setItems((prev) => prev.map((n) => ({ ...n, unread: false })));
-  };
+  const listQuery = useQuery({
+    queryKey: ['notifications', 'list', { page: 1, pageSize: 20 }],
+    queryFn: async () => {
+      const raw: unknown = await api.get<unknown>('/v1/notifications?page=1&pageSize=20');
+      return parseNotificationRows(raw).map(mapApiNotification);
+    },
+  });
+
+  const unreadQuery = useQuery({
+    queryKey: ['notifications', 'unread-count'],
+    queryFn: async () => {
+      const raw: unknown = await api.get<unknown>('/v1/notifications/unread-count');
+      return parseUnreadCount(raw);
+    },
+  });
+
+  const items = listQuery.data ?? [];
+  const unreadFromList = items.filter((n) => n.unread).length;
+  const unreadCount = unreadQuery.data ?? unreadFromList;
+
+  const markAllRead = useMutation({
+    mutationFn: async () => {
+      await api.post<unknown>('/v1/notifications/mark-all-read');
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+
+  const markOneRead = useMutation({
+    mutationFn: async (id: string) => {
+      await api.post<unknown>(`/v1/notifications/${id}/read`);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
 
   return (
     <Popover>
@@ -72,16 +109,37 @@ export function NotificationsPopover() {
           {unreadCount > 0 ? (
             <button
               type="button"
-              onClick={markAllRead}
-              className="text-xs font-medium text-accent-600 hover:text-accent-700"
+              onClick={() => void markAllRead.mutateAsync()}
+              disabled={markAllRead.isPending}
+              className="text-xs font-medium text-accent-600 hover:text-accent-700 disabled:opacity-50"
             >
               Mark all read
             </button>
           ) : null}
         </div>
+
+        {listQuery.isLoading ? <p className="px-4 py-6 text-xs text-ink-muted">Loading…</p> : null}
+
+        {listQuery.isError ? (
+          <div className="px-4 py-4">
+            <p className="text-xs font-medium text-danger-600">Couldn’t load notifications</p>
+            <p className="mt-1 text-xs text-ink-muted">
+              {listQuery.error instanceof Error ? listQuery.error.message : 'Unknown error'}
+            </p>
+            <Button variant="secondary" size="sm" className="mt-2" onClick={() => void listQuery.refetch()}>
+              Retry
+            </Button>
+          </div>
+        ) : null}
+
+        {!listQuery.isLoading && !listQuery.isError && items.length === 0 ? (
+          <p className="px-4 py-6 text-xs text-ink-muted">No notifications yet.</p>
+        ) : null}
+
         <ul className="max-h-[420px] overflow-y-auto divide-y divide-outline-variant">
-          {items.map((n) => {
-            const body = (
+          {!listQuery.isLoading && !listQuery.isError
+            ? items.map((n: AppNotification) => {
+            const row = (
               <>
                 <span
                   className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${TONE[n.kind]}`}
@@ -111,23 +169,30 @@ export function NotificationsPopover() {
                   <Link
                     href={n.href}
                     className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-surface-container"
+                    onClick={() => {
+                      if (n.unread) void markOneRead.mutateAsync(n.id);
+                    }}
                   >
-                    {body}
+                    {row}
                   </Link>
                 ) : (
-                  <div className="flex items-start gap-3 px-4 py-3">{body}</div>
+                  <button
+                    type="button"
+                    className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-container"
+                    onClick={() => {
+                      if (n.unread) void markOneRead.mutateAsync(n.id);
+                    }}
+                  >
+                    {row}
+                  </button>
                 )}
               </li>
             );
-          })}
+              })
+            : null}
         </ul>
         <div className="border-t border-outline-variant px-4 py-2 text-center">
-          <Link
-            href="#"
-            className="text-xs font-medium text-accent-600 hover:text-accent-700"
-          >
-            View all notifications
-          </Link>
+          <span className="text-xs text-ink-muted">Live updates arrive via SSE in Phase 4.</span>
         </div>
       </PopoverContent>
     </Popover>
