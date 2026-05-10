@@ -6,8 +6,17 @@ import {
   Sidebar,
   TopBar,
 } from '@forge/ui';
-import { IconBank, IconBell, IconCommand, IconSearch } from '@forge/ui/icons';
+import { IconBank, IconCommand, IconSearch } from '@forge/ui/icons';
 import { bankNav } from '../lib/nav';
+import { NotificationsPopover } from './NotificationsPopover';
+import { AccountMenu } from './AccountMenu';
+
+const USER = {
+  name: 'Chinwe Okafor',
+  email: 'chinwe.okafor@gtbank.ng',
+  bank: 'GTBank Lagos',
+  role: 'Credit Officer',
+};
 
 const Brand = (
   <div className="flex items-center gap-2">
@@ -15,18 +24,18 @@ const Brand = (
       <IconBank className="!h-4 !w-4" />
     </div>
     <div className="flex flex-col leading-tight">
-      <span className="text-sm font-semibold text-neutral-900">FinanceBank</span>
-      <span className="text-[10px] uppercase tracking-wider text-neutral-400">Lender</span>
+      <span className="text-sm font-semibold text-ink">Forge</span>
+      <span className="text-[10px] uppercase tracking-wider text-ink-muted">Lender</span>
     </div>
   </div>
 );
 
 const SidebarFooter = (
   <div className="flex items-center gap-2.5">
-    <Avatar name="GTBank Lagos" size="sm" />
+    <Avatar name={USER.bank} size="sm" />
     <div className="min-w-0 flex-1">
-      <p className="truncate text-xs font-medium text-neutral-900">GTBank Lagos</p>
-      <p className="truncate text-[10px] text-neutral-500">credit.ops@gtbank.ng</p>
+      <p className="truncate text-xs font-medium text-ink">{USER.bank}</p>
+      <p className="truncate text-[10px] text-ink-muted">{USER.email}</p>
     </div>
   </div>
 );
@@ -43,7 +52,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               placeholder="Search borrowers, loans, applications…"
               leadingIcon={<IconSearch className="!h-4 !w-4" />}
               trailingIcon={
-                <kbd className="hidden items-center gap-1 rounded border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 font-mono text-[10px] text-neutral-500 sm:inline-flex">
+                <kbd className="hidden items-center gap-1 rounded border border-outline bg-surface-container-high px-1.5 py-0.5 font-mono text-[10px] text-ink-muted sm:inline-flex">
                   <IconCommand className="!h-3 !w-3" />K
                 </kbd>
               }
@@ -52,15 +61,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           }
           end={
             <>
-              <button
-                type="button"
-                aria-label="Notifications"
-                className="relative inline-flex h-9 w-9 items-center justify-center rounded-md text-neutral-600 hover:bg-neutral-100"
-              >
-                <IconBell className="!h-5 !w-5" />
-                <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-warning-500" />
-              </button>
-              <Avatar name="Chinwe Okafor" size="sm" />
+              <NotificationsPopover />
+              <AccountMenu
+                userName={USER.name}
+                userEmail={USER.email}
+                bankName={USER.bank}
+                role={USER.role}
+              />
             </>
           }
         />
