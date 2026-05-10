@@ -1,10 +1,12 @@
 'use client';
 
 import { type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Avatar, PageShell, Sidebar, TopBar } from '@forge/ui';
 import { IconBuilding } from '@forge/ui/icons';
 import { employerNavForRole } from '../lib/nav';
 import { useAuth } from '../lib/auth';
+import { getBusinessProfile } from '../lib/settingsApi';
 import { NotificationsPopover } from './NotificationsPopover';
 import { AccountMenu } from './AccountMenu';
 import { GlobalSearch } from './GlobalSearch';
@@ -26,8 +28,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const user = useAuth((s) => s.user);
   const userName = user?.fullName ?? '—';
   const userEmail = user?.email ?? '—';
-  const businessName = 'Employer';
-  const navSections = employerNavForRole(user?.role);
+  const businessQuery = useQuery({
+    queryKey: ['settings', 'business', 'shell'],
+    queryFn: getBusinessProfile,
+    enabled: Boolean(user),
+  });
+  const businessName = businessQuery.data?.businessName ?? 'Employer';
+  const navSections = employerNavForRole();
 
   const sidebarFooter = (
     <div className="flex items-center gap-2.5">
@@ -44,7 +51,14 @@ export function AppShell({ children }: { children: ReactNode }) {
       sidebar={<Sidebar brand={Brand} sections={navSections} footer={sidebarFooter} />}
       topBar={
         <TopBar
-          search={<GlobalSearch />}
+          search={
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <span className="hidden max-w-[10rem] shrink-0 truncate text-sm font-semibold text-ink md:inline">
+                {businessName}
+              </span>
+              <GlobalSearch />
+            </div>
+          }
           end={
             <>
               <NotificationsPopover />

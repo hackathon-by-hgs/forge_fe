@@ -18,11 +18,10 @@ import {
   IconUser,
 } from '@forge/ui/icons';
 import { formatRelativeTime } from '@forge/ui/utils';
+import type { components } from '@forge/types/api';
 import { api } from '../lib/api';
 import {
-  mapApiNotification,
-  parseNotificationRows,
-  parseUnreadCount,
+  mapDashboardNotification,
   type AppNotification,
   type NotificationKind,
 } from '../lib/notifications';
@@ -43,23 +42,26 @@ const TONE: Record<NotificationKind, string> = {
   credit_update: 'bg-secondary-50 text-secondary-600',
 };
 
+type NotificationsListResponseDto = components['schemas']['NotificationsListResponseDto'];
+
 export function NotificationsPopover() {
   const queryClient = useQueryClient();
 
   const listQuery = useQuery({
-    queryKey: ['notifications', 'list', { page: 1, pageSize: 20 }],
+    queryKey: ['notifications', 'list', { page: 1, pageSize: 10 }],
     queryFn: async () => {
-      const raw: unknown = await api.get<unknown>('/v1/notifications?page=1&pageSize=20');
-      return parseNotificationRows(raw).map(mapApiNotification);
+      const raw = await api.get<NotificationsListResponseDto>('/v1/notifications?page=1&pageSize=10');
+      return raw.data.map(mapDashboardNotification);
     },
   });
 
   const unreadQuery = useQuery({
     queryKey: ['notifications', 'unread-count'],
     queryFn: async () => {
-      const raw: unknown = await api.get<unknown>('/v1/notifications/unread-count');
-      return parseUnreadCount(raw);
+      const raw = await api.get<components['schemas']['UnreadCountDto']>('/v1/notifications/unread-count');
+      return raw.unreadCount;
     },
+    refetchInterval: 60_000,
   });
 
   const items = listQuery.data ?? [];
@@ -139,60 +141,65 @@ export function NotificationsPopover() {
         <ul className="max-h-[420px] overflow-y-auto divide-y divide-outline-variant">
           {!listQuery.isLoading && !listQuery.isError
             ? items.map((n: AppNotification) => {
-            const row = (
-              <>
-                <span
-                  className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${TONE[n.kind]}`}
-                >
-                  {ICON[n.kind]}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <p className="text-sm font-medium text-ink">{n.title}</p>
-                    <span className="shrink-0 text-[10px] text-ink-muted">
-                      {formatRelativeTime(n.occurredAt)}
+                const row = (
+                  <>
+                    <span
+                      className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${TONE[n.kind]}`}
+                    >
+                      {ICON[n.kind]}
                     </span>
-                  </div>
-                  <p className="line-clamp-2 text-xs text-ink-muted">{n.detail}</p>
-                </div>
-                {n.unread ? (
-                  <span
-                    className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent-500"
-                    aria-label="Unread"
-                  />
-                ) : null}
-              </>
-            );
-            return (
-              <li key={n.id}>
-                {n.href ? (
-                  <Link
-                    href={n.href}
-                    className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-surface-container"
-                    onClick={() => {
-                      if (n.unread) void markOneRead.mutateAsync(n.id);
-                    }}
-                  >
-                    {row}
-                  </Link>
-                ) : (
-                  <button
-                    type="button"
-                    className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-container"
-                    onClick={() => {
-                      if (n.unread) void markOneRead.mutateAsync(n.id);
-                    }}
-                  >
-                    {row}
-                  </button>
-                )}
-              </li>
-            );
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="text-sm font-medium text-ink">{n.title}</p>
+                        <span className="shrink-0 text-[10px] text-ink-muted">
+                          {formatRelativeTime(n.occurredAt)}
+                        </span>
+                      </div>
+                      <p className="line-clamp-2 text-xs text-ink-muted">{n.detail}</p>
+                    </div>
+                    {n.unread ? (
+                      <span
+                        className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent-500"
+                        aria-label="Unread"
+                      />
+                    ) : null}
+                  </>
+                );
+                return (
+                  <li key={n.id}>
+                    {n.href ? (
+                      <Link
+                        href={n.href}
+                        className="flex items-start gap-3 px-4 py-3 transition-colors hover:bg-surface-container"
+                        onClick={() => {
+                          if (n.unread) void markOneRead.mutateAsync(n.id);
+                        }}
+                      >
+                        {row}
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        className="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-container"
+                        onClick={() => {
+                          if (n.unread) void markOneRead.mutateAsync(n.id);
+                        }}
+                      >
+                        {row}
+                      </button>
+                    )}
+                  </li>
+                );
               })
             : null}
         </ul>
         <div className="border-t border-outline-variant px-4 py-2 text-center">
-          <span className="text-xs text-ink-muted">Live updates arrive via SSE in Phase 4.</span>
+          <Link
+            href="/notifications"
+            className="text-xs font-medium text-accent-600 hover:text-accent-700"
+          >
+            View all notifications
+          </Link>
         </div>
       </PopoverContent>
     </Popover>

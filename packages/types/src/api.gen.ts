@@ -13,7 +13,18 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Request an SMS OTP for login or signup. */
+        /**
+         * Request an SMS OTP for login or signup.
+         * @description **Audience:** Worker mobile app (Flutter).
+         *
+         *     **Powers:** "Enter phone number" screen on first launch and re-login.
+         *
+         *     **Behavior:** Sends OTP via Termii. Rate-limited to 5/15min per phone (BACKEND_BRIEF §6).
+         *
+         *     Returns a `challenge_id` the client passes back to `/auth/otp/verify`.
+         *
+         *     In dev with `OTP_DEBUG_EXPOSE=true`, also retrievable via `/auth/otp/debug/{challengeId}`.
+         */
         post: operations["AuthController_requestOtp"];
         delete?: never;
         options?: never;
@@ -30,7 +41,16 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Exchange a challenge + code for a token pair. */
+        /**
+         * Exchange a challenge + code for a token pair.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** "Enter 6-digit code" screen.
+         *
+         *     **Behavior:** On success returns access + refresh tokens (worker scope, `bearer` scheme).
+         *
+         *     For first-time signups, the response also flags `requires_profile_setup=true` so the app routes to `/auth/profile-setup`.
+         */
         post: operations["AuthController_verifyOtp"];
         delete?: never;
         options?: never;
@@ -47,7 +67,16 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Complete signup by setting name, skill, photo, and radius. */
+        /**
+         * Complete signup by setting name, skill, photo, and radius.
+         * @description **Audience:** Worker mobile app — first-launch onboarding only.
+         *
+         *     **Powers:** "Set up your profile" wizard (name → primary skill → photo upload → preferred radius).
+         *
+         *     **Behavior:** Idempotent on `Idempotency-Key`. The photo `upload_id` must come from a prior `POST /uploads`
+         *
+         *     with `purpose=profile_photo`. Once set up, this endpoint 409s on retry.
+         */
         post: operations["AuthController_profileSetup"];
         delete?: never;
         options?: never;
@@ -64,7 +93,18 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Exchange a refresh token for a new pair (single-use). */
+        /**
+         * Exchange a refresh token for a new pair (single-use).
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** Silent token refresh in the mobile app HTTP layer (called on 401).
+         *
+         *     **Behavior:** Refresh tokens are body-based (not cookie) for the mobile audience.
+         *
+         *     Reuse-detection: presenting the same refresh token twice invalidates the entire token family.
+         *
+         *     For the dashboard-side (cookie) refresh, see `POST /dashboard/auth/refresh`.
+         */
         post: operations["AuthController_refresh"];
         delete?: never;
         options?: never;
@@ -81,7 +121,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Invalidate the current refresh token. Best-effort. */
+        /**
+         * Invalidate the current refresh token. Best-effort.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** "Sign out" in worker app Settings.
+         *
+         *     **Behavior:** Best-effort — succeeds even if the token is already invalid (returns 204 either way).
+         */
         post: operations["AuthController_logout"];
         delete?: never;
         options?: never;
@@ -96,7 +143,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Dev/staging only — returns the OTP for a challenge. Disabled in prod. */
+        /**
+         * Dev/staging only — returns the OTP for a challenge. Disabled in prod.
+         * @description **Audience:** Internal — devs and QA only.
+         *
+         *     **Powers:** Local mobile testing without an SMS gateway.
+         *
+         *     **Behavior:** Active only when `OTP_DEBUG_EXPOSE=true`. Always disabled in production.
+         */
         get: operations["AuthController_debug"];
         put?: never;
         post?: never;
@@ -115,7 +169,21 @@ export interface paths {
         };
         /**
          * Nearby jobs feed, sorted by relevance.
-         * @description Filters out jobs already applied to and any whose `start_time` has passed.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** Home tab — "Jobs near you" infinite-scroll feed.
+         *
+         *     **Behavior:** Filters out jobs already applied to and any whose `start_time` has passed.
+         *
+         *     Cursor-paginated (worker mobile uses cursor; dashboards use offset).
+         *
+         *     Honors `audience=team_first` — workers not on the employer's team list see the job only after the 30-min flip
+         *
+         *     (BACKEND_BRIEF §11.1).
+         *
+         *
+         *
+         *     > Not to be confused with the **employer dashboard** `GET /v1/jobs` (Phase 2) which lists jobs scoped to the calling employer.
          */
         get: operations["JobsController_feed"];
         put?: never;
@@ -133,7 +201,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Single job, with viewer-application and applicants count. */
+        /**
+         * Single job, with viewer-application and applicants count.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** Job detail screen (the page reached by tapping a card in the feed).
+         *
+         *     **Behavior:** Returns 410 if the job has been filled or its start time passed.
+         *
+         *     Includes `viewer_application` (the caller's pending/accepted/etc. status, if any) and `applicants_count`.
+         */
         get: operations["JobsController_detail"];
         put?: never;
         post?: never;
@@ -152,7 +229,18 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Apply to a job. Idempotent — retries return the same application. */
+        /**
+         * Apply to a job. Idempotent — retries return the same application.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** "Apply" CTA on the job detail screen.
+         *
+         *     **Behavior:** Idempotent on `Idempotency-Key`. 409 if already applied; 410 if the job is filled or expired.
+         *
+         *     When the employer subsequently accepts this application, BACKEND_BRIEF §11.2 dictates that all other
+         *
+         *     pending applications on the same job are auto-rejected in the same transaction.
+         */
         post: operations["JobsController_apply"];
         delete?: never;
         options?: never;
@@ -169,7 +257,11 @@ export interface paths {
         };
         /**
          * List my applications, bucketed `active` or `history`.
-         * @description `active` = applied | accepted | in_progress; `history` = completed | rejected | withdrawn.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** "My Jobs" tab — Active and History segmented control.
+         *
+         *     **Buckets:** `active` = applied | accepted | in_progress; `history` = completed | rejected | withdrawn.
          */
         get: operations["ApplicationsController_list"];
         put?: never;
@@ -187,7 +279,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Single application with full job + session. */
+        /**
+         * Single application with full job + session.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** Application detail screen reached from the "My Jobs" list.
+         *
+         *     Returns the full job, the application status, and the related work session if one exists
+         *
+         *     (used to deep-link into clock-in/clock-out flows).
+         */
         get: operations["ApplicationsController_detail"];
         put?: never;
         post?: never;
@@ -206,7 +307,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Withdraw an application (only valid while status is `applied`). */
+        /**
+         * Withdraw an application (only valid while status is `applied`).
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** "Withdraw application" CTA on the application detail screen.
+         *
+         *     Only allowed before the employer accepts; once accepted the worker must contact the employer directly.
+         */
         post: operations["ApplicationsController_withdraw"];
         delete?: never;
         options?: never;
@@ -223,7 +331,24 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Clock in. Verifies geofence and starts the session. */
+        /**
+         * Clock in. Verifies geofence and starts the session.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** "Clock in" full-screen flow on the accepted-job detail screen.
+         *
+         *     **Behavior:** Verifies the worker is within 100 m of the job's pinned location and that GPS accuracy is ≤ 30 m
+         *
+         *     (BACKEND_BRIEF §11.3). Outside-geofence or low-accuracy clock-ins are rejected with 422; the mobile UI
+         *
+         *     should surface the GPS quality so the worker can move/wait. Idempotent on `Idempotency-Key`.
+         *
+         *
+         *
+         *     **Dashboard impact:** A successful clock-in flips the employer-facing job status to `in_progress` and emits
+         *
+         *     the `worker_clocked_in` SSE event consumed by the employer Overview live-map and activity feed.
+         */
         post: operations["SessionsController_clockIn"];
         delete?: never;
         options?: never;
@@ -238,7 +363,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Heartbeat / live session read. Polled every 60s. */
+        /**
+         * Heartbeat / live session read. Polled every 60s.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** "On the clock" live tracking screen — refreshes elapsed time, expected pay, and any employer-side
+         *
+         *     state changes (e.g. job cancelled). Polled at 60s; designed to be cheap (no joins beyond the session row).
+         */
         get: operations["SessionsController_heartbeat"];
         put?: never;
         post?: never;
@@ -257,7 +389,28 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Clock out. Triggers Squad disbursement and (if applicable) loan deduction. */
+        /**
+         * Clock out. Triggers Squad disbursement and (if applicable) loan deduction.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** "Clock out" flow — requires a photo proof `upload_id` produced by `POST /uploads`
+         *
+         *     with `purpose=clock_out_proof`.
+         *
+         *     **Behavior:** Transitions job to `pending_verification`, then `completed` after proof verification or 30-min
+         *
+         *     timeout (BACKEND_BRIEF §11.5). Auto-payment is queued on completion (§11.6) — Squad transfer with same
+         *
+         *     idempotency. Returns 202 if the disbursement is queued asynchronously, 200 if it settled synchronously.
+         *
+         *     Outside-geofence clock-outs return 422 (`OUTSIDE_GEOFENCE`).
+         *
+         *
+         *
+         *     **Dashboard impact:** Emits `worker_clocked_out`, `photo_proof_uploaded`, `job_completed`, and
+         *
+         *     `payment_initiated` SSE events consumed by the employer Overview live-map, activity feed, and Payments page.
+         */
         post: operations["SessionsController_clockOut"];
         delete?: never;
         options?: never;
@@ -272,7 +425,18 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Worker transaction ledger, newest first. */
+        /**
+         * Worker transaction ledger, newest first.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** Wallet tab — "Recent activity" list (job payments in, withdrawals out, loan disbursements/repayments).
+         *
+         *
+         *
+         *     > Distinct from the **employer dashboard** `GET /v1/transactions` (Phase 3) which lists Squad transfers
+         *
+         *     out from the calling employer's wallet.
+         */
         get: operations["TransactionsController_list"];
         put?: never;
         post?: never;
@@ -289,7 +453,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Single transaction with related job / bank context. */
+        /**
+         * Single transaction with related job / bank context.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** Transaction detail bottom-sheet on the wallet tab — shows the job title, employer,
+         *
+         *     destination bank account (for withdrawals), and Squad reference for support.
+         */
         get: operations["TransactionsController_detail"];
         put?: never;
         post?: never;
@@ -306,7 +477,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Preview fee, ETA and destination for a withdrawal. */
+        /**
+         * Preview fee, ETA and destination for a withdrawal.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** Withdraw flow — the "you will receive ₦X after fees" confirmation card.
+         *
+         *     Pure read; debounced as the worker edits the amount field.
+         */
         get: operations["WithdrawalsController_preview"];
         put?: never;
         post?: never;
@@ -325,7 +503,18 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Initiate a withdrawal to the chosen bank account. */
+        /**
+         * Initiate a withdrawal to the chosen bank account.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** "Withdraw" final CTA on the wallet flow. Idempotent on `Idempotency-Key`.
+         *
+         *     **Behavior:** Creates a `Transaction` row with `status=processing` and queues a Squad transfer.
+         *
+         *     Final settlement comes via the Squad webhook — the mobile UI should poll the transaction or wait for the
+         *
+         *     `payment_processed` push notification.
+         */
         post: operations["WithdrawalsController_submit"];
         delete?: never;
         options?: never;
@@ -340,7 +529,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Static list of supported Nigerian banks (NIBSS codes). */
+        /**
+         * Static list of supported Nigerian banks (NIBSS codes).
+         * @description **Audience:** Public (no auth) — used by both the worker app and any future signup-time bank picker.
+         *
+         *     **Powers:** Bank dropdown in "Add bank account" forms. Returns the static NIBSS-coded list
+         *
+         *     (`NibssBank` table — see DECISIONS.md 0006 for why this was renamed from `Bank`).
+         */
         get: operations["BanksController_list"];
         put?: never;
         post?: never;
@@ -357,10 +553,24 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List my linked bank accounts. */
+        /**
+         * List my linked bank accounts.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** Wallet → "Linked bank accounts" list and the destination picker on the Withdraw flow.
+         */
         get: operations["BanksController_mine"];
         put?: never;
-        /** Link a bank account. */
+        /**
+         * Link a bank account.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** "Confirm and link" CTA on the Add Bank flow. Idempotent on `Idempotency-Key`.
+         *
+         *     **Behavior:** 422 (`NAME_DOES_NOT_MATCH_PROFILE`) if the resolved bank name doesn't match the worker's
+         *
+         *     on-platform legal name closely enough — fraud control. The first linked account is auto-promoted to default.
+         */
         post: operations["BanksController_link"];
         delete?: never;
         options?: never;
@@ -377,7 +587,16 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Resolve a (bank, account_number) pair via NIBSS to confirm the name. */
+        /**
+         * Resolve a (bank, account_number) pair via NIBSS to confirm the name.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** "Add bank account" form — called when the worker leaves the account-number field.
+         *
+         *     Returns the resolved name from NIBSS so the worker can confirm before linking.
+         *
+         *     502 if the upstream provider is unavailable; the form should let the user retry.
+         */
         post: operations["BanksController_resolve"];
         delete?: never;
         options?: never;
@@ -394,7 +613,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Promote a bank account to default. */
+        /**
+         * Promote a bank account to default.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** "Set as default" action on the Linked Accounts list.
+         *
+         *     The default account is what auto-payments and withdrawal-flow defaults route to.
+         */
         post: operations["BanksController_promote"];
         delete?: never;
         options?: never;
@@ -412,7 +638,14 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** Remove a bank account. */
+        /**
+         * Remove a bank account.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** Swipe-to-delete on the Linked Accounts list.
+         *
+         *     Refuses (409) if it's the only account or the current default — promote another first.
+         */
         delete: operations["BanksController_remove"];
         options?: never;
         head?: never;
@@ -426,7 +659,20 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Credit score, tier, and eligibility ceiling. */
+        /**
+         * Credit score, tier, and eligibility ceiling.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** Loans tab → "Your credit" card — score, tier (poor/fair/good/excellent), and the max amount the
+         *
+         *     worker can request right now (BACKEND_BRIEF §11.8 eligibility math). Score is computed nightly by the
+         *
+         *     scoring engine; this endpoint is read-only.
+         *
+         *
+         *
+         *     > Distinct from the **employer dashboard** `GET /v1/credit` (Phase 4) which exposes the *business* credit score.
+         */
         get: operations["LoansController_credit"];
         put?: never;
         post?: never;
@@ -443,7 +689,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Currently-active loan, or null. */
+        /**
+         * Currently-active loan, or null.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** Loans tab → "Active loan" card. Returns `null` if no active loan,
+         *
+         *     so the UI can switch to the "Apply for a loan" empty state.
+         */
         get: operations["LoansController_active"];
         put?: never;
         post?: never;
@@ -460,7 +713,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Loan detail with repayment ledger. */
+        /**
+         * Loan detail with repayment ledger.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** Loan detail screen reached from the active-loan card or loan history.
+         *
+         *     Includes the full `LoanRepayment[]` schedule with paid/scheduled/missed status per row.
+         */
         get: operations["LoansController_detail"];
         put?: never;
         post?: never;
@@ -479,7 +739,18 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Apply for a loan. Auto-approves for `excellent` tier under ₦50k. */
+        /**
+         * Apply for a loan. Auto-approves for `excellent` tier under ₦50k.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** "Apply for a loan" multi-step form (amount → term → confirm). Idempotent on `Idempotency-Key`.
+         *
+         *     **Behavior:** Auto-approves and disburses to the worker's default bank account when tier is `excellent`
+         *
+         *     and amount ≤ ₦50,000; otherwise creates a `LoanApplication` with `status=pending` for bank credit-officer
+         *
+         *     review on the bank dashboard. 422 if `NOT_ELIGIBLE` (no qualifying tier) or `BANK_ACCOUNT_REQUIRED`.
+         */
         post: operations["LoansController_apply"];
         delete?: never;
         options?: never;
@@ -494,14 +765,30 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read the authenticated worker profile. */
+        /**
+         * Read the authenticated worker profile.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** App boot — hydrates the user store. Also drives the Profile tab header.
+         *
+         *
+         *
+         *     > The dashboard equivalent is `GET /v1/dashboard/auth/me` (different JWT, different shape).
+         */
         get: operations["MeController_read"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        /** Update name, primary skill, photo, and/or preferred radius. */
+        /**
+         * Update name, primary skill, photo, and/or preferred radius.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** Profile tab → Edit profile sheet. Partial-update — only fields present in the body are touched.
+         *
+         *     Photo updates require a fresh `upload_id` from `POST /uploads` (`purpose=profile_photo`).
+         */
         patch: operations["MeController_edit"];
         trace?: never;
     };
@@ -512,14 +799,24 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read notification + privacy preferences. */
+        /**
+         * Read notification + privacy preferences.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** Settings → Notifications + Privacy toggles (push, SMS, email, marketing, dark mode, language).
+         */
         get: operations["MeController_preferences"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        /** Patch preferences. Only present fields are updated. */
+        /**
+         * Patch preferences. Only present fields are updated.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** Per-toggle save on the Settings → Notifications + Privacy screen.
+         */
         patch: operations["MeController_patchPreferences"];
         trace?: never;
     };
@@ -532,7 +829,16 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Schedule account deletion (soft, 30-day window). */
+        /**
+         * Schedule account deletion (soft, 30-day window).
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** Settings → "Delete my account" confirmation screen.
+         *
+         *     **Behavior:** Soft delete — account is marked for purge after a 30-day grace period.
+         *
+         *     409 (`DELETE_BLOCKED`) if the worker has an active loan, in-progress job, or pending withdrawal.
+         */
         post: operations["MeController_delete"];
         delete?: never;
         options?: never;
@@ -549,7 +855,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Send OTP to a new phone number. */
+        /**
+         * Send OTP to a new phone number.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** Settings → Change phone number — step 1 of 2. Sends an OTP to the new number;
+         *
+         *     returns a `challenge_id` to be submitted to `/me/phone/change/confirm`.
+         */
         post: operations["MeController_phoneChangeRequest"];
         delete?: never;
         options?: never;
@@ -566,7 +879,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Verify OTP and atomically swap the phone number. */
+        /**
+         * Verify OTP and atomically swap the phone number.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** Settings → Change phone number — step 2 of 2. Atomically swaps the worker's `phone`
+         *
+         *     (unique constraint enforced) on successful OTP verification.
+         */
         post: operations["MeController_phoneChangeConfirm"];
         delete?: never;
         options?: never;
@@ -583,7 +903,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Register / refresh a push token for FCM or APNs. */
+        /**
+         * Register / refresh a push token for FCM or APNs.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** Silent — called on app launch and whenever the platform rotates the push token.
+         *
+         *     Drives delivery of payment, application-accepted, and loan-status push notifications.
+         */
         post: operations["MeController_registerDevice"];
         delete?: never;
         options?: never;
@@ -598,7 +925,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** In-app notification feed. */
+        /**
+         * In-app notification feed.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** Bell icon in the app header → notifications drawer.
+         *
+         *
+         *
+         *     > The dashboard equivalent is `GET /v1/notifications` (Phase 1, dashboard scope, different shape).
+         */
         get: operations["MeController_notifications"];
         put?: never;
         post?: never;
@@ -617,7 +953,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Mark one notification as read. Idempotent. */
+        /**
+         * Mark one notification as read. Idempotent.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** Tap-to-read on individual notification rows; safe to call on already-read items.
+         */
         post: operations["MeController_markRead"];
         delete?: never;
         options?: never;
@@ -634,7 +975,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Mark every notification as read. */
+        /**
+         * Mark every notification as read.
+         * @description **Audience:** Worker mobile app.
+         *
+         *     **Powers:** "Mark all as read" button at the top of the notifications drawer.
+         */
         post: operations["MeController_markAllRead"];
         delete?: never;
         options?: never;
@@ -649,7 +995,12 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** FAQ articles. Public. */
+        /**
+         * FAQ articles. Public.
+         * @description **Audience:** Worker mobile app (public — pre-auth callable).
+         *
+         *     **Powers:** Help → Articles list; supports `?q=` search and `?category=` filter.
+         */
         get: operations["HelpController_articles"];
         put?: never;
         post?: never;
@@ -668,7 +1019,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Submit a support ticket. */
+        /**
+         * Submit a support ticket.
+         * @description **Audience:** Worker mobile app (auth required so we can attach the worker context).
+         *
+         *     **Powers:** Help → "Contact support" form. Rate-limited to keep abuse manageable;
+         *
+         *     accepted tickets land in the support inbox out-of-band.
+         */
         post: operations["HelpController_ticket"];
         delete?: never;
         options?: never;
@@ -685,8 +1043,73 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Upload a photo/file. Returns an upload_id to reference in business endpoints. */
+        /**
+         * Upload a photo/file. Returns an upload_id to reference in business endpoints.
+         * @description **Audience:** Worker mobile app — direct multipart upload (the dashboard uses presigned PUT instead,
+         *
+         *     see the planned `POST /v1/uploads/presign` for Phase 2).
+         *
+         *     **Powers:** Profile photo picker, clock-out photo proof, support-ticket attachments. The returned
+         *
+         *     `upload_id` is consumed by `/auth/profile-setup`, `/sessions/:id/clock-out`, `/me` (PATCH), etc.
+         *
+         *     **Limits:** 12 MB hard cap (multer); image/* and a small allowlist of PDF/document types.
+         *
+         *     413 on oversize, 415 on bad content type.
+         */
         post: operations["UploadsController_upload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/uploads/liveness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * AI-verified selfie liveness check (signup-only).
+         * @description **Audience:** Worker mobile app — signup flow only (`liveness_capture_screen.dart`).
+         *
+         *     **Powers:** "Take a selfie" step that runs immediately after OTP verify on signup.
+         *
+         *     The returned `upload_id` is consumed by `POST /auth/profile-setup` as `photo_upload_id`.
+         *
+         *
+         *
+         *     **Behavior:** Runs synchronous AI checks (face count, anti-spoof, quality) via Smile Identity Smart Selfie
+         *
+         *     Authentication (`SMILE_*` env vars). On pass, the image is persisted and a 201 with `liveness.passed=true`
+         *
+         *     is returned. Rejections are 422 with a typed `code` and a stable `details.reason` enum so the mobile can
+         *
+         *     coach the user on retry.
+         *
+         *
+         *
+         *     **Why a separate endpoint vs `POST /uploads`:** the dumb upload route stores blindly and defers moderation;
+         *
+         *     signup needs the verdict inline so the worker can retry before filling in name/skill/radius.
+         *
+         *
+         *
+         *     **Edit profile** continues to use `POST /uploads?purpose=worker_avatar` — liveness is not enforced once the
+         *
+         *     worker is trusted post-signup.
+         *
+         *
+         *
+         *     **Limits:** 12 MB hard cap; `image/jpeg|png|heic` only. Rate-limited to 5 attempts per 10 minutes per worker
+         *
+         *     (env: `LIVENESS_RATE_LIMIT_*`).
+         */
+        post: operations["UploadsController_livenessCheck"];
         delete?: never;
         options?: never;
         head?: never;
@@ -702,8 +1125,93 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Email + password signup. Sets refresh cookie, returns access token. */
+        /**
+         * Generic email + password signup. Restricted to non-owner employer roles only.
+         * @description **Audience:** Employer-web — narrow surface only.
+         *
+         *     **Powers:** Edge cases where an admin/manager already knows their employer scope (rare). The
+         *
+         *     mainstream paths are `/dashboard/auth/business/register` for owners and `/settings/team/invite`
+         *
+         *     + accept-token flow for everyone else.
+         *
+         *
+         *
+         *     **Rejected roles (400 VALIDATION_FAILED):** `worker`, `platform_admin`, `business_owner`,
+         *
+         *     `bank_credit_officer`, `bank_risk_analyst`. Owners must use the business endpoint; bank users are
+         *
+         *     invitation-only because banks are vetted credit institutions.
+         */
         post: operations["DashboardAuthController_register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dashboard/auth/business/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Self-serve business signup. Creates Employer + owner User atomically.
+         * @description **Audience:** Employer-web only.
+         *
+         *     **Powers:** `/signup/business` page on employer-web — closes the BACKEND_BRIEF "Open product question" auth gap.
+         *
+         *     **Behavior:** One transaction creates the `Employer` row + a `User` with `role=business_owner` scoped to it.
+         *
+         *     Issues access token and HttpOnly refresh cookie on success, identical envelope to `/email/login`.
+         *
+         *     Sends a verification email to the owner via Resend.
+         *
+         *
+         *
+         *     > The legacy `/email/register` rejects `business_owner` since this endpoint exists. Bank entities are
+         *
+         *     created out-of-band by `platform_admin`; bank users join via team invitation, not self-signup.
+         */
+        post: operations["DashboardAuthController_registerBusiness"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/dashboard/auth/team/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Claim a team invitation token, create the User, and start a session.
+         * @description **Audience:** Employer-web — public (no auth required) entry point.
+         *
+         *     **Powers:** `/auth/team/accept?token=…` page reached from a team-invite email. The page collects
+         *
+         *     fullName + password and POSTs them with the token here. On success, sets the refresh cookie and
+         *
+         *     returns access token + user shape, identical to `/email/login`.
+         *
+         *
+         *
+         *     **Behavior:** Token is single-use. Email is auto-marked verified (the recipient demonstrated control
+         *
+         *     by following the link). User is scoped to the inviter's `employerId`. Companion send-invite endpoint
+         *
+         *     is `POST /v1/settings/team/invite`.
+         */
+        post: operations["DashboardAuthController_acceptTeamInvite"];
         delete?: never;
         options?: never;
         head?: never;
@@ -719,7 +1227,22 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Email + password login. */
+        /**
+         * Email + password login.
+         * @description **Audience:** Employer-web + bank-web (`bearer-user` JWT scheme).
+         *
+         *     **Powers:** `/login` page on either dashboard.
+         *
+         *     **Behavior:** On success the response sets an `HttpOnly Secure SameSite=Lax` refresh cookie scoped to
+         *
+         *     `Path=/v1/dashboard/auth`. In production with `COOKIE_DOMAIN=.forge.app`, the cookie is shared between
+         *
+         *     `employer.forge.app` and `bank.forge.app` so a user can switch dashboards without re-authenticating
+         *
+         *     (role gating is enforced server-side regardless).
+         *
+         *     **Demo logins** (password `forge-demo-pass`): see HANDOFF.md.
+         */
         post: operations["DashboardAuthController_login"];
         delete?: never;
         options?: never;
@@ -736,7 +1259,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Verify email via token from the verification link. */
+        /**
+         * Verify email via token from the verification link.
+         * @description **Audience:** Employer-web + bank-web.
+         *
+         *     **Powers:** Public landing page reached from "Verify your email" link in the welcome email.
+         *
+         *     The page reads the `token` query param and POSTs it here.
+         */
         post: operations["DashboardAuthController_verify"];
         delete?: never;
         options?: never;
@@ -753,7 +1283,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Send a password-reset link. Always 204 (does not leak existence). */
+        /**
+         * Send a password-reset link. Always 204 (does not leak existence).
+         * @description **Audience:** Employer-web + bank-web.
+         *
+         *     **Powers:** "Forgot password?" link on `/login`.
+         *
+         *     **Privacy:** Always returns 204 whether or not the email exists, to avoid disclosing account ownership.
+         */
         post: operations["DashboardAuthController_forgot"];
         delete?: never;
         options?: never;
@@ -770,7 +1307,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Reset password using a token from the email link. */
+        /**
+         * Reset password using a token from the email link.
+         * @description **Audience:** Employer-web + bank-web.
+         *
+         *     **Powers:** `/reset-password?token=…` page reached from the password-reset email.
+         *
+         *     On success the user is redirected to `/login` and signs in with the new password.
+         */
         post: operations["DashboardAuthController_reset"];
         delete?: never;
         options?: never;
@@ -789,7 +1333,21 @@ export interface paths {
         put?: never;
         /**
          * Rotate the refresh cookie + issue a new access token.
-         * @description Refresh token comes from the HttpOnly cookie. Reuse triggers family revoke.
+         * @description **Audience:** Employer-web + bank-web.
+         *
+         *     **Powers:** App-boot session restoration AND silent refresh inside the FE API client (called on 401,
+         *
+         *     see FRONTEND_INTEGRATION.md §4).
+         *
+         *     **Behavior:** Reads the refresh token from the `HttpOnly` cookie (no JS access). Single-use — the response
+         *
+         *     rotates the cookie. Reuse-detection: presenting the same refresh token twice invalidates the entire token
+         *
+         *     family, signing the user out everywhere. The FE must coalesce concurrent refreshes into one in-flight promise.
+         *
+         *
+         *
+         *     > The mobile equivalent is `POST /v1/auth/refresh` (body-based, different JWT secret).
          */
         post: operations["DashboardAuthController_refresh"];
         delete?: never;
@@ -807,7 +1365,14 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Invalidate the current refresh cookie. */
+        /**
+         * Invalidate the current refresh cookie.
+         * @description **Audience:** Employer-web + bank-web.
+         *
+         *     **Powers:** "Sign out" in the user menu (top-right of either dashboard).
+         *
+         *     Clears the cookie server-side; the FE must also wipe the in-memory access token.
+         */
         post: operations["DashboardAuthController_logout"];
         delete?: never;
         options?: never;
@@ -824,7 +1389,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Invalidate every refresh token for the current user. */
+        /**
+         * Invalidate every refresh token for the current user.
+         * @description **Audience:** Employer-web + bank-web.
+         *
+         *     **Powers:** "Sign out all devices" link in Settings → Security. Useful after a suspected credential leak.
+         */
         post: operations["DashboardAuthController_logoutAll"];
         delete?: never;
         options?: never;
@@ -839,8 +1409,391 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Current dashboard user + role + scope. */
+        /**
+         * Current dashboard user + role + scope.
+         * @description **Audience:** Employer-web + bank-web.
+         *
+         *     **Powers:** App boot — hydrates the user store on both dashboards. The returned `role` drives the entire
+         *
+         *     nav visibility + route gating matrix (BACKEND_BRIEF §5: `business_owner`, `business_admin`,
+         *
+         *     `business_hiring_manager`, `bank_credit_officer`, `bank_risk_analyst`). The returned `employerId` or
+         *
+         *     `bankId` is informational — never resend it; the BE always derives tenant scope from the JWT.
+         *
+         *
+         *
+         *     > The mobile equivalent is `GET /v1/me` (worker scope, different JWT, different shape).
+         */
         get: operations["DashboardAuthController_me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/business": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the current business profile.
+         * @description **Audience:** Employer-web. **Powers:** Settings → Business profile page.
+         */
+        get: operations["SettingsController_business"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update business profile fields.
+         * @description **Audience:** Employer-web. Owner + admin only — hiring managers receive 403.
+         */
+        patch: operations["SettingsController_updateBusiness"];
+        trace?: never;
+    };
+    "/v1/settings/team": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List team members + pending invitations.
+         * @description **Audience:** Employer-web. **Powers:** Settings → Team page.
+         */
+        get: operations["SettingsController_teamList"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/team/invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send a team invitation email with a 7-day token-claim link.
+         * @description **Audience:** Employer-web. Owner + admin only.
+         *
+         *     **Powers:** Settings → Team → "Invite teammate" form. The recipient receives an email with a link
+         *
+         *     to `<EMPLOYER_BASE_URL>/auth/team/accept?token=…`; the FE page hosting that token POSTs it to
+         *
+         *     `/v1/dashboard/auth/team/accept` to create the User and start a session.
+         *
+         *
+         *
+         *     **Behavior:** Resends supersede prior pending invitations for the same email.
+         *
+         *     Invitable roles: `business_admin`, `business_hiring_manager`. The owner role is not invitable.
+         */
+        post: operations["SettingsController_invite"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/team/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a teammate. Detaches from the employer + revokes their sessions.
+         * @description **Audience:** Employer-web. Owner + admin only. Cannot remove yourself or the owner.
+         */
+        delete: operations["SettingsController_remove"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a teammate's role.
+         * @description **Audience:** Employer-web. Owner + admin only. Cannot change the owner's role or your own.
+         */
+        patch: operations["SettingsController_updateRole"];
+        trace?: never;
+    };
+    "/v1/settings/team/invitations/{invitationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke a pending invitation before it is accepted.
+         * @description **Audience:** Employer-web. Owner + admin only.
+         */
+        delete: operations["SettingsController_revokeInvitation"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read employer notification channel preferences. */
+        get: operations["SettingsController_notifications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Patch employer notification channel preferences. */
+        patch: operations["SettingsController_updateNotifications"];
+        trace?: never;
+    };
+    "/v1/settings/squad": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Squad wallet status (connected / balance / payouts paused).
+         * @description **Audience:** Employer-web. **Powers:** Settings → Squad wallet card.
+         */
+        get: operations["SettingsController_squad"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/squad/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disconnect the Squad wallet. Idempotent. Auto-pauses payouts.
+         * @description **Audience:** Employer-web. Owner + admin only.
+         */
+        post: operations["SettingsController_disconnectSquad"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/settings/billing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read plan + invoicing email. */
+        get: operations["SettingsController_billing"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update plan and/or invoicing email. */
+        patch: operations["SettingsController_updateBilling"];
+        trace?: never;
+    };
+    "/v1/employer/overview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Composite payload for the employer dashboard home page.
+         * @description **Audience:** Employer-web only (`business_owner | business_admin | business_hiring_manager`).
+         *
+         *     **Powers:** The entire `/` route on employer-web in one round-trip — metric tiles, live operations map,
+         *
+         *     attention strip, cash-position card, credit-health card, and starting-soon strip. Designed to keep the
+         *
+         *     home-page TTI under 300 ms warm (BACKEND_BRIEF §12).
+         *
+         *
+         *
+         *     **Real-time supplement:** SSE events on `GET /v1/stream` (Phase 4) patch the live map and activity feed
+         *
+         *     between refetches; this endpoint is the cold-load source.
+         *
+         *
+         *
+         *     Exact response shape is documented in BACKEND_BRIEF §10.2 and mirrored by `EmployerOverviewDto`.
+         */
+        get: operations["EmployerController_overview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Authenticated user's notification feed (newest first).
+         * @description **Audience:** Employer-web + bank-web.
+         *
+         *     **Powers:** The bell-icon popover and the dedicated `/notifications` page on either dashboard.
+         *
+         *     Offset pagination per BACKEND_BRIEF §6.
+         *
+         *
+         *
+         *     Real-time prepend comes via SSE `notification_created` (Phase 4); until SSE lands, refetch on focus.
+         */
+        get: operations["NotificationsController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notifications/unread-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cheap unread badge count for the bell icon.
+         * @description **Audience:** Employer-web + bank-web.
+         *
+         *     **Powers:** Red badge on the bell icon. Designed to be polled cheaply
+         *
+         *     (no joins, single indexed COUNT). Once SSE lands, the badge is bumped from `notification_created` events
+         *
+         *     and this endpoint becomes a backstop for tab refocus.
+         */
+        get: operations["NotificationsController_unreadCount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notifications/mark-all-read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark every notification for the caller as read.
+         * @description **Audience:** Employer-web + bank-web.
+         *
+         *     **Powers:** "Mark all as read" link at the top of the bell popover and the `/notifications` page.
+         */
+        post: operations["NotificationsController_markAllRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notifications/{id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark one notification as read. Idempotent.
+         * @description **Audience:** Employer-web + bank-web.
+         *
+         *     **Powers:** Tap-to-read on individual notification rows. Safe to call on already-read notifications.
+         */
+        post: operations["NotificationsController_markRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cross-entity quick-search for the TopBar ⌘K palette.
+         * @description **Audience:** Employer-web (bank-web returns empty arrays until Phase 4 adds bank-side hits).
+         *
+         *     **Powers:** ⌘K command palette in the dashboard TopBar — searches jobs, workers, and transactions
+         *
+         *     simultaneously, capped at 5 hits per category.
+         *
+         *
+         *
+         *     **Match fields per category:**
+         *
+         *     - Jobs: title, description, neighborhood, id (employer-scoped)
+         *
+         *     - Workers: name, phone, id (platform-wide; the TopBar is a quick lookup, not radius-filtered)
+         *
+         *     - Transactions: title, subtitle, Squad reference, id, related job id (employer-scoped)
+         *
+         *
+         *
+         *     Empty `q` → all-empty arrays. Trim/whitespace handled server-side.
+         */
+        get: operations["SearchController_go"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1538,14 +2491,12 @@ export interface components {
             photo_upload_id?: Record<string, never> | null;
         };
         NotificationPrefsDto: {
-            /** @default true */
-            new_job_alerts: boolean;
-            /** @default true */
-            application_updates: boolean;
-            /** @default true */
-            payment_confirmations: boolean;
-            /** @default true */
-            loan_reminders: boolean;
+            /** @example true */
+            newApplication: boolean;
+            /** @example true */
+            clockEvents: boolean;
+            /** @example true */
+            paymentEvents: boolean;
         };
         PrivacyPrefsDto: {
             /** @default true */
@@ -1655,6 +2606,29 @@ export interface components {
             /** @example 2026-05-10T19:08:30Z */
             expires_at: string;
         };
+        LivenessVerdictDto: {
+            /**
+             * @description Always `true` for 201 responses; rejections are 422.
+             * @example true
+             */
+            passed: boolean;
+            /**
+             * @description Anti-spoof / live-human confidence in [0, 1].
+             * @example 0.96
+             */
+            confidence: number;
+            /** @example 1 */
+            face_count: number;
+        };
+        LivenessResponseDto: {
+            /** @example upl_8a3f2c */
+            upload_id: string;
+            /** @example http://localhost:3000/uploads/upl_8a3f2c.jpg */
+            url: string;
+            /** @example 2026-05-10T19:08:30Z */
+            expires_at: string;
+            liveness: components["schemas"]["LivenessVerdictDto"];
+        };
         RegisterDto: {
             /** @example tunde@adeolu.ng */
             email: string;
@@ -1692,6 +2666,46 @@ export interface components {
             accessExpiresAt: string;
             user: components["schemas"]["SessionUserDto"];
         };
+        BusinessLocationDto: {
+            /** @example 6.4541 */
+            lat: number;
+            /** @example 3.3947 */
+            lng: number;
+            /** @example Apapa */
+            neighborhood: string;
+            /** @example 14 Wharf Road, Apapa, Lagos */
+            address: string;
+        };
+        BusinessRegisterDto: {
+            /** @example tunde@adeolu.ng */
+            email: string;
+            /** @example Tunde Adeyemi */
+            fullName: string;
+            /**
+             * @description Min 10 chars, requires letter + digit.
+             * @example CorrectHorseBatteryStaple9!
+             */
+            password: string;
+            /** @example +2348012345678 */
+            phone?: string;
+            /** @example Adeolu Logistics Ltd. */
+            businessName: string;
+            /** @enum {string} */
+            businessType: "wholesaler" | "factory" | "retailer" | "logistics";
+            /** @example +2348011112222 */
+            businessPhone?: string;
+            registeredLocation: components["schemas"]["BusinessLocationDto"];
+        };
+        AcceptInvitationDto: {
+            token: string;
+            /** @example New Member */
+            fullName: string;
+            /**
+             * @description Min 10 chars, requires letter + digit.
+             * @example CorrectHorseBatteryStaple9!
+             */
+            password: string;
+        };
         LoginDto: {
             /** @example tunde@adeolu.ng */
             email: string;
@@ -1707,6 +2721,279 @@ export interface components {
         ResetPasswordDto: {
             token: string;
             newPassword: string;
+        };
+        BusinessProfileDto: {
+            /** @example emp_0001 */
+            id: string;
+            /** @example Adeolu Logistics Ltd. */
+            businessName: string;
+            /** @enum {string} */
+            type: "wholesaler" | "factory" | "retailer" | "logistics";
+            /** @example +2348011112222 */
+            phoneNumber?: Record<string, never> | null;
+            /** @example https://cdn.forge.app/logos/emp_0001.png */
+            photoUrl?: Record<string, never> | null;
+            registeredLocation: components["schemas"]["BusinessLocationDto"];
+            /** @example 2025-11-12T09:00:00+01:00 */
+            joinedAt: string;
+        };
+        UpdateBusinessProfileDto: {
+            /** @example Adeolu Logistics Ltd. */
+            businessName?: string;
+            /** @enum {string} */
+            type?: "wholesaler" | "factory" | "retailer" | "logistics";
+            /** @example +2348011112222 */
+            phoneNumber?: string;
+            registeredLocation?: components["schemas"]["BusinessLocationDto"];
+        };
+        TeamMemberDto: {
+            /** @example usr_8a3f2c */
+            id: string;
+            /** @example tunde@adeolu.ng */
+            email: string;
+            /** @example Tunde Adeyemi */
+            fullName: string;
+            /** @enum {string} */
+            role: "worker" | "business_owner" | "business_admin" | "business_hiring_manager" | "bank_credit_officer" | "bank_risk_analyst" | "platform_admin";
+            /** @example 2026-01-08T09:30:00+01:00 */
+            joinedAt: string;
+            /** @example 2026-05-09T17:00:00+01:00 */
+            lastLoginAt?: Record<string, never> | null;
+            /** @example true */
+            emailVerified: boolean;
+        };
+        PendingInvitationDto: {
+            /** @example tinv_8a3f2c */
+            id: string;
+            /** @example manager@adeolu.ng */
+            email: string;
+            /** @enum {string} */
+            role: "business_admin" | "business_hiring_manager";
+            /** @example Owner User */
+            invitedByName: string;
+            /** @example 2026-05-10T12:00:00+01:00 */
+            invitedAt: string;
+            /** @example 2026-05-17T12:00:00+01:00 */
+            expiresAt: string;
+        };
+        TeamListDto: {
+            members: components["schemas"]["TeamMemberDto"][];
+            pending: components["schemas"]["PendingInvitationDto"][];
+        };
+        InviteTeamMemberDto: {
+            /** @example manager@adeolu.ng */
+            email: string;
+            /** @enum {string} */
+            role: "business_admin" | "business_hiring_manager";
+        };
+        UpdateTeamMemberRoleDto: {
+            /** @enum {string} */
+            role: "business_admin" | "business_hiring_manager";
+        };
+        UpdateNotificationPrefsDto: {
+            newApplication?: boolean;
+            clockEvents?: boolean;
+            paymentEvents?: boolean;
+        };
+        SquadStatusDto: {
+            /** @example true */
+            connected: boolean;
+            /** @example sqw_xxxxxxxxxxxxx */
+            walletId?: Record<string, never> | null;
+            /** @example 845000 */
+            walletBalanceNaira: number;
+            /** @example false */
+            payoutsPaused: boolean;
+        };
+        BillingDto: {
+            /**
+             * @example starter
+             * @enum {string}
+             */
+            plan: "starter" | "growth" | "scale";
+            /** @example finance@adeolu.ng */
+            invoicingEmail?: Record<string, never> | null;
+        };
+        UpdateBillingDto: {
+            /** @example growth */
+            plan?: string;
+            /** @example finance@adeolu.ng */
+            invoicingEmail?: string;
+        };
+        MetricTileDto: {
+            /** @example 28 */
+            value: number;
+            /**
+             * @description Percent change vs. the prior comparable period.
+             * @example 12.5
+             */
+            deltaPct: number;
+            /**
+             * @description 9-bucket time series feeding the sparkline. Oldest first.
+             * @example [
+             *       10,
+             *       12,
+             *       11,
+             *       14,
+             *       16,
+             *       15,
+             *       18,
+             *       19,
+             *       28
+             *     ]
+             */
+            trend: number[];
+        };
+        OverviewMetricsDto: {
+            activeJobs: components["schemas"]["MetricTileDto"];
+            workersWorking: components["schemas"]["MetricTileDto"];
+            todaySpendNaira: components["schemas"]["MetricTileDto"];
+            pendingPayments: components["schemas"]["MetricTileDto"];
+        };
+        LiveJobPinDto: {
+            /** @example job_00123 */
+            id: string;
+            /** @example 6.4458 */
+            lat: number;
+            /** @example 3.3608 */
+            lng: number;
+            /**
+             * @example in_progress
+             * @enum {string}
+             */
+            status: "open" | "applications_in" | "accepted" | "in_progress" | "pending_verification";
+        };
+        AttentionItemDto: {
+            /**
+             * @example applications_waiting
+             * @enum {string}
+             */
+            kind: "applications_waiting" | "starting_soon" | "worker_late";
+            /** @example 7 */
+            count: number;
+            /** @example /jobs/active */
+            href: string;
+        };
+        SpendDayDto: {
+            /** @example 2026-05-04 */
+            day: string;
+            /** @example 180000 */
+            amountNaira: number;
+        };
+        CashPositionDto: {
+            /** @example 845000 */
+            walletBalanceNaira: number;
+            /**
+             * @description Linear projection of the next 7 days based on recent spend.
+             * @example 320000
+             */
+            projectedWeeklySpendNaira: number;
+            /** @description Last 7 days of completed payments. */
+            spendTrend7d: components["schemas"]["SpendDayDto"][];
+        };
+        CreditFactorDto: {
+            /** @example Payment timeliness */
+            label: string;
+            /**
+             * @description Points contributed (positive) or lost (negative) since last refresh.
+             * @example 12
+             */
+            deltaPoints: number;
+        };
+        CreditEligibilityDto: {
+            /** @example 2000000 */
+            maxAmountNaira: number;
+            /** @example 14 */
+            aprPct: number;
+        };
+        CreditHealthDto: {
+            /** @example 78 */
+            score: number;
+            /**
+             * @description Score change since last refresh.
+             * @example 6
+             */
+            deltaPoints: number;
+            topFactors: components["schemas"]["CreditFactorDto"][];
+            eligibility: components["schemas"]["CreditEligibilityDto"];
+        };
+        StartingSoonJobDto: {
+            /** @example job_00130 */
+            id: string;
+            /** @example Trailer offload, Apapa wharf */
+            title: string;
+            /** @example Apapa */
+            neighborhood?: Record<string, never> | null;
+            /** @example 2026-05-10T15:00:00+01:00 */
+            scheduledStartAt: string;
+            /** @example 5000 */
+            payNaira: number;
+        };
+        EmployerOverviewDto: {
+            metrics: components["schemas"]["OverviewMetricsDto"];
+            /** @description Up to 50 active job pins for the live operations map. */
+            liveJobs: components["schemas"]["LiveJobPinDto"][];
+            attention: components["schemas"]["AttentionItemDto"][];
+            cashPosition: components["schemas"]["CashPositionDto"];
+            creditHealth: components["schemas"]["CreditHealthDto"];
+            /** @description Next 4 jobs scheduled to start. */
+            startingSoon: components["schemas"]["StartingSoonJobDto"][];
+        };
+        PaginationMetaDto: {
+            /** @example 1 */
+            page: number;
+            /** @example 25 */
+            pageSize: number;
+            /** @example 247 */
+            total: number;
+            /** @example 10 */
+            totalPages: number;
+        };
+        NotificationsListResponseDto: {
+            data: components["schemas"]["NotificationDto"][];
+            pagination: components["schemas"]["PaginationMetaDto"];
+        };
+        UnreadCountDto: {
+            /** @example 4 */
+            unreadCount: number;
+        };
+        SearchJobHitDto: {
+            /** @example job_00123 */
+            id: string;
+            /** @example Trailer offload, Apapa wharf */
+            title: string;
+            /** @example in_progress */
+            status: string;
+            /** @example /jobs/job_00123 */
+            href: string;
+        };
+        SearchWorkerHitDto: {
+            /** @example wkr_0042 */
+            id: string;
+            /** @example Tunde Adeyemi */
+            fullName: string;
+            /** @example loader */
+            primarySkill: string;
+            /** @example /workers/wkr_0042 */
+            href: string;
+        };
+        SearchTransactionHitDto: {
+            /** @example txn_00789 */
+            id: string;
+            /** @example Payment to Tunde Adeyemi */
+            title: string;
+            /** @example 5000 */
+            amountNaira: number;
+            /** @example /payments/transactions/txn_00789 */
+            href: string;
+        };
+        SearchResponseDto: {
+            /** @description Up to 5 matching jobs. */
+            jobs: components["schemas"]["SearchJobHitDto"][];
+            /** @description Up to 5 matching workers in the employer's hiring radius. */
+            workers: components["schemas"]["SearchWorkerHitDto"][];
+            /** @description Up to 5 matching transactions. */
+            transactions: components["schemas"]["SearchTransactionHitDto"][];
         };
     };
     responses: never;
@@ -3066,7 +4353,7 @@ export interface operations {
             content: {
                 "multipart/form-data": {
                     /** @enum {string} */
-                    purpose: "worker_avatar" | "clock_out_proof";
+                    purpose: "worker_avatar" | "clock_out_proof" | "liveness_selfie";
                     /** Format: binary */
                     file: string;
                 };
@@ -3110,6 +4397,82 @@ export interface operations {
             };
         };
     };
+    UploadsController_livenessCheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                    /**
+                     * @description JSON-encoded device context for fraud analytics (platform, model, camera).
+                     * @example {"platform":"ios","model":"iPhone 14","camera":"front"}
+                     */
+                    device_metadata?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LivenessResponseDto"];
+                };
+            };
+            /** @description MISSING_FILE */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description FILE_TOO_LARGE */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description UNSUPPORTED_TYPE */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description LIVENESS_NO_FACE | LIVENESS_MULTIPLE_FACES | LIVENESS_SPOOF | LIVENESS_LOW_QUALITY | IMAGE_INVALID */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description RATE_LIMITED */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
     DashboardAuthController_register: {
         parameters: {
             query?: never;
@@ -3129,6 +4492,88 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LoginResponseDto"];
+                };
+            };
+            /** @description VALIDATION_FAILED — role rejected (use /business/register for owners; bank/admin/manager via invite). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description EMAIL_ALREADY_REGISTERED */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    DashboardAuthController_registerBusiness: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BusinessRegisterDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponseDto"];
+                };
+            };
+            /** @description EMAIL_ALREADY_REGISTERED */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    DashboardAuthController_acceptTeamInvite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptInvitationDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponseDto"];
+                };
+            };
+            /** @description INVITATION_INVALID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
                 };
             };
             /** @description EMAIL_ALREADY_REGISTERED */
@@ -3254,7 +4699,7 @@ export interface operations {
                     "application/json": components["schemas"]["LoginResponseDto"];
                 };
             };
-            /** @description TOKEN_INVALID | TOKEN_EXPIRED */
+            /** @description NO_REFRESH_COOKIE | TOKEN_INVALID | TOKEN_EXPIRED */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -3314,6 +4759,446 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionUserDto"];
+                };
+            };
+        };
+    };
+    SettingsController_business: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessProfileDto"];
+                };
+            };
+        };
+    };
+    SettingsController_updateBusiness: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBusinessProfileDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessProfileDto"];
+                };
+            };
+        };
+    };
+    SettingsController_teamList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamListDto"];
+                };
+            };
+        };
+    };
+    SettingsController_invite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteTeamMemberDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PendingInvitationDto"];
+                };
+            };
+            /** @description ALREADY_TEAM_MEMBER | EMAIL_ALREADY_REGISTERED */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    SettingsController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description CANNOT_REMOVE_SELF | CANNOT_REMOVE_OWNER */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    SettingsController_updateRole: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTeamMemberRoleDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMemberDto"];
+                };
+            };
+            /** @description CANNOT_DEMOTE_SELF | CANNOT_CHANGE_OWNER_ROLE */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    SettingsController_revokeInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                invitationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SettingsController_notifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPrefsDto"];
+                };
+            };
+        };
+    };
+    SettingsController_updateNotifications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateNotificationPrefsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationPrefsDto"];
+                };
+            };
+        };
+    };
+    SettingsController_squad: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SquadStatusDto"];
+                };
+            };
+        };
+    };
+    SettingsController_disconnectSquad: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SquadStatusDto"];
+                };
+            };
+        };
+    };
+    SettingsController_billing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingDto"];
+                };
+            };
+        };
+    };
+    SettingsController_updateBilling: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateBillingDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingDto"];
+                };
+            };
+        };
+    };
+    EmployerController_overview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployerOverviewDto"];
+                };
+            };
+            /** @description NO_EMPLOYER_SCOPE — caller is not bound to an employer. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description NOT_FOUND — employer row missing. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    NotificationsController_list: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationsListResponseDto"];
+                };
+            };
+        };
+    };
+    NotificationsController_unreadCount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnreadCountDto"];
+                };
+            };
+        };
+    };
+    NotificationsController_markAllRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NotificationsController_markRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    SearchController_go: {
+        parameters: {
+            query: {
+                q: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResponseDto"];
                 };
             };
         };

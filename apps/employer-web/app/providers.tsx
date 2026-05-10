@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../lib/auth';
+import { isPublicAuthRoute } from '../lib/publicRoutes';
 
 function makeQueryClient() {
   return new QueryClient({
@@ -35,22 +36,22 @@ function AuthGate({ children }: { children: ReactNode }) {
   const { booting, bootError, user, boot } = useAuth();
 
   useEffect(() => {
+    if (isPublicAuthRoute(pathname)) return;
     void boot();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
-    if (booting) return;
-    if (pathname === '/login') {
-      if (user) router.replace('/');
+    if (isPublicAuthRoute(pathname)) {
+      if (user && (pathname === '/login' || pathname === '/signup/business')) {
+        router.replace('/');
+      }
       return;
     }
-    if (!user) router.replace('/login');
+    if (!booting && !user) router.replace('/login');
   }, [booting, pathname, router, user]);
 
-  if (pathname === '/login') {
-    if (booting) return <BootSkeleton />;
-    if (user) return <BootSkeleton />;
+  if (isPublicAuthRoute(pathname)) {
     return <>{children}</>;
   }
 
@@ -88,4 +89,3 @@ export function Providers({ children }: { children: ReactNode }) {
     </QueryClientProvider>
   );
 }
-

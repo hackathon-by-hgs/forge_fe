@@ -12,7 +12,9 @@ type AuthState = {
   accessExpiresAt: string | null;
   setSession: (s: { user: SessionUser; accessToken: string; accessExpiresAt: string }) => void;
   clearSession: () => void;
+  /** Skip session refresh (public auth pages). */
   boot: () => Promise<void>;
+  fetchMe: () => Promise<void>;
   login: (input: { email: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
 };
@@ -24,7 +26,9 @@ async function postRefreshSession(): Promise<LoginResponse | null> {
     headers: { Accept: 'application/json' },
   });
 
-  if (res.status === 401) return null;
+  if (res.status === 401) {
+    return null;
+  }
   if (!res.ok) throw await parseResponseError(res);
   return (await res.json()) as LoginResponse;
 }
@@ -45,6 +49,11 @@ export const useAuth = create<AuthState>((set, get) => ({
     set({ user: null, accessExpiresAt: null, booting: false });
   },
 
+  fetchMe: async () => {
+    const user = await api.get<SessionUser>('/v1/dashboard/auth/me');
+    set({ user });
+  },
+
   boot: async () => {
     set({ booting: true, bootError: null });
     try {
@@ -58,6 +67,7 @@ export const useAuth = create<AuthState>((set, get) => ({
         accessToken: res.accessToken,
         accessExpiresAt: res.accessExpiresAt,
       });
+      await get().fetchMe();
     } catch (err) {
       set({
         booting: false,
@@ -77,6 +87,7 @@ export const useAuth = create<AuthState>((set, get) => ({
       accessToken: res.accessToken,
       accessExpiresAt: res.accessExpiresAt,
     });
+    await get().fetchMe();
   },
 
   logout: async () => {
