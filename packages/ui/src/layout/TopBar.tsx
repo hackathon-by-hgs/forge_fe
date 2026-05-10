@@ -12,7 +12,7 @@ export function TopBar({ search, end, className }: TopBarProps) {
   return (
     <header
       className={cn(
-        'sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-neutral-200 bg-white/80 px-6 backdrop-blur',
+        'sticky top-0 z-30 flex h-14 items-center gap-4 border-b border-outline bg-surface-container/80 px-6 backdrop-blur',
         className,
       )}
     >

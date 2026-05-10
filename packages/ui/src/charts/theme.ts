@@ -1,30 +1,34 @@
 /**
- * Shared chart styling constants. The accent color is provided per-app via
- * the Tailwind preset, so charts read CSS variables to stay theme-aware.
- *
- * Recharts wants real color strings, not Tailwind classes — these constants
- * keep the palette consistent across chart wrappers.
+ * Shared chart styling constants. Recharts wants real color strings, not
+ * Tailwind classes — these constants keep the palette consistent across
+ * chart wrappers and aligned to the Forge content brand.
  */
 export const CHART_COLORS = {
-  accent: '#10B981',
-  accentSoft: 'rgba(16, 185, 129, 0.15)',
-  neutral: '#A3A3A3',
-  neutralSoft: 'rgba(163, 163, 163, 0.15)',
-  grid: '#E5E5E5',
-  axis: '#737373',
+  accent: '#0E695F',                          // teal primary
+  accentSoft: 'rgba(14, 105, 95, 0.15)',
+  secondary: '#E89108',                       // amber — earnings cue
+  secondarySoft: 'rgba(232, 145, 8, 0.15)',
+  neutral: '#B5B0A6',
+  neutralSoft: 'rgba(181, 176, 166, 0.18)',
+  grid: '#E5E2DB',                            // outline
+  axis: '#6B7280',                            // ink-muted
   success: '#16A34A',
-  warning: '#D97706',
+  warning: '#E89108',
   danger: '#DC2626',
   info: '#2563EB',
 } as const;
 
+/**
+ * Multi-series chart palette. Leads with teal (primary) and amber (secondary)
+ * — the two brand colors — then falls back to harmonised supports.
+ */
 export const CHART_PALETTE = [
-  '#10B981',
-  '#3B82F6',
-  '#F59E0B',
-  '#A855F7',
-  '#EC4899',
-  '#14B8A6',
+  '#0E695F',
+  '#E89108',
+  '#2563EB',
+  '#9333EA',
+  '#0EA5E9',
+  '#DC2626',
 ] as const;
 
 export const CHART_GRID_PROPS = {

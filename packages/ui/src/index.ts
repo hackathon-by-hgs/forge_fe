@@ -4,3 +4,4 @@ export * from './feedback';
 export * from './layout';
 export * from './utils';
 export * from './charts';
+export * from './theme';

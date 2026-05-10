@@ -7,3 +7,4 @@ export * from './EmptyState';
 export * from './DataTable';
 export * from './Timeline';
 export * from './MapPlaceholder';
+export * from './Pagination';

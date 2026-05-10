@@ -22,7 +22,7 @@ export function PageHeader({
   className,
 }: PageHeaderProps) {
   return (
-    <div className={cn('border-b border-neutral-200 bg-white px-6 py-5', className)}>
+    <div className={cn('border-b border-outline bg-surface-container px-6 py-5', className)}>
       {breadcrumbs && breadcrumbs.length > 0 ? (
         <nav aria-label="Breadcrumb" className="mb-2 text-xs text-neutral-500">
           <ol className="flex items-center gap-1.5">

@@ -2,20 +2,166 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Forge color tokens — light theme (default) ───────────────────────── */
 @layer base {
   :root {
     --font-inter: 'Inter', system-ui, sans-serif;
     --font-jetbrains-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+    /* Warm neutrals */
+    --color-neutral-50: 252 252 250;
+    --color-neutral-100: 246 245 241;
+    --color-neutral-200: 239 238 233;
+    --color-neutral-300: 229 226 219;
+    --color-neutral-400: 181 176 166;
+    --color-neutral-500: 107 114 128;
+    --color-neutral-600: 75 85 99;
+    --color-neutral-700: 55 65 81;
+    --color-neutral-800: 31 41 55;
+    --color-neutral-900: 17 20 24;
+    --color-neutral-950: 10 14 18;
+
+    /* Semantic surface aliases */
+    --color-surface: 252 252 250;
+    --color-surface-container: 246 245 241;
+    --color-surface-container-high: 239 238 233;
+    --color-outline: 229 226 219;
+    --color-outline-variant: 239 237 231;
+    --color-ink: 17 20 24;
+    --color-ink-muted: 107 114 128;
+
+    /* Accent (teal — Forge primary) */
+    --color-accent-50: 236 247 244;
+    --color-accent-100: 217 235 231;
+    --color-accent-200: 181 215 207;
+    --color-accent-300: 135 188 177;
+    --color-accent-400: 79 156 143;
+    --color-accent-500: 14 105 95;
+    --color-accent-600: 10 85 77;
+    --color-accent-700: 8 71 64;
+    --color-accent-800: 7 58 53;
+    --color-accent-900: 6 45 41;
+
+    /* Secondary (amber — earnings cue) */
+    --color-secondary-50: 254 246 231;
+    --color-secondary-100: 252 231 188;
+    --color-secondary-200: 248 206 126;
+    --color-secondary-300: 244 182 73;
+    --color-secondary-400: 240 164 34;
+    --color-secondary-500: 232 145 8;
+    --color-secondary-600: 199 120 3;
+    --color-secondary-700: 159 95 2;
+
+    /* Status — success */
+    --color-success-50: 240 253 244;
+    --color-success-100: 220 252 231;
+    --color-success-500: 34 197 94;
+    --color-success-600: 22 163 74;
+    --color-success-700: 21 128 61;
+
+    /* Status — warning (brand amber, intentionally same as secondary) */
+    --color-warning-50: 254 246 231;
+    --color-warning-100: 252 231 188;
+    --color-warning-500: 232 145 8;
+    --color-warning-600: 199 120 3;
+    --color-warning-700: 159 95 2;
+
+    /* Status — danger */
+    --color-danger-50: 254 242 242;
+    --color-danger-100: 254 226 226;
+    --color-danger-500: 239 68 68;
+    --color-danger-600: 220 38 38;
+    --color-danger-700: 185 28 28;
+
+    /* Status — info */
+    --color-info-50: 239 246 255;
+    --color-info-100: 219 234 254;
+    --color-info-500: 59 130 246;
+    --color-info-600: 37 99 235;
+    --color-info-700: 29 78 216;
+  }
+
+  /* ─── Forge color tokens — dark theme ──────────────────────────────── */
+  .dark {
+    /* Inverted neutrals: 50 is darkest (surface), 900 is lightest (ink) */
+    --color-neutral-50: 11 16 20;
+    --color-neutral-100: 18 24 29;
+    --color-neutral-200: 26 34 42;
+    --color-neutral-300: 31 41 51;
+    --color-neutral-400: 71 85 105;
+    --color-neutral-500: 148 163 184;
+    --color-neutral-600: 203 213 225;
+    --color-neutral-700: 226 232 240;
+    --color-neutral-800: 241 245 249;
+    --color-neutral-900: 229 231 235;
+    --color-neutral-950: 248 250 252;
+
+    --color-surface: 11 16 20;
+    --color-surface-container: 18 24 29;
+    --color-surface-container-high: 26 34 42;
+    --color-outline: 31 41 51;
+    --color-outline-variant: 42 52 63;
+    --color-ink: 229 231 235;
+    --color-ink-muted: 148 163 184;
+
+    /* Accent inverts: 50 deep teal (badge bg), 500 bright teal (primary) */
+    --color-accent-50: 15 57 53;
+    --color-accent-100: 19 78 74;
+    --color-accent-200: 22 105 97;
+    --color-accent-300: 25 133 120;
+    --color-accent-400: 31 167 144;
+    --color-accent-500: 45 212 191;
+    --color-accent-600: 94 238 216;
+    --color-accent-700: 153 246 228;
+    --color-accent-800: 204 251 241;
+    --color-accent-900: 240 253 250;
+
+    --color-secondary-50: 60 39 9;
+    --color-secondary-100: 96 64 17;
+    --color-secondary-200: 142 94 25;
+    --color-secondary-300: 191 124 33;
+    --color-secondary-400: 232 161 31;
+    --color-secondary-500: 251 191 36;
+    --color-secondary-600: 252 211 77;
+    --color-secondary-700: 253 224 116;
+
+    --color-success-50: 5 46 22;
+    --color-success-100: 6 78 59;
+    --color-success-500: 34 197 94;
+    --color-success-600: 74 222 128;
+    --color-success-700: 134 239 172;
+
+    --color-warning-50: 60 39 9;
+    --color-warning-100: 96 64 17;
+    --color-warning-500: 251 191 36;
+    --color-warning-600: 252 211 77;
+    --color-warning-700: 253 224 116;
+
+    --color-danger-50: 45 7 7;
+    --color-danger-100: 92 20 20;
+    --color-danger-500: 239 68 68;
+    --color-danger-600: 248 113 113;
+    --color-danger-700: 252 165 165;
+
+    --color-info-50: 12 27 54;
+    --color-info-100: 30 58 138;
+    --color-info-500: 96 165 250;
+    --color-info-600: 147 197 253;
+    --color-info-700: 191 219 254;
   }
 
   html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
   }
 
   body {
-    @apply bg-neutral-50 text-neutral-900;
+    @apply bg-surface text-ink;
     font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
@@ -26,6 +172,7 @@
   }
 
   *:focus-visible {
-    @apply outline-2 outline-offset-2 outline-accent-500;
+    outline: 2px solid rgb(var(--color-accent-500));
+    outline-offset: 2px;
   }
 }

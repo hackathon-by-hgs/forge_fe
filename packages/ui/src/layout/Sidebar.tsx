@@ -34,11 +34,11 @@ export function Sidebar({ brand, sections, footer, className }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'flex h-screen w-60 shrink-0 flex-col border-r border-neutral-200 bg-white',
+        'flex h-full w-60 shrink-0 flex-col border-r border-outline bg-surface-container',
         className,
       )}
     >
-      <div className="flex h-14 items-center border-b border-neutral-100 px-4">
+      <div className="flex h-14 shrink-0 items-center border-b border-outline-variant px-4">
         {brand}
       </div>
       <nav className="flex-1 overflow-y-auto py-3">
@@ -62,7 +62,7 @@ export function Sidebar({ brand, sections, footer, className }: SidebarProps) {
                         'flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm transition-colors',
                         active
                           ? 'bg-accent-50 text-accent-700'
-                          : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900',
+                          : 'text-neutral-600 hover:bg-surface-container-high hover:text-neutral-900',
                       )}
                     >
                       {Icon ? (
@@ -84,7 +84,7 @@ export function Sidebar({ brand, sections, footer, className }: SidebarProps) {
         ))}
       </nav>
       {footer ? (
-        <div className="border-t border-neutral-100 p-3">{footer}</div>
+        <div className="shrink-0 border-t border-outline-variant p-3">{footer}</div>
       ) : null}
     </aside>
   );

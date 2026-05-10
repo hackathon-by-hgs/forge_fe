@@ -28,7 +28,7 @@ export const DrawerContent = forwardRef<
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          'fixed inset-y-0 z-50 flex h-full flex-col border-neutral-200 bg-white shadow-lg',
+          'fixed inset-y-0 z-50 flex h-full flex-col border-outline bg-surface-container-high shadow-lg',
           'data-[state=open]:animate-fade-in',
           side === 'right' ? 'right-0 border-l' : 'left-0 border-r',
           width,

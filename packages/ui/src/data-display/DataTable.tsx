@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { cn } from '../utils/cn';
 import { Skeleton } from '../feedback/Skeleton';
 import { EmptyState } from './EmptyState';
+import { Pagination } from './Pagination';
 
 export interface DataTableColumn<T> {
   key: string;
@@ -15,6 +16,15 @@ export interface DataTableColumn<T> {
   width?: string;
   /** Tailwind class fragment for the cell. Useful to reach for `tabular-nums`. */
   cellClassName?: string;
+}
+
+export interface DataTablePaginationConfig {
+  /** Initial page size. Default 25. */
+  defaultPageSize?: number;
+  /** If provided, renders a per-page selector. */
+  pageSizeOptions?: readonly number[];
+  /** Singular noun used in "Showing X–Y of Z {label}s". Default "result". */
+  itemLabel?: string;
 }
 
 export interface DataTableProps<T> {
@@ -29,6 +39,8 @@ export interface DataTableProps<T> {
   onRowClick?: (row: T) => void;
   className?: string;
   density?: 'comfortable' | 'compact';
+  /** When provided, renders a footer pager and slices `data` to the current page. */
+  pagination?: DataTablePaginationConfig | true;
 }
 
 const ALIGN: Record<NonNullable<DataTableColumn<unknown>['align']>, string> = {
@@ -37,9 +49,12 @@ const ALIGN: Record<NonNullable<DataTableColumn<unknown>['align']>, string> = {
   center: 'text-center',
 };
 
+const DEFAULT_PAGE_SIZE = 25;
+
 /**
- * Lightweight sortable table. Plain `<table>` for now — no virtualization,
- * no row selection. Upgrade to TanStack Table when a screen needs more.
+ * Lightweight sortable, optionally paginated table. Plain `<table>` for now —
+ * no virtualization, no row selection. Upgrade to TanStack Table when a
+ * screen needs more.
  */
 export function DataTable<T>({
   data,
@@ -53,8 +68,24 @@ export function DataTable<T>({
   onRowClick,
   className,
   density = 'comfortable',
+  pagination,
 }: DataTableProps<T>) {
   const [sort, setSort] = useState<{ key: string; dir: 'asc' | 'desc' } | null>(null);
+
+  const paginationConfig: DataTablePaginationConfig | null = pagination
+    ? pagination === true
+      ? {}
+      : pagination
+    : null;
+  const initialPageSize = paginationConfig?.defaultPageSize ?? DEFAULT_PAGE_SIZE;
+
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(initialPageSize);
+
+  // Reset to page 1 if data shrinks below the current page or sort/filter changes.
+  useEffect(() => {
+    setPage(1);
+  }, [data, sort, pageSize]);
 
   const sorted = useMemo(() => {
     if (!sort) return data;
@@ -70,6 +101,12 @@ export function DataTable<T>({
     });
     return arr;
   }, [data, sort, columns]);
+
+  const visible = useMemo(() => {
+    if (!paginationConfig) return sorted;
+    const start = (page - 1) * pageSize;
+    return sorted.slice(start, start + pageSize);
+  }, [sorted, paginationConfig, page, pageSize]);
 
   if (loading) {
     return (
@@ -97,7 +134,7 @@ export function DataTable<T>({
   return (
     <div
       className={cn(
-        'overflow-hidden rounded-xl border border-neutral-200 bg-white',
+        'overflow-hidden rounded-xl border border-outline bg-surface-container',
         className,
       )}
     >
@@ -143,7 +180,7 @@ export function DataTable<T>({
             </tr>
           </thead>
           <tbody className="divide-y divide-neutral-100">
-            {sorted.map((row) => (
+            {visible.map((row) => (
               <tr
                 key={rowKey(row)}
                 onClick={onRowClick ? () => onRowClick(row) : undefined}
@@ -169,6 +206,19 @@ export function DataTable<T>({
           </tbody>
         </table>
       </div>
+      {paginationConfig ? (
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={sorted.length}
+          onPageChange={setPage}
+          pageSizeOptions={paginationConfig.pageSizeOptions}
+          onPageSizeChange={
+            paginationConfig.pageSizeOptions ? setPageSize : undefined
+          }
+          itemLabel={paginationConfig.itemLabel}
+        />
+      ) : null}
     </div>
   );
 }

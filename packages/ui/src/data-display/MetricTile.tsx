@@ -32,7 +32,7 @@ export function MetricTile({
   return (
     <div
       className={cn(
-        'rounded-xl border border-neutral-200 bg-white p-5',
+        'rounded-xl border border-outline bg-surface-container p-5',
         'transition-colors hover:border-neutral-300',
         className,
       )}

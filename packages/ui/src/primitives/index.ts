@@ -10,3 +10,5 @@ export * from './FormField';
 export * from './Tabs';
 export * from './RoutedTabs';
 export * from './Tooltip';
+export * from './Popover';
+export * from './DropdownMenu';

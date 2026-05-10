@@ -2,8 +2,9 @@ import type { Config } from 'tailwindcss';
 import { forgePreset } from '@forge/ui/tailwind-preset';
 
 /**
- * Bank dashboard — cool/financial accent (deep emerald).
- * Inherits all neutrals, status colors, typography from the shared preset.
+ * Bank dashboard. All colors (including accent) are theme-aware via
+ * CSS variables defined in `@forge/ui/styles.css`. Both employer and bank
+ * share the same Forge content palette — no per-app accent override.
  */
 const config: Config = {
   presets: [forgePreset as Partial<Config>],
@@ -12,24 +13,6 @@ const config: Config = {
     './components/**/*.{ts,tsx}',
     '../../packages/ui/src/**/*.{ts,tsx}',
   ],
-  theme: {
-    extend: {
-      colors: {
-        accent: {
-          50: '#ECFDF5',
-          100: '#D1FAE5',
-          200: '#A7F3D0',
-          300: '#6EE7B7',
-          400: '#34D399',
-          500: '#10B981',
-          600: '#059669',
-          700: '#047857',
-          800: '#065F46',
-          900: '#064E3B',
-        },
-      },
-    },
-  },
 };
 
 export default config;
