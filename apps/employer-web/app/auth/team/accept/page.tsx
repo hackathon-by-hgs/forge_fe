@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,7 +17,7 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
-export default function TeamAcceptPage() {
+function TeamAcceptForm() {
   const router = useRouter();
   const params = useSearchParams();
   const token = params.get('token');
@@ -91,5 +91,19 @@ export default function TeamAcceptPage() {
         </CardBody>
       </Card>
     </div>
+  );
+}
+
+export default function TeamAcceptPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-md px-6 py-16">
+          <p className="text-sm text-ink-muted">Loading…</p>
+        </div>
+      }
+    >
+      <TeamAcceptForm />
+    </Suspense>
   );
 }

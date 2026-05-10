@@ -36,7 +36,15 @@ function baseUrl(): string {
     );
   }
   return raw.endsWith('/') ? raw.slice(0, -1) : raw;
+
 }
+
+/** Used by SSE scaffold and other modules that need the raw origin (FRONTEND_INTEGRATION.md §7). */
+export function getApiBaseUrl(): string {
+  return baseUrl();
+}
+
+export type RefreshOutcome = 'ok' | 'unauthorized' | 'network';
 
 export interface RequestOptions<TBody = unknown> {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT';
@@ -66,9 +74,9 @@ async function readJson(response: Response): Promise<unknown> {
 /* Single-flight refresh                                               */
 /* ------------------------------------------------------------------ */
 
-let inflightRefresh: Promise<boolean> | null = null;
+let inflightRefresh: Promise<RefreshOutcome> | null = null;
 
-async function performRefresh(): Promise<boolean> {
+async function performRefresh(): Promise<RefreshOutcome> {
   try {
     const response = await fetch(`${baseUrl()}/v1/dashboard/auth/refresh`, {
       method: 'POST',
@@ -78,19 +86,18 @@ async function performRefresh(): Promise<boolean> {
     if (!response.ok) {
       setAccessToken(null);
       fireAuthLost();
-      return false;
+      return 'unauthorized';
     }
     const body = (await response.json()) as LoginResponse;
     setAccessToken(body.accessToken);
-    return true;
+    return 'ok';
   } catch {
-    setAccessToken(null);
-    fireAuthLost();
-    return false;
+    /* Transient network failure — do not revoke the session (FRONTEND_INTEGRATION.md §2.3). */
+    return 'network';
   }
 }
 
-function refreshOnce(): Promise<boolean> {
+function refreshOnce(): Promise<RefreshOutcome> {
   if (!inflightRefresh) {
     inflightRefresh = performRefresh().finally(() => {
       inflightRefresh = null;
@@ -99,8 +106,8 @@ function refreshOnce(): Promise<boolean> {
   return inflightRefresh;
 }
 
-/** Force a refresh from outside the request loop (used by boot). */
-export function refreshSession(): Promise<boolean> {
+/** Used by boot and internally after 401. */
+export function refreshSession(): Promise<RefreshOutcome> {
   return refreshOnce();
 }
 
@@ -157,14 +164,17 @@ export async function request<TResponse, TBody = unknown>(
 
   if (response.status === 401 && authenticated && !skipRefresh) {
     const refreshed = await refreshOnce();
-    if (refreshed) {
+    if (refreshed === 'ok') {
       try {
         response = await send();
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') throw err;
         throw new NetworkError();
       }
+    } else if (refreshed === 'network') {
+      throw new NetworkError();
     }
+    /* unauthorized: fall through — surface the original 401 envelope */
   }
 
   if (response.status === 204) {

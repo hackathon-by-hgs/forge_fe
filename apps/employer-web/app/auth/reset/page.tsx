@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -17,7 +18,7 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const router = useRouter();
   const params = useSearchParams();
   const token = params.get('token');
@@ -75,5 +76,19 @@ export default function ResetPasswordPage() {
         </CardBody>
       </Card>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-md px-6 py-16">
+          <p className="text-sm text-ink-muted">Loading…</p>
+        </div>
+      }
+    >
+      <ResetPasswordForm />
+    </Suspense>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, type ReactNode } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Spinner } from '@forge/ui';
+import { Button, Spinner } from '@forge/ui';
 import { useAuthStore } from './store';
 import { isBankRole } from '../api/types';
 
@@ -14,6 +14,7 @@ import { isBankRole } from '../api/types';
  * origin — the FE server never sees it (FRONTEND_INTEGRATION.md §2.3).
  *
  * Behaviour:
+ *   - `pending` + network failure → full-screen retry (§2.3) — do not redirect
  *   - `pending`        → full-screen spinner (boot in flight)
  *   - `unauthenticated`→ redirect to `/login?from=<original>`
  *   - `authenticated`  → render children, but block non-bank roles
@@ -22,9 +23,10 @@ import { isBankRole } from '../api/types';
 export function RequireAuth({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { bootStatus, user } = useAuthStore((s) => ({
+  const { bootStatus, user, bootNetworkError } = useAuthStore((s) => ({
     bootStatus: s.bootStatus,
     user: s.user,
+    bootNetworkError: s.bootNetworkError,
   }));
 
   useEffect(() => {
@@ -33,6 +35,10 @@ export function RequireAuth({ children }: { children: ReactNode }) {
       router.replace(target);
     }
   }, [bootStatus, pathname, router]);
+
+  if (bootStatus === 'pending' && bootNetworkError) {
+    return <BootOfflinePanel />;
+  }
 
   if (bootStatus !== 'authenticated' || !user) {
     return <FullScreenSpinner label="Loading your dashboard…" />;
@@ -43,6 +49,22 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   }
 
   return <>{children}</>;
+}
+
+function BootOfflinePanel() {
+  const retryBoot = useAuthStore((s) => s.retryBoot);
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-surface px-6 text-center text-ink">
+      <p className="text-lg font-semibold">Can&apos;t reach Forge</p>
+      <p className="max-w-sm text-sm text-ink-muted">
+        Your session may still be valid — check your connection and try again. We won&apos;t sign you out
+        until the server confirms you&apos;re unauthorized (FRONTEND_INTEGRATION.md §2.3).
+      </p>
+      <Button variant="secondary" onClick={() => void retryBoot()}>
+        Retry connection
+      </Button>
+    </div>
+  );
 }
 
 function FullScreenSpinner({ label }: { label: string }) {
