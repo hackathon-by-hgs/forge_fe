@@ -25,10 +25,12 @@ function LoginForm() {
   const router = useRouter();
   const search = useSearchParams();
 
-  const { bootStatus, login, signOut } = useAuthStore((s) => ({
+  const { bootStatus, login, signOut, bootNetworkError, retryBoot } = useAuthStore((s) => ({
     bootStatus: s.bootStatus,
     login: s.login,
     signOut: s.signOut,
+    bootNetworkError: s.bootNetworkError,
+    retryBoot: s.retryBoot,
   }));
 
   const redirectTo = useMemo(() => {
@@ -91,6 +93,19 @@ function LoginForm() {
   return (
     <div className="space-y-8">
       <Brand />
+
+      {bootNetworkError ? (
+        <AlertBanner
+          tone="warning"
+          title="Cannot verify your session — Forge may be unreachable."
+          description="Retry connects to the API without signing you out."
+          action={
+            <Button variant="secondary" size="sm" onClick={() => void retryBoot()}>
+              Retry
+            </Button>
+          }
+        />
+      ) : null}
 
       <form onSubmit={submit} className="space-y-5" noValidate>
         <header className="space-y-1">

@@ -1,3 +1,7 @@
+'use client';
+
+import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
 import {
   Avatar,
   Badge,
@@ -9,19 +13,141 @@ import {
   EmptyState,
   MetricTile,
   PageHeader,
+  Skeleton,
   StatusDot,
 } from '@forge/ui';
 import { IconAlert, IconAttribution, IconBorrowers } from '@forge/ui/icons';
 import { formatCurrency, formatNumber, formatPercent } from '@forge/ui/utils';
-import { MOCK_BANKS, MOCK_LOANS, MOCK_WORKERS } from '@forge/mock-data';
+import { fetchRiskRadar } from '../../lib/api/bank';
+import type {
+  BankRiskRadarCriticalItemDto,
+  BankRiskRadarDto,
+  BankRiskRadarOpportunityDto,
+  BankRiskRadarWatchItemDto,
+} from '../../lib/api/bankTypes';
+import { isApiError, NetworkError, toUserMessage } from '../../lib/api/errors';
 
 export default function RiskRadarPage() {
-  const bank = MOCK_BANKS[0];
-  const atRiskLoans = MOCK_LOANS.filter((l) => l.riskLevel !== 'green');
-  const redLoans = MOCK_LOANS.filter((l) => l.riskLevel === 'red');
-  const yellowLoans = MOCK_LOANS.filter((l) => l.riskLevel === 'yellow');
-  const totalActive = MOCK_LOANS.filter((l) => l.status === 'active' || l.status === 'at_risk');
-  const totalActiveValue = totalActive.reduce((s, l) => s + l.outstandingNaira, 0);
+  const { data, isPending, isError, error, refetch, isFetching } = useQuery({
+    queryKey: ['bank', 'risk-radar'],
+    queryFn: async () => {
+      try {
+        return await fetchRiskRadar();
+      } catch (e: unknown) {
+        if (isApiError(e) && (e.status === 404 || e.code === 'NOT_FOUND')) {
+          return null;
+        }
+        throw e;
+      }
+    },
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
+  });
+
+  if (isPending) {
+    return <RiskRadarSkeleton />;
+  }
+
+  if (isError) {
+    return (
+      <RiskRadarErrorState
+        error={error}
+        onRetry={() => void refetch()}
+        retrying={isFetching}
+      />
+    );
+  }
+
+  if (data === null) {
+    return <RiskRadarNotShipped />;
+  }
+
+  return <RiskRadarDashboard data={data} />;
+}
+
+function RiskRadarSkeleton() {
+  return (
+    <>
+      <PageHeader
+        title="Risk Radar"
+        description="What needs attention, what's healthy, what's growing — at a glance."
+        actions={
+          <Skeleton className="h-10 w-44 rounded-lg" />
+        }
+      />
+      <div className="space-y-6 p-6">
+        <Skeleton className="h-48 w-full rounded-xl" />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-32 rounded-xl" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <Skeleton className="h-72 rounded-xl lg:col-span-2" />
+          <Skeleton className="h-72 rounded-xl" />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function RiskRadarErrorState({
+  error,
+  onRetry,
+  retrying,
+}: {
+  error: unknown;
+  onRetry: () => void;
+  retrying: boolean;
+}) {
+  const isOffline = error instanceof NetworkError;
+  return (
+    <>
+      <PageHeader
+        title="Risk Radar"
+        description="What needs attention, what's healthy, what's growing — at a glance."
+      />
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-6">
+        <EmptyState
+          icon={<IconAlert className="!h-8 !w-8 text-danger-600" />}
+          title={isOffline ? 'Cannot reach the server' : 'Risk Radar failed to load'}
+          description={toUserMessage(error)}
+        />
+        <Button variant="secondary" loading={retrying} onClick={onRetry}>
+          Retry
+        </Button>
+      </div>
+    </>
+  );
+}
+
+function RiskRadarNotShipped() {
+  return (
+    <>
+      <PageHeader
+        title="Risk Radar"
+        description="Composite dashboard for critical alerts, watch list, and portfolio health."
+      />
+      <div className="flex min-h-[50vh] flex-col items-center justify-center p-6">
+        <EmptyState
+          icon={<IconBorrowers className="!h-8 !w-8 text-ink-muted" />}
+          title="Risk Radar API not deployed yet"
+          description="The bank Risk Radar endpoint (`GET /v1/bank/risk-radar`) ships with Backend Phase 4 per FRONTEND_INTEGRATION.md §5.8. Regenerate OpenAPI types once it appears in `/v1/openapi.json`, then this screen will hydrate automatically."
+        />
+      </div>
+    </>
+  );
+}
+
+function RiskRadarDashboard({ data }: { data: BankRiskRadarDto }) {
+  const metrics = data.metrics ?? {};
+  const critical = data.criticalAlerts ?? [];
+  const watch = data.watchList ?? [];
+  const opportunity = data.opportunity ?? [];
+
+  const activeCount = metrics.activeLoansCount ?? 0;
+  const outstanding = metrics.activeLoansOutstandingNaira ?? 0;
+  const sparkDefault = [2, 3, 4, 5, 6, 7, 8];
 
   return (
     <>
@@ -29,61 +155,27 @@ export default function RiskRadarPage() {
         title="Risk Radar"
         description="What needs attention, what's healthy, what's growing — at a glance."
         actions={
-          <Button variant="secondary" leadingIcon={<IconAttribution className="!h-4 !w-4" />}>
+          <Button variant="secondary" leadingIcon={<IconAttribution className="!h-4 !w-4" />} disabled>
             Open Performance
           </Button>
         }
       />
 
       <div className="space-y-6 p-6">
-        {redLoans.length > 0 ? (
+        {critical.length > 0 ? (
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
                 <IconAlert className="!h-4 !w-4 text-danger-600" />
                 <CardTitle>Critical alerts</CardTitle>
-                <Badge tone="danger">{redLoans.length}</Badge>
+                <Badge tone="danger">{critical.length}</Badge>
               </div>
             </CardHeader>
             <CardBody>
               <div className="-mx-1 flex gap-3 overflow-x-auto pb-1">
-                {redLoans.slice(0, 6).map((loan) => {
-                  const w = MOCK_WORKERS.find((wk) => wk.id === loan.borrowerId);
-                  return (
-                    <div
-                      key={loan.id}
-                      className="flex w-72 shrink-0 flex-col gap-2 rounded-lg border border-danger-500/20 bg-danger-50/40 p-3"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Avatar name={w?.fullName ?? loan.borrowerId} size="sm" />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-neutral-900">
-                            {w?.fullName ?? 'Borrower'}
-                          </p>
-                          <p
-                            className="truncate font-mono text-[10px] text-neutral-500"
-                            data-numeric
-                          >
-                            {loan.id}
-                          </p>
-                        </div>
-                        <Badge tone="danger">RED</Badge>
-                      </div>
-                      <div className="flex items-baseline justify-between text-xs text-neutral-600">
-                        <span>Outstanding</span>
-                        <span className="font-medium text-neutral-900" data-numeric>
-                          {formatCurrency(loan.outstandingNaira)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-danger-700">
-                        No income detected for 7+ days. Review payment plan.
-                      </p>
-                      <Button variant="secondary" size="sm">
-                        Investigate
-                      </Button>
-                    </div>
-                  );
-                })}
+                {critical.slice(0, 6).map((loan) => (
+                  <CriticalLoanCard key={loan.loanId} loan={loan} />
+                ))}
               </div>
             </CardBody>
           </Card>
@@ -92,27 +184,28 @@ export default function RiskRadarPage() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
           <MetricTile
             label="Active loans"
-            value={formatNumber(totalActive.length)}
-            hint={formatCurrency(totalActiveValue, { compact: true }) + ' outstanding'}
-            trend={[18, 19, 22, 21, 24, 26, totalActive.length]}
+            value={formatNumber(activeCount)}
+            hint={
+              outstanding > 0
+                ? `${formatCurrency(outstanding, { compact: true })} outstanding`
+                : undefined
+            }
+            trend={metrics.activeLoansTrend ?? sparkDefault}
           />
           <MetricTile
             label="Total disbursed"
-            value={formatCurrency(bank?.totalDisbursedNaira ?? 0, { compact: true })}
-            delta={{ pct: 14.3, direction: 'up', label: 'this month' }}
-            trend={[11, 13, 14, 15, 17, 18, 18.5]}
+            value={formatCurrency(metrics.totalDisbursedNaira ?? 0, { compact: true })}
+            trend={metrics.disbursedTrend ?? sparkDefault}
           />
           <MetricTile
             label="Repayment rate"
-            value={formatPercent(bank?.repaymentRate ?? 0)}
-            delta={{ pct: 0.8, direction: 'up' }}
-            trend={[0.91, 0.92, 0.92, 0.93, 0.93, 0.94, 0.94]}
+            value={formatPercent(metrics.repaymentRate ?? 0)}
+            trend={metrics.repaymentTrend ?? sparkDefault}
           />
           <MetricTile
             label="Default rate"
-            value={formatPercent(bank?.defaultRate ?? 0)}
-            delta={{ pct: 0.4, direction: 'down', label: 'good' }}
-            trend={[0.06, 0.06, 0.05, 0.05, 0.04, 0.04, 0.04]}
+            value={formatPercent(metrics.defaultRate ?? 0)}
+            trend={metrics.defaultTrend ?? sparkDefault}
           />
         </div>
 
@@ -120,43 +213,20 @@ export default function RiskRadarPage() {
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle>Watch list</CardTitle>
-              <Badge tone="warning">{yellowLoans.length}</Badge>
+              <Badge tone="warning">{watch.length}</Badge>
             </CardHeader>
             <CardBody>
-              {yellowLoans.length === 0 ? (
+              {watch.length === 0 ? (
                 <EmptyState
                   icon={<IconBorrowers className="!h-5 !w-5" />}
                   title="Nothing on the watch list"
                   description="No borrowers showing yellow-flag patterns right now."
                 />
               ) : (
-                <ul className="divide-y divide-neutral-100 text-sm">
-                  {yellowLoans.slice(0, 6).map((loan) => {
-                    const w = MOCK_WORKERS.find((wk) => wk.id === loan.borrowerId);
-                    return (
-                      <li
-                        key={loan.id}
-                        className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
-                      >
-                        <StatusDot tone="warning" />
-                        <Avatar name={w?.fullName ?? loan.borrowerId} size="sm" />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium text-neutral-900">
-                            {w?.fullName ?? loan.borrowerId}
-                          </p>
-                          <p className="text-xs text-neutral-500">
-                            Slowing income trend over past 14 days
-                          </p>
-                        </div>
-                        <span
-                          className="text-sm font-medium text-neutral-900 tabular-nums"
-                          data-numeric
-                        >
-                          {formatCurrency(loan.outstandingNaira)}
-                        </span>
-                      </li>
-                    );
-                  })}
+                <ul className="divide-y divide-outline-variant text-sm">
+                  {watch.slice(0, 8).map((item) => (
+                    <WatchRow key={item.loanId} item={item} />
+                  ))}
                 </ul>
               )}
             </CardBody>
@@ -166,13 +236,13 @@ export default function RiskRadarPage() {
             <CardHeader>
               <CardTitle>Live events</CardTitle>
               <Badge tone="success" variant="soft">
-                <StatusDot tone="success" pulse /> Live
+                <StatusDot tone="success" pulse /> Soon
               </Badge>
             </CardHeader>
             <CardBody>
               <EmptyState
-                title="Events feed wires in next phase"
-                description="Stripe-style log of disbursements, repayments, and borrower activity."
+                title="SSE feed — Phase 4"
+                description="FRONTEND_INTEGRATION.md §7 — `/v1/stream` consumers wire here once Backend Phase 4 lands. Until then, use manual refresh or polling."
               />
             </CardBody>
           </Card>
@@ -182,43 +252,103 @@ export default function RiskRadarPage() {
           <CardHeader>
             <div>
               <CardTitle>Opportunity</CardTitle>
-              <p className="mt-0.5 text-xs text-neutral-500">
-                {atRiskLoans.length === 0
-                  ? 'Newly eligible borrowers based on the platform credit model.'
-                  : `${MOCK_WORKERS.filter((w) => w.eligibility === 'pre_approved').length} pre-approved workers ready for outreach.`}
+              <p className="mt-0.5 text-xs text-ink-muted">
+                {opportunity.length === 0
+                  ? 'Eligible borrowers surfaced by the platform credit model appear here.'
+                  : `${opportunity.length} prospects matched your criteria.`}
               </p>
             </div>
-            <Button variant="secondary" size="sm">
+            <Button variant="secondary" size="sm" disabled>
               View all
             </Button>
           </CardHeader>
           <CardBody>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {MOCK_WORKERS.filter((w) => w.eligibility === 'pre_approved')
-                .slice(0, 3)
-                .map((w) => (
-                  <div
-                    key={w.id}
-                    className="flex items-center gap-3 rounded-lg border border-neutral-200 p-3"
-                  >
-                    <Avatar name={w.fullName} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-neutral-900">
-                        {w.fullName}
-                      </p>
-                      <p className="truncate text-xs text-neutral-500">
-                        Score {w.reliabilityScore} · {w.jobsCompleted} jobs
-                      </p>
-                    </div>
-                    <Button size="sm" variant="secondary">
-                      Pre-approve
-                    </Button>
-                  </div>
+            {opportunity.length === 0 ? (
+              <EmptyState
+                title="No opportunities yet"
+                description="When the Risk Radar payload includes `opportunity`, pre-approved borrowers render in this grid."
+              />
+            ) : (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                {opportunity.slice(0, 6).map((row) => (
+                  <OpportunityCard key={row.id} row={row} />
                 ))}
-            </div>
+              </div>
+            )}
           </CardBody>
         </Card>
       </div>
     </>
+  );
+}
+
+function CriticalLoanCard({ loan }: { loan: BankRiskRadarCriticalItemDto }) {
+  const loanHref = `/loans/${encodeURIComponent(loan.loanId)}`;
+  return (
+    <div className="flex w-72 shrink-0 flex-col gap-2 rounded-lg border border-danger-500/20 bg-danger-50/40 p-3 dark:bg-danger-950/20">
+      <div className="flex items-center gap-2">
+        <Avatar name={loan.borrowerName ?? loan.loanId} size="sm" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-ink">{loan.borrowerName ?? 'Borrower'}</p>
+          <p className="truncate font-mono text-[10px] text-ink-muted" data-numeric>
+            {loan.loanId}
+          </p>
+        </div>
+        <Badge tone="danger">{loan.riskLevel ?? 'RED'}</Badge>
+      </div>
+      <div className="flex items-baseline justify-between text-xs text-ink-muted">
+        <span>Outstanding</span>
+        <span className="font-medium text-ink" data-numeric>
+          {formatCurrency(loan.outstandingNaira ?? 0)}
+        </span>
+      </div>
+      {loan.headline ? <p className="text-xs text-danger-700">{loan.headline}</p> : null}
+      <Link
+        href={loanHref}
+        className="inline-flex h-8 items-center justify-center rounded-lg border border-neutral-200 bg-white px-3 text-xs font-medium text-neutral-900 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800"
+      >
+        Investigate
+      </Link>
+    </div>
+  );
+}
+
+function WatchRow({ item }: { item: BankRiskRadarWatchItemDto }) {
+  const loanHref = `/loans/${encodeURIComponent(item.loanId)}`;
+  return (
+    <li className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+      <StatusDot tone="warning" />
+      <Avatar name={item.borrowerName ?? item.loanId} size="sm" />
+      <div className="min-w-0 flex-1">
+        <Link href={loanHref} className="truncate text-sm font-medium text-ink hover:text-accent-600">
+          {item.borrowerName ?? item.loanId}
+        </Link>
+        <p className="text-xs text-ink-muted">{item.detail ?? 'Requires monitoring'}</p>
+      </div>
+      <span className="text-sm font-medium text-ink tabular-nums" data-numeric>
+        {formatCurrency(item.outstandingNaira ?? 0)}
+      </span>
+    </li>
+  );
+}
+
+function OpportunityCard({ row }: { row: BankRiskRadarOpportunityDto }) {
+  const href = `/borrowers/${encodeURIComponent(row.id)}`;
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-outline p-3">
+      <Avatar name={row.fullName ?? row.id} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium text-ink">{row.fullName ?? row.id}</p>
+        <p className="truncate text-xs text-ink-muted">
+          Score {row.reliabilityScore ?? '—'} · {row.jobsCompleted ?? 0} jobs
+        </p>
+      </div>
+      <Link
+        href={href}
+        className="inline-flex h-8 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white px-3 text-xs font-medium text-neutral-900 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800"
+      >
+        Profile
+      </Link>
+    </div>
   );
 }
