@@ -130,10 +130,24 @@ async function requestJson<T>(path: string, init: RequestInit, options?: Request
     });
 
     if (!retryRes.ok) throw await parseResponseError(retryRes);
+    if (retryRes.status === 204 || retryRes.status === 205) {
+      return undefined as T;
+    }
+    const retryCt = retryRes.headers.get('content-type');
+    if (!retryCt?.includes('application/json')) {
+      return undefined as T;
+    }
     return (await retryRes.json()) as T;
   }
 
   if (!res.ok) throw await parseResponseError(res);
+  if (res.status === 204 || res.status === 205) {
+    return undefined as T;
+  }
+  const ct = res.headers.get('content-type');
+  if (!ct?.includes('application/json')) {
+    return undefined as T;
+  }
   return (await res.json()) as T;
 }
 
