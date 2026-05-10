@@ -1,12 +1,12 @@
-import { formatISO, subMinutes, subHours } from 'date-fns';
+import type { components } from '@forge/types/api';
 
 export type NotificationKind =
-  | 'application_received'
-  | 'loan_at_risk'
-  | 'repayment_missed'
-  | 'repayment_received'
-  | 'borrower_pre_approved'
-  | 'disbursement_processed';
+  | 'application'
+  | 'loan'
+  | 'payment'
+  | 'system';
+
+export type DashboardNotificationDto = components['schemas']['NotificationDto'];
 
 export interface AppNotification {
   id: string;
@@ -18,62 +18,35 @@ export interface AppNotification {
   unread: boolean;
 }
 
-export function getMockNotifications(): AppNotification[] {
-  const now = new Date();
-  return [
-    {
-      id: 'n1',
-      kind: 'loan_at_risk',
-      title: 'Loan flagged red',
-      detail: 'loan_0014 — no income detected for 7+ days. Outstanding ₦340k.',
-      href: '/',
-      occurredAt: formatISO(subMinutes(now, 6)),
-      unread: true,
-    },
-    {
-      id: 'n2',
-      kind: 'application_received',
-      title: '4 new applications',
-      detail: 'Two pre-approve, one approve-with-conditions, one referral.',
-      href: '/applications',
-      occurredAt: formatISO(subMinutes(now, 22)),
-      unread: true,
-    },
-    {
-      id: 'n3',
-      kind: 'repayment_missed',
-      title: 'Repayment missed',
-      detail: 'loan_0027 — ₦18,750 instalment missed at 09:00 WAT.',
-      href: '/loans',
-      occurredAt: formatISO(subMinutes(now, 48)),
-      unread: true,
-    },
-    {
-      id: 'n4',
-      kind: 'repayment_received',
-      title: 'Repayment received',
-      detail: 'loan_0019 — ₦52,300 settled via Squad.',
-      href: '/loans',
-      occurredAt: formatISO(subHours(now, 2)),
-      unread: false,
-    },
-    {
-      id: 'n5',
-      kind: 'borrower_pre_approved',
-      title: '12 new pre-approved borrowers',
-      detail: 'Crossed 80-score threshold this week — ready for outreach.',
-      href: '/',
-      occurredAt: formatISO(subHours(now, 5)),
-      unread: false,
-    },
-    {
-      id: 'n6',
-      kind: 'disbursement_processed',
-      title: 'Disbursement processed',
-      detail: 'loan_0032 — ₦2.4M wired to merchant wallet.',
-      href: '/loans',
-      occurredAt: formatISO(subHours(now, 21)),
-      unread: false,
-    },
-  ];
+function mapKind(kind: DashboardNotificationDto['kind']): NotificationKind {
+  switch (kind) {
+    case 'application_update':
+      return 'application';
+    case 'loan':
+      return 'loan';
+    case 'payment':
+      return 'payment';
+    case 'new_job':
+    case 'system':
+    default:
+      return 'system';
+  }
+}
+
+function deeplinkToHref(deeplink: DashboardNotificationDto['deeplink']): string | undefined {
+  if (deeplink == null) return undefined;
+  if (typeof deeplink === 'string') return deeplink;
+  return undefined;
+}
+
+export function mapDashboardNotification(row: DashboardNotificationDto): AppNotification {
+  return {
+    id: row.id,
+    kind: mapKind(row.kind),
+    title: row.title,
+    detail: row.body,
+    href: deeplinkToHref(row.deeplink),
+    occurredAt: row.timestamp,
+    unread: row.unread,
+  };
 }

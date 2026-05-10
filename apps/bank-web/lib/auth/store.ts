@@ -23,6 +23,8 @@ interface AuthState {
   retryBoot: () => Promise<void>;
   /** Email/password sign-in. Throws on failure; success rehydrates the store. */
   login: (input: LoginRequest) => Promise<LoginResponse>;
+  /** Apply a freshly-issued LoginResponse (e.g. after team-invite acceptance) and mark the session authenticated. */
+  applyLoginResponse: (res: LoginResponse) => void;
   /** Best-effort server logout, then local clear regardless of result. */
   signOut: (options?: { everywhere?: boolean }) => Promise<void>;
   /** Local-only clear; called by the API client when refresh fails. */
@@ -80,6 +82,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const res = await authApi.login(input);
     applySession(set, res);
     return res;
+  },
+
+  applyLoginResponse: (res) => {
+    applySession(set, res);
   },
 
   signOut: async ({ everywhere = false } = {}) => {

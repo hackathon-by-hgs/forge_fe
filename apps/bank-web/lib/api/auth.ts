@@ -1,10 +1,12 @@
 import { request } from './client';
 import type {
+  AcceptInvitationRequest,
   ForgotPasswordRequest,
   LoginRequest,
   LoginResponse,
   ResetPasswordRequest,
   SessionUser,
+  VerifyEmailRequest,
 } from './types';
 
 /**
@@ -52,4 +54,20 @@ export function logoutAll(): Promise<void> {
 
 export function getMe(): Promise<SessionUser> {
   return request<SessionUser>('/v1/dashboard/auth/me');
+}
+
+export function verifyEmail(body: VerifyEmailRequest): Promise<void> {
+  return request<void, VerifyEmailRequest>(
+    '/v1/dashboard/auth/email/verify',
+    { method: 'POST', body, authenticated: false, skipRefresh: true },
+  );
+}
+
+export function acceptInvitation(
+  body: AcceptInvitationRequest,
+): Promise<LoginResponse> {
+  return request<LoginResponse, AcceptInvitationRequest>(
+    '/v1/dashboard/auth/team/accept',
+    { method: 'POST', body, authenticated: false, skipRefresh: true },
+  );
 }
