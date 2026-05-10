@@ -18,28 +18,21 @@ import {
 } from '@forge/ui';
 import { IconAlert, IconAttribution, IconBorrowers } from '@forge/ui/icons';
 import { formatCurrency, formatNumber, formatPercent } from '@forge/ui/utils';
-import { fetchRiskRadar } from '../../lib/api/bank';
+import { getRiskRadarMock } from '../../lib/api/bank';
 import type {
   BankRiskRadarCriticalItemDto,
   BankRiskRadarDto,
   BankRiskRadarOpportunityDto,
   BankRiskRadarWatchItemDto,
 } from '../../lib/api/bankTypes';
-import { isApiError, NetworkError, toUserMessage } from '../../lib/api/errors';
+import { NetworkError, toUserMessage } from '../../lib/api/errors';
 
+// TODO(phase-4): Swap `getRiskRadarMock` for `fetchRiskRadar` when
+// `GET /v1/bank/risk-radar` ships (BE team ETA: Phase 3 + 24h).
 export default function RiskRadarPage() {
   const { data, isPending, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['bank', 'risk-radar'],
-    queryFn: async () => {
-      try {
-        return await fetchRiskRadar();
-      } catch (e: unknown) {
-        if (isApiError(e) && (e.status === 404 || e.code === 'NOT_FOUND')) {
-          return null;
-        }
-        throw e;
-      }
-    },
+    queryFn: getRiskRadarMock,
     staleTime: 30_000,
     refetchOnWindowFocus: true,
   });
@@ -56,10 +49,6 @@ export default function RiskRadarPage() {
         retrying={isFetching}
       />
     );
-  }
-
-  if (data === null) {
-    return <RiskRadarNotShipped />;
   }
 
   return <RiskRadarDashboard data={data} />;
@@ -116,24 +105,6 @@ function RiskRadarErrorState({
         <Button variant="secondary" loading={retrying} onClick={onRetry}>
           Retry
         </Button>
-      </div>
-    </>
-  );
-}
-
-function RiskRadarNotShipped() {
-  return (
-    <>
-      <PageHeader
-        title="Risk Radar"
-        description="Composite dashboard for critical alerts, watch list, and portfolio health."
-      />
-      <div className="flex min-h-[50vh] flex-col items-center justify-center p-6">
-        <EmptyState
-          icon={<IconBorrowers className="!h-8 !w-8 text-ink-muted" />}
-          title="Risk Radar API not deployed yet"
-          description="The bank Risk Radar endpoint (`GET /v1/bank/risk-radar`) ships with Backend Phase 4 per FRONTEND_INTEGRATION.md §5.8. Regenerate OpenAPI types once it appears in `/v1/openapi.json`, then this screen will hydrate automatically."
-        />
       </div>
     </>
   );
