@@ -9,6 +9,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Button, Card, CardBody, CardHeader, CardTitle, Input } from '@forge/ui';
 import { useAuth } from '../../lib/auth';
 import { ApiError } from '../../lib/api';
+import { safeAuthReturnPath } from '../../lib/publicRoutes';
 
 const schema = z.object({
   email: z.string().email(),
@@ -37,7 +38,8 @@ function LoginForm() {
     setError(null);
     try {
       await login(values);
-      router.replace('/');
+      const next = safeAuthReturnPath(searchParams.get('next'));
+      router.replace(next ?? '/');
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.code === 'INVALID_CREDENTIALS') {

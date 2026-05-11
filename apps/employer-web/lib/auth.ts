@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { components } from '@forge/types/api';
 import { getApiBaseUrl, getAccessToken, parseResponseError, setAccessToken, api } from './api';
+import { AUTH_LOGIN_PATH } from './publicRoutes';
 
 export type SessionUser = components['schemas']['SessionUserDto'];
 export type LoginResponse = components['schemas']['LoginResponseDto'];
@@ -69,6 +70,7 @@ export const useAuth = create<AuthState>((set, get) => ({
       });
       await get().fetchMe();
     } catch (err) {
+      get().clearSession();
       set({
         booting: false,
         bootError: err instanceof Error ? err.message : 'Network error',
@@ -105,7 +107,7 @@ export const useAuth = create<AuthState>((set, get) => ({
       // best-effort
     } finally {
       get().clearSession();
-      if (typeof window !== 'undefined') window.location.assign('/login');
+      if (typeof window !== 'undefined') window.location.assign(AUTH_LOGIN_PATH);
     }
   },
 }));
