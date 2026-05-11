@@ -180,14 +180,26 @@ export default function SettingsPage() {
     setBillingEmail(typeof billing.invoicingEmail === 'string' ? billing.invoicingEmail : '');
   }, [billing]);
 
+  const billingDirty = !!billing && (
+    (billingPlan && billingPlan !== billing.plan) ||
+    billingEmail !== (typeof billing.invoicingEmail === 'string' ? billing.invoicingEmail : '')
+  );
+
   const onInvite = async () => {
     setInviteError(null);
     try {
       await invite.mutateAsync({ email: inviteEmail.trim(), role: inviteRole });
       setInviteEmail('');
     } catch (e) {
-      if (e instanceof ApiError) setInviteError(e.message);
-      else setInviteError('Invite failed');
+      if (e instanceof ApiError) {
+        if (e.code === 'ALREADY_TEAM_MEMBER') {
+          setInviteError(`${inviteEmail.trim()} is already on your team.`);
+        } else {
+          setInviteError(e.message);
+        }
+      } else {
+        setInviteError('Invite failed');
+      }
     }
   };
 
@@ -498,17 +510,33 @@ export default function SettingsPage() {
                           onChange={(e) => setBillingEmail(e.target.value)}
                         />
                       </FormField>
-                      <Button
-                        disabled={!canBiz || saveBilling.isPending}
-                        onClick={() =>
-                          void saveBilling.mutateAsync({
-                            plan: billingPlan || undefined,
-                            invoicingEmail: billingEmail || undefined,
-                          })
-                        }
-                      >
-                        Save billing
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="secondary"
+                          disabled={!canBiz || saveBilling.isPending || !billingDirty}
+                          onClick={() => {
+                            setBillingPlan(billing.plan);
+                            setBillingEmail(
+                              typeof billing.invoicingEmail === 'string'
+                                ? billing.invoicingEmail
+                                : '',
+                            );
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          disabled={!canBiz || saveBilling.isPending || !billingDirty}
+                          onClick={() =>
+                            void saveBilling.mutateAsync({
+                              plan: billingPlan || undefined,
+                              invoicingEmail: billingEmail || undefined,
+                            })
+                          }
+                        >
+                          Save billing
+                        </Button>
+                      </div>
                     </>
                   ) : null}
                 </CardBody>

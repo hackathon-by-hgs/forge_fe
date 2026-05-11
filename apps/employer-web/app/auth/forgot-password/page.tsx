@@ -18,11 +18,16 @@ export default function ForgotPasswordPage() {
   });
 
   const onSubmit = async (values: FormValues) => {
-    await api.post<undefined, { email: string }>(
-      '/v1/dashboard/auth/email/forgot',
-      { email: values.email },
-      { auth: false },
-    );
+    try {
+      await api.post<undefined, { email: string }>(
+        '/v1/dashboard/auth/email/forgot',
+        { email: values.email },
+        { auth: false },
+      );
+    } catch {
+      // Endpoint is always-204 by design; never leak account existence.
+      // Swallow errors so the user always sees the same message.
+    }
     setDone(true);
   };
 

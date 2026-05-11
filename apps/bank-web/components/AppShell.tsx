@@ -1,11 +1,10 @@
 import { type ReactNode } from 'react';
 import {
-  Input,
   PageShell,
   Sidebar,
   TopBar,
 } from '@forge/ui';
-import { IconBank, IconCommand, IconSearch } from '@forge/ui/icons';
+import { IconBank } from '@forge/ui/icons';
 import { bankNav } from '../lib/nav';
 import { NotificationsPopover } from './NotificationsPopover';
 import { AccountMenu } from './AccountMenu';
@@ -35,19 +34,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       }
       topBar={
         <TopBar
-          search={
-            <Input
-              type="search"
-              placeholder="Search borrowers, loans, applications…"
-              leadingIcon={<IconSearch className="!h-4 !w-4" />}
-              trailingIcon={
-                <kbd className="hidden items-center gap-1 rounded border border-outline bg-surface-container-high px-1.5 py-0.5 font-mono text-[10px] text-ink-muted sm:inline-flex">
-                  <IconCommand className="!h-3 !w-3" />K
-                </kbd>
-              }
-              className="max-w-md"
-            />
-          }
           end={
             <>
               <NotificationsPopover />

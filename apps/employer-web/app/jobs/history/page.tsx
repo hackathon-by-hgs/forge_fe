@@ -1,28 +1,68 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
-  Avatar,
+  AlertBanner,
   Badge,
   Button,
   DataTable,
   PageHeader,
+  Pagination,
   RoutedTabs,
+  Skeleton,
   type DataTableColumn,
 } from '@forge/ui';
 import { IconAdd } from '@forge/ui/icons';
 import { formatCurrency, formatShortDate } from '@forge/ui/utils';
-import type { Job } from '@forge/types';
-import { MOCK_JOBS, MOCK_WORKERS } from '@forge/mock-data';
 import { jobsTabs } from '../../../lib/nav';
+import {
+  downloadJobsCsv,
+  listJobs,
+  type JobDto,
+  type JobsListQuery,
+} from '../../../lib/jobsApi';
 import { JOB_STATUS_LABEL, JOB_STATUS_TONE } from '../../../lib/jobUtils';
 
-export default function JobsHistoryPage() {
-  const past = MOCK_JOBS.filter(
-    (j) => j.status === 'completed' || j.status === 'cancelled',
-  );
+const PAST_FILTER: JobsListQuery['status'] = ['completed', 'cancelled'];
 
-  const columns: DataTableColumn<Job>[] = [
+export default function JobsHistoryPage() {
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [csvLoading, setCsvLoading] = useState(false);
+  const [csvError, setCsvError] = useState<string | null>(null);
+
+  const historyQuery = useQuery({
+    queryKey: ['employer', 'jobs', 'list', { status: PAST_FILTER, page, pageSize }],
+    queryFn: () =>
+      listJobs({
+        status: PAST_FILTER,
+        page,
+        pageSize,
+        sortBy: 'postedAt',
+        sortDir: 'desc',
+      }),
+    retry: false,
+    placeholderData: (prev) => prev,
+  });
+
+  const data = historyQuery.data?.data ?? [];
+  const pagination = historyQuery.data?.pagination;
+
+  const handleCsv = async () => {
+    setCsvLoading(true);
+    setCsvError(null);
+    try {
+      await downloadJobsCsv({ status: PAST_FILTER, sortBy: 'postedAt', sortDir: 'desc' });
+    } catch (err) {
+      setCsvError(err instanceof Error ? err.message : 'CSV export failed');
+    } finally {
+      setCsvLoading(false);
+    }
+  };
+
+  const columns: DataTableColumn<JobDto>[] = [
     {
       key: 'title',
       header: 'Job',
@@ -44,19 +84,12 @@ export default function JobsHistoryPage() {
     {
       key: 'worker',
       header: 'Worker',
-      cell: (j) => {
-        const w = j.assignedWorkerId
-          ? MOCK_WORKERS.find((wk) => wk.id === j.assignedWorkerId)
-          : null;
-        return w ? (
-          <div className="flex items-center gap-2">
-            <Avatar name={w.fullName} size="sm" />
-            <span className="text-xs">{w.fullName}</span>
-          </div>
+      cell: (j) =>
+        j.assignedWorker ? (
+          <span className="text-xs">{j.assignedWorker.fullName}</span>
         ) : (
           <span className="text-xs text-neutral-400">—</span>
-        );
-      },
+        ),
     },
     {
       key: 'pay',
@@ -88,18 +121,73 @@ export default function JobsHistoryPage() {
       <div className="space-y-4 p-6">
         <div className="flex items-center justify-between">
           <RoutedTabs items={jobsTabs} />
-          <Button variant="secondary" size="sm">
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={csvLoading}
+            onClick={() => void handleCsv()}
+          >
             Export CSV
           </Button>
         </div>
-        <DataTable
-          data={past}
-          columns={columns}
-          rowKey={(j) => j.id}
-          emptyTitle="No past jobs"
-          emptyDescription="Completed and cancelled jobs will appear here."
-          pagination={{ pageSizeOptions: [10, 25, 50, 100], itemLabel: 'job' }}
-        />
+
+        {csvError ? (
+          <AlertBanner
+            tone="danger"
+            title="Export failed"
+            description={csvError}
+            onDismiss={() => setCsvError(null)}
+          />
+        ) : null}
+
+        {historyQuery.isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : historyQuery.isError ? (
+          <AlertBanner
+            tone="danger"
+            title="Couldn’t load history"
+            description={
+              historyQuery.error instanceof Error
+                ? historyQuery.error.message
+                : 'Unknown error'
+            }
+            action={
+              <Button size="sm" variant="secondary" onClick={() => void historyQuery.refetch()}>
+                Retry
+              </Button>
+            }
+          />
+        ) : (
+          <>
+            <div className="overflow-hidden rounded-xl border border-outline bg-surface-container">
+              <DataTable
+                data={data}
+                columns={columns}
+                rowKey={(j) => j.id}
+                emptyTitle="No past jobs"
+                emptyDescription="Completed and cancelled jobs will appear here."
+              />
+            </div>
+            {pagination ? (
+              <Pagination
+                page={pagination.page}
+                pageSize={pagination.pageSize}
+                total={pagination.total}
+                onPageChange={setPage}
+                pageSizeOptions={[10, 25, 50, 100]}
+                onPageSizeChange={(ps) => {
+                  setPageSize(ps);
+                  setPage(1);
+                }}
+                itemLabel="job"
+              />
+            ) : null}
+          </>
+        )}
       </div>
     </>
   );

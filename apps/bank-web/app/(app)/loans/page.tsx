@@ -1,31 +1,37 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
+  AlertBanner,
   Avatar,
   Badge,
   Button,
   DataTable,
   Input,
-  MetricTile,
   PageHeader,
+  Pagination,
   Select,
+  Skeleton,
   StatusDot,
   type DataTableColumn,
 } from '@forge/ui';
-import {
-  IconExternal,
-  IconFilter,
-  IconSearch,
-} from '@forge/ui/icons';
+import { IconExternal, IconSearch } from '@forge/ui/icons';
 import {
   formatCurrency,
-  formatNumber,
   formatPercent,
   formatShortDate,
 } from '@forge/ui/utils';
-import type { Loan } from '@forge/types';
-import { MOCK_EMPLOYERS, MOCK_LOANS, MOCK_WORKERS } from '@forge/mock-data';
+import {
+  fetchLoans,
+  type BankLoansListQuery,
+  type BorrowerType,
+  type LoanDto,
+  type LoanRiskLevelWire,
+  type LoanStatusWire,
+} from '../../../lib/api/bankApi';
+import { toUserMessage } from '../../../lib/api/errors';
 import {
   RISK_LABEL,
   RISK_TONE,
@@ -33,64 +39,107 @@ import {
   STATUS_TONE,
 } from '../../../lib/loanUtils';
 
-function resolveBorrower(loan: Loan) {
-  if (loan.borrowerType === 'worker') {
-    const w = MOCK_WORKERS.find((wk) => wk.id === loan.borrowerId);
-    return w
-      ? { name: w.fullName, kind: 'Worker' as const }
-      : { name: loan.borrowerId, kind: 'Worker' as const };
-  }
-  const b = MOCK_EMPLOYERS.find((bz) => bz.id === loan.borrowerId);
-  return b
-    ? { name: b.businessName, kind: 'Business' as const }
-    : { name: loan.borrowerId, kind: 'Business' as const };
-}
+const STATUS_OPTIONS: { label: string; value: 'all' | LoanStatusWire }[] = [
+  { label: 'All statuses', value: 'all' },
+  { label: 'Draft', value: 'draft' },
+  { label: 'Pending', value: 'pending_review' },
+  { label: 'Approved', value: 'approved' },
+  { label: 'Active', value: 'active' },
+  { label: 'At risk', value: 'at_risk' },
+  { label: 'Repaid', value: 'repaid' },
+  { label: 'Defaulted', value: 'defaulted' },
+  { label: 'Rejected', value: 'rejected' },
+  { label: 'Written off', value: 'written_off' },
+];
+
+const RISK_OPTIONS: { label: string; value: 'all' | LoanRiskLevelWire }[] = [
+  { label: 'All risk levels', value: 'all' },
+  { label: 'Critical (red)', value: 'red' },
+  { label: 'Watch (yellow)', value: 'yellow' },
+  { label: 'Healthy (green)', value: 'green' },
+];
+
+const BORROWER_OPTIONS: { label: string; value: 'all' | BorrowerType }[] = [
+  { label: 'All borrowers', value: 'all' },
+  { label: 'Workers', value: 'worker' },
+  { label: 'Businesses', value: 'business' },
+];
 
 export default function ActiveLoansPage() {
-  const all = MOCK_LOANS;
-  const live = all.filter(
-    (l) => l.status === 'active' || l.status === 'at_risk',
-  );
-  const totalOutstanding = live.reduce((s, l) => s + l.outstandingNaira, 0);
-  const totalPrincipal = live.reduce((s, l) => s + l.principalNaira, 0);
-  const onSchedule = live.filter((l) => l.riskLevel === 'green').length;
-  const atRisk = all.filter((l) => l.riskLevel !== 'green');
-  const avgApr = live.length
-    ? live.reduce((s, l) => s + l.apr, 0) / live.length
-    : 0;
+  const [riskLevel, setRiskLevel] = useState<'all' | LoanRiskLevelWire>('all');
+  const [status, setStatus] = useState<'all' | LoanStatusWire>('all');
+  const [borrowerType, setBorrowerType] = useState<'all' | BorrowerType>('all');
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
-  const columns: DataTableColumn<Loan>[] = [
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 250);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [riskLevel, status, borrowerType, debouncedSearch, pageSize]);
+
+  const query: BankLoansListQuery = useMemo(
+    () => ({
+      riskLevel: riskLevel === 'all' ? undefined : riskLevel,
+      status: status === 'all' ? undefined : status,
+      borrowerType: borrowerType === 'all' ? undefined : borrowerType,
+      q: debouncedSearch || undefined,
+      page,
+      pageSize,
+    }),
+    [riskLevel, status, borrowerType, debouncedSearch, page, pageSize],
+  );
+
+  const listQuery = useQuery({
+    queryKey: ['bank', 'loans', query],
+    queryFn: () => fetchLoans(query),
+    retry: false,
+    placeholderData: (prev) => prev,
+  });
+
+  const rows = listQuery.data?.data ?? [];
+  const pagination = listQuery.data?.pagination;
+
+  const columns: DataTableColumn<LoanDto>[] = [
     {
       key: 'risk',
       header: '',
       width: '32px',
-      cell: (l) => <StatusDot tone={RISK_TONE[l.riskLevel]} pulse={l.riskLevel === 'red'} />,
+      cell: (l) => (
+        <StatusDot tone={RISK_TONE[l.riskLevel]} pulse={l.riskLevel === 'red'} />
+      ),
     },
     {
       key: 'id',
       header: 'Loan',
-      sortBy: (l) => l.id,
       cellClassName: 'font-mono text-xs',
       cell: (l) => l.id,
     },
     {
       key: 'borrower',
       header: 'Borrower',
-      sortBy: (l) => resolveBorrower(l).name,
-      cell: (l) => {
-        const b = resolveBorrower(l);
-        return (
-          <div className="flex items-center gap-2">
-            <Avatar name={b.name} size="sm" />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-neutral-900">
-                {b.name}
-              </p>
-              <p className="text-[10px] text-neutral-500">{b.kind}</p>
-            </div>
+      cell: (l) => (
+        <div className="flex items-center gap-2">
+          <Avatar
+            name={l.borrower.displayName}
+            src={l.borrower.photoUrl ?? undefined}
+            size="sm"
+          />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-neutral-900">
+              {l.borrower.displayName}
+            </p>
+            <p className="text-[10px] text-neutral-500">
+              {l.borrowerType === 'worker' ? 'Worker' : 'Business'}
+            </p>
           </div>
-        );
-      },
+        </div>
+      ),
     },
     {
       key: 'principal',
@@ -120,16 +169,15 @@ export default function ActiveLoansPage() {
       key: 'term',
       header: 'Term',
       align: 'right',
-      sortBy: (l) => l.termMonths,
       cellClassName: 'tabular-nums text-xs text-neutral-600',
-      cell: (l) => `${l.termMonths}m`,
+      cell: (l) => (l.termMonths ? `${l.termMonths}m` : '—'),
     },
     {
       key: 'next',
       header: 'Next due',
-      sortBy: (l) => l.nextPaymentDueAt ?? '',
       cellClassName: 'text-xs text-neutral-600',
-      cell: (l) => (l.nextPaymentDueAt ? formatShortDate(l.nextPaymentDueAt) : '—'),
+      cell: (l) =>
+        l.nextPaymentDueAt ? formatShortDate(l.nextPaymentDueAt) : '—',
     },
     {
       key: 'risk-badge',
@@ -146,14 +194,6 @@ export default function ActiveLoansPage() {
           {STATUS_LABEL[l.status]}
         </Badge>
       ),
-    },
-    {
-      key: 'score',
-      header: 'Approval score',
-      align: 'right',
-      sortBy: (l) => l.scoreAtApproval,
-      cellClassName: 'tabular-nums text-xs text-neutral-600',
-      cell: (l) => l.scoreAtApproval,
     },
     {
       key: 'actions',
@@ -178,88 +218,87 @@ export default function ActiveLoansPage() {
     <>
       <PageHeader
         title="Active Loans"
-        description="Live portfolio. Sort by risk, drill into any loan, escalate the ones that need attention."
-        actions={<Button variant="secondary">Export portfolio</Button>}
+        description="Live portfolio. Drill into any loan, escalate the ones that need attention."
       />
 
       <div className="space-y-4 p-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <MetricTile
-            label="Live loans"
-            value={formatNumber(live.length)}
-            hint={`${formatCurrency(totalPrincipal, { compact: true })} principal`}
-          />
-          <MetricTile
-            label="Outstanding"
-            value={formatCurrency(totalOutstanding, { compact: true })}
-            delta={{ pct: 2.1, direction: 'up', label: 'vs last week' }}
-          />
-          <MetricTile
-            label="On schedule"
-            value={`${live.length ? Math.round((onSchedule / live.length) * 100) : 0}%`}
-            hint={`${onSchedule} of ${live.length}`}
-          />
-          <MetricTile
-            label="At risk"
-            value={formatNumber(atRisk.length)}
-            hint={`Avg APR ${(avgApr * 100).toFixed(1)}%`}
-          />
-        </div>
-
         <div className="flex flex-wrap items-center gap-2">
           <Input
             type="search"
-            placeholder="Search by loan ref, borrower, or amount…"
+            placeholder="Search by loan id, borrower id, or name…"
             leadingIcon={<IconSearch className="!h-4 !w-4" />}
             className="max-w-sm"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
           />
           <Select
             aria-label="Risk"
-            options={[
-              { label: 'All risk levels', value: 'all' },
-              { label: 'Critical (red)', value: 'red' },
-              { label: 'Watch (yellow)', value: 'yellow' },
-              { label: 'Healthy (green)', value: 'green' },
-            ]}
+            options={RISK_OPTIONS}
             className="w-48"
-            defaultValue="all"
+            value={riskLevel}
+            onChange={(e) => setRiskLevel(e.target.value as typeof riskLevel)}
           />
           <Select
             aria-label="Status"
-            options={[
-              { label: 'All statuses', value: 'all' },
-              { label: 'Active', value: 'active' },
-              { label: 'At risk', value: 'at_risk' },
-              { label: 'Repaid', value: 'repaid' },
-              { label: 'Defaulted', value: 'defaulted' },
-            ]}
+            options={STATUS_OPTIONS}
             className="w-44"
-            defaultValue="all"
+            value={status}
+            onChange={(e) => setStatus(e.target.value as typeof status)}
           />
           <Select
             aria-label="Borrower type"
-            options={[
-              { label: 'All borrowers', value: 'all' },
-              { label: 'Workers', value: 'worker' },
-              { label: 'Businesses', value: 'business' },
-            ]}
+            options={BORROWER_OPTIONS}
             className="w-44"
-            defaultValue="all"
+            value={borrowerType}
+            onChange={(e) => setBorrowerType(e.target.value as typeof borrowerType)}
           />
-          <Button variant="secondary" leadingIcon={<IconFilter className="!h-4 !w-4" />}>
-            More filters
-          </Button>
         </div>
 
-        <DataTable
-          data={all}
-          columns={columns}
-          rowKey={(l) => l.id}
-          density="compact"
-          emptyTitle="No loans"
-          emptyDescription="Approved applications will appear here once disbursed."
-          pagination={{ pageSizeOptions: [10, 25, 50, 100], itemLabel: 'loan' }}
-        />
+        {listQuery.isError ? (
+          <AlertBanner
+            tone="danger"
+            title="Couldn’t load loans"
+            description={toUserMessage(listQuery.error)}
+            action={
+              <Button size="sm" variant="secondary" onClick={() => void listQuery.refetch()}>
+                Retry
+              </Button>
+            }
+          />
+        ) : listQuery.isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="overflow-hidden rounded-xl border border-outline bg-surface-container">
+              <DataTable
+                data={rows}
+                columns={columns}
+                rowKey={(l) => l.id}
+                density="compact"
+                emptyTitle="No loans match these filters"
+                emptyDescription="Adjust filters or wait for new disbursements to flow in."
+              />
+            </div>
+            {pagination ? (
+              <Pagination
+                page={pagination.page}
+                pageSize={pagination.pageSize}
+                total={pagination.total}
+                onPageChange={setPage}
+                pageSizeOptions={[10, 25, 50, 100]}
+                onPageSizeChange={(ps) => {
+                  setPageSize(ps);
+                  setPage(1);
+                }}
+                itemLabel="loan"
+              />
+            ) : null}
+          </>
+        )}
       </div>
     </>
   );

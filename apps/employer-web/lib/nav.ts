@@ -9,7 +9,7 @@ import {
   IconSettings,
 } from '@forge/ui/icons';
 
-const employerNavBase: SidebarSection[] = [
+export const employerNav: SidebarSection[] = [
   {
     items: [{ label: 'Overview', href: '/', icon: IconDashboard }],
   },
@@ -33,13 +33,8 @@ const employerNavBase: SidebarSection[] = [
   },
 ];
 
-export const employerNav: SidebarSection[] = employerNavBase;
-
-export function employerNavForRole(): SidebarSection[] {
-  return employerNavBase;
-}
-
 export const jobsTabs: RoutedTab[] = [
+  { label: 'All', href: '/jobs', exact: true },
   { label: 'Active', href: '/jobs/active' },
   { label: 'Drafts', href: '/jobs/drafts' },
   { label: 'History', href: '/jobs/history' },
