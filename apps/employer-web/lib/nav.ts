@@ -41,13 +41,14 @@ export const jobsTabs: RoutedTab[] = [
 ];
 
 export const workersTabs: RoutedTab[] = [
-  { label: 'Currently working', href: '/workers/active' },
-  { label: 'My team', href: '/workers/team' },
-  { label: 'Browse talent', href: '/workers/browse' },
+  { label: 'Currently working', href: '/workers/active', exact: true },
+  { label: 'My team', href: '/workers/team', exact: true },
+  { label: 'Browse talent', href: '/workers/browse', exact: true },
 ];
 
 export const paymentsTabs: RoutedTab[] = [
+  /** No `exact` — keep active on `/payments/transactions/:id` deep links. */
   { label: 'Transactions', href: '/payments/transactions' },
-  { label: 'Invoices', href: '/payments/invoices' },
-  { label: 'Payouts', href: '/payments/payouts' },
+  { label: 'Invoices', href: '/payments/invoices', exact: true },
+  { label: 'Payouts', href: '/payments/payouts', exact: true },
 ];

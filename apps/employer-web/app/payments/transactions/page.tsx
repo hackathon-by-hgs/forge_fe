@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { browseWorkers, type WorkerSummaryDto } from '../../../lib/workersApi';
 import {
@@ -67,7 +68,11 @@ const STATUS_OPTIONS: { label: string; value: 'all' | TransactionStatus }[] = [
   { label: 'Reversed', value: 'reversed' },
 ];
 
-export default function TransactionsPage() {
+function TransactionsPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const txnFromUrl = searchParams.get('txn');
+
   const role = useAuth((s) => s.user?.role);
   const canSend = !isHiringManager(role);
 
@@ -91,6 +96,12 @@ export default function TransactionsPage() {
   useEffect(() => {
     setPage(1);
   }, [statusFilter, from, to, debouncedSearch, pageSize]);
+
+  useEffect(() => {
+    if (!txnFromUrl) return;
+    setSelectedId(txnFromUrl);
+    router.replace('/payments/transactions', { scroll: false });
+  }, [txnFromUrl, router]);
 
   const query: TransactionsListQuery = useMemo(
     () => ({
@@ -323,6 +334,25 @@ export default function TransactionsPage() {
         <SendPaymentDialog open={showSend} onOpenChange={setShowSend} />
       ) : null}
     </>
+  );
+}
+
+export default function TransactionsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-4 p-6">
+          <div className="h-9 max-w-lg animate-pulse rounded-lg bg-surface-container-high" />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-24 animate-pulse rounded-xl bg-surface-container-high" />
+            ))}
+          </div>
+        </div>
+      }
+    >
+      <TransactionsPageContent />
+    </Suspense>
   );
 }
 
