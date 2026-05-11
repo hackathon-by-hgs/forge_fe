@@ -16,7 +16,7 @@ import {
   CardTitle,
   FormField,
   Input,
-  MapPlaceholder,
+  LocationPicker,
   Select,
   Textarea,
 } from '@forge/ui';
@@ -24,34 +24,12 @@ import { formatCurrency } from '@forge/ui/utils';
 import { IconBriefcase, IconClock, IconLocation } from '@forge/ui/icons';
 import { createJob, type CreateJobInput, type JobTemplate } from '../../../lib/jobsApi';
 import { ApiError } from '../../../lib/api';
-
-const NEIGHBORHOODS = [
-  'Apapa',
-  'Lekki',
-  'Victoria Island',
-  'Ikeja',
-  'Mile 2',
-  'Surulere',
-  'Yaba',
-  'Ikoyi',
-  'Ajah',
-  'Festac',
-  'Oshodi',
-] as const;
-
-const NEIGHBORHOOD_COORDS: Record<(typeof NEIGHBORHOODS)[number], { lat: number; lng: number }> = {
-  Apapa: { lat: 6.4458, lng: 3.3608 },
-  Lekki: { lat: 6.4392, lng: 3.5036 },
-  'Victoria Island': { lat: 6.4281, lng: 3.4219 },
-  Ikeja: { lat: 6.6018, lng: 3.3515 },
-  'Mile 2': { lat: 6.4641, lng: 3.3061 },
-  Surulere: { lat: 6.4969, lng: 3.3597 },
-  Yaba: { lat: 6.5095, lng: 3.3711 },
-  Ikoyi: { lat: 6.4541, lng: 3.4316 },
-  Ajah: { lat: 6.4641, lng: 3.5852 },
-  Festac: { lat: 6.4669, lng: 3.2825 },
-  Oshodi: { lat: 6.5547, lng: 3.3445 },
-};
+import {
+  DEFAULT_LOCATION,
+  DEFAULT_LOCATION_ID,
+  LOCATIONS_BY_ID,
+  NIGERIAN_LOCATIONS,
+} from '../../../lib/nigerianLocations';
 
 const schema = z.object({
   type: z.enum(['loader', 'driver', 'unloader', 'general']),
@@ -59,7 +37,9 @@ const schema = z.object({
   description: z.string().min(10, 'Describe the work, the site, and any safety').max(4000),
   payNaira: z.coerce.number().int().min(1500, 'Minimum job pay is ₦1,500').max(200_000),
   durationHours: z.coerce.number().int().min(1).max(24),
-  neighborhood: z.enum(NEIGHBORHOODS),
+  locationId: z.string().min(1, 'Pick a location'),
+  lat: z.coerce.number().min(-90).max(90),
+  lng: z.coerce.number().min(-180).max(180),
   address: z.string().min(5, 'Add a recognisable address').max(200),
   startAt: z.string().min(1, 'Pick a start date and time'),
   audience: z.enum(['public', 'team_first']),
@@ -83,7 +63,9 @@ const DEFAULTS: FormValues = {
   description: '',
   payNaira: 5000,
   durationHours: 4,
-  neighborhood: 'Apapa',
+  locationId: DEFAULT_LOCATION_ID,
+  lat: DEFAULT_LOCATION.lat,
+  lng: DEFAULT_LOCATION.lng,
   address: '',
   startAt: '',
   audience: 'public',
@@ -91,6 +73,22 @@ const DEFAULTS: FormValues = {
   postNow: true,
   requiredEquipment: '',
 };
+
+const LOCATION_OPTIONS = NIGERIAN_LOCATIONS.map((loc) => ({
+  label: `${loc.name} — ${loc.city}${loc.city !== loc.state ? `, ${loc.state}` : ''}`,
+  value: loc.id,
+}));
+
+function matchTemplateLocation(neighborhood: string | undefined | null): string {
+  if (!neighborhood) return DEFAULT_LOCATION_ID;
+  const needle = neighborhood.trim().toLowerCase();
+  const exact = NIGERIAN_LOCATIONS.find((l) => l.name.toLowerCase() === needle);
+  if (exact) return exact.id;
+  const partial = NIGERIAN_LOCATIONS.find(
+    (l) => l.name.toLowerCase().includes(needle) || needle.includes(l.name.toLowerCase()),
+  );
+  return partial?.id ?? DEFAULT_LOCATION_ID;
+}
 
 export function PostJobForm({ template }: { template?: JobTemplate | null }) {
   const router = useRouter();
@@ -112,17 +110,17 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
 
   useEffect(() => {
     if (!template) return;
+    const locationId = matchTemplateLocation(template.location.neighborhood);
+    const loc = LOCATIONS_BY_ID[locationId] ?? DEFAULT_LOCATION;
     reset({
       type: template.type,
       title: template.title,
       description: DEFAULTS.description,
       payNaira: template.payNaira,
       durationHours: template.durationHours,
-      neighborhood: (NEIGHBORHOODS as readonly string[]).includes(
-        template.location.neighborhood ?? '',
-      )
-        ? ((template.location.neighborhood as (typeof NEIGHBORHOODS)[number]) ?? 'Apapa')
-        : 'Apapa',
+      locationId,
+      lat: loc.lat,
+      lng: loc.lng,
       address: template.location.address,
       startAt: '',
       audience: 'public',
@@ -133,9 +131,13 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
   }, [template, reset]);
 
   const watchedType = watch('type');
-  const watchedNeighborhood = watch('neighborhood');
+  const watchedLocationId = watch('locationId');
+  const watchedLat = watch('lat');
+  const watchedLng = watch('lng');
   const watchedPay = watch('payNaira');
   const watchedStartAt = watch('startAt');
+  const watchedRadius = watch('geofenceRadiusMeters');
+  const selectedLocation = LOCATIONS_BY_ID[watchedLocationId] ?? DEFAULT_LOCATION;
 
   const startInPast =
     watchedStartAt && new Date(watchedStartAt).getTime() < Date.now() - 60_000;
@@ -157,7 +159,7 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
   const onSubmit = handleSubmit((values) => {
     setFieldErrors({});
     setServerError(null);
-    const coords = NEIGHBORHOOD_COORDS[values.neighborhood];
+    const loc = LOCATIONS_BY_ID[values.locationId] ?? DEFAULT_LOCATION;
     const equipment = (values.requiredEquipment ?? '')
       .split(',')
       .map((s) => s.trim())
@@ -171,10 +173,10 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
       payNaira: values.payNaira,
       durationHours: values.durationHours,
       location: {
-        lat: coords.lat,
-        lng: coords.lng,
+        lat: values.lat,
+        lng: values.lng,
         address: values.address,
-        neighborhood: values.neighborhood,
+        neighborhood: loc.name,
       },
       geofenceRadiusMeters: values.geofenceRadiusMeters,
       audience: values.audience,
@@ -183,6 +185,20 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
       postNow: values.postNow,
     });
   });
+
+  const handleLocationChange = (id: string) => {
+    setValue('locationId', id, { shouldValidate: true });
+    const loc = LOCATIONS_BY_ID[id];
+    if (loc) {
+      setValue('lat', loc.lat, { shouldValidate: true });
+      setValue('lng', loc.lng, { shouldValidate: true });
+    }
+  };
+
+  const handlePinChange = (coords: { lat: number; lng: number }) => {
+    setValue('lat', coords.lat, { shouldValidate: true });
+    setValue('lng', coords.lng, { shouldValidate: true });
+  };
 
   return (
     <form onSubmit={onSubmit} className="space-y-6 pb-24">
@@ -280,13 +296,15 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
         <CardBody className="space-y-4">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <FormField
-              label="Neighborhood"
+              label="Area"
               required
-              error={errors.neighborhood?.message}
+              error={errors.locationId?.message}
+              hint="Pick the closest area, then drop the pin on the map for the exact site."
             >
               <Select
-                options={NEIGHBORHOODS.map((n) => ({ label: n, value: n }))}
-                {...register('neighborhood')}
+                options={LOCATION_OPTIONS}
+                value={watchedLocationId}
+                onChange={(e) => handleLocationChange(e.target.value)}
               />
             </FormField>
             <FormField
@@ -321,23 +339,19 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
             </p>
           ) : null}
 
-          <MapPlaceholder
-            pins={[
-              {
-                id: 'preview',
-                lat: NEIGHBORHOOD_COORDS[watchedNeighborhood].lat,
-                lng: NEIGHBORHOOD_COORDS[watchedNeighborhood].lng,
-                tone: 'accent',
-              },
-            ]}
-            className="aspect-[16/6]"
-            hint={
-              <span className="inline-flex items-center gap-1">
-                <IconLocation className="!h-3 !w-3" />
-                {watchedNeighborhood}, Lagos
-              </span>
-            }
+          <LocationPicker
+            value={{ lat: watchedLat, lng: watchedLng }}
+            onChange={handlePinChange}
+            radiusMeters={watchedRadius}
+            className="aspect-[16/9] w-full"
           />
+          <p className="flex items-center gap-1 text-xs text-neutral-500">
+            <IconLocation className="!h-3 !w-3" />
+            {selectedLocation.name}, {selectedLocation.state} ·{' '}
+            <span className="font-mono text-[11px]">
+              {watchedLat.toFixed(5)}, {watchedLng.toFixed(5)}
+            </span>
+          </p>
         </CardBody>
       </Card>
 
