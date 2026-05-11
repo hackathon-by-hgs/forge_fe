@@ -34,6 +34,7 @@ export const employerNav: SidebarSection[] = [
 ];
 
 export const jobsTabs: RoutedTab[] = [
+  { label: 'All', href: '/jobs', exact: true },
   { label: 'Active', href: '/jobs/active' },
   { label: 'Drafts', href: '/jobs/drafts' },
   { label: 'History', href: '/jobs/history' },

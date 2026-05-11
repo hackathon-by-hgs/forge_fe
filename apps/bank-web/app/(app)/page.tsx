@@ -18,29 +18,24 @@ import {
 } from '@forge/ui';
 import { IconAlert, IconAttribution, IconBorrowers } from '@forge/ui/icons';
 import { formatCurrency, formatNumber, formatPercent } from '@forge/ui/utils';
-import { getRiskRadarMock } from '../../lib/api/bank';
+import { fetchRiskRadar } from '../../lib/api/bankApi';
 import type {
-  BankRiskRadarCriticalItemDto,
-  BankRiskRadarDto,
-  BankRiskRadarOpportunityDto,
-  BankRiskRadarWatchItemDto,
-} from '../../lib/api/bankTypes';
-import { NetworkError, toUserMessage } from '../../lib/api/errors';
+  LoanDto,
+  OpportunityBorrowerDto,
+  RiskRadarResponseDto,
+} from '../../lib/api/bankApi';
+import { ApiError, NetworkError, toUserMessage } from '../../lib/api/errors';
 
-// TODO(phase-4): Swap `getRiskRadarMock` for `fetchRiskRadar` when
-// `GET /v1/bank/risk-radar` ships (BE team ETA: Phase 3 + 24h).
 export default function RiskRadarPage() {
   const { data, isPending, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['bank', 'risk-radar'],
-    queryFn: getRiskRadarMock,
+    queryFn: fetchRiskRadar,
     staleTime: 30_000,
     refetchOnWindowFocus: true,
+    retry: false,
   });
 
-  if (isPending) {
-    return <RiskRadarSkeleton />;
-  }
-
+  if (isPending) return <RiskRadarSkeleton />;
   if (isError) {
     return (
       <RiskRadarErrorState
@@ -60,9 +55,7 @@ function RiskRadarSkeleton() {
       <PageHeader
         title="Risk Radar"
         description="What needs attention, what's healthy, what's growing — at a glance."
-        actions={
-          <Skeleton className="h-10 w-44 rounded-lg" />
-        }
+        actions={<Skeleton className="h-10 w-44 rounded-lg" />}
       />
       <div className="space-y-6 p-6">
         <Skeleton className="h-48 w-full rounded-xl" />
@@ -90,6 +83,30 @@ function RiskRadarErrorState({
   retrying: boolean;
 }) {
   const isOffline = error instanceof NetworkError;
+  const isNoBankScope =
+    error instanceof ApiError && error.status === 403 && error.code === 'NO_BANK_SCOPE';
+
+  if (isNoBankScope) {
+    return (
+      <>
+        <PageHeader title="Risk Radar" />
+        <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-6">
+          <EmptyState
+            icon={<IconAlert className="!h-8 !w-8 text-warning-600" />}
+            title="This account isn't bound to a bank yet"
+            description="Contact your administrator or Forge support to get provisioned."
+          />
+          <a
+            href="mailto:support@forge.app?subject=No%20bank%20scope"
+            className="text-sm font-medium text-accent-600 hover:underline"
+          >
+            Contact support
+          </a>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <PageHeader
@@ -110,15 +127,8 @@ function RiskRadarErrorState({
   );
 }
 
-function RiskRadarDashboard({ data }: { data: BankRiskRadarDto }) {
-  const metrics = data.metrics ?? {};
-  const critical = data.criticalAlerts ?? [];
-  const watch = data.watchList ?? [];
-  const opportunity = data.opportunity ?? [];
-
-  const activeCount = metrics.activeLoansCount ?? 0;
-  const outstanding = metrics.activeLoansOutstandingNaira ?? 0;
-  const sparkDefault = [2, 3, 4, 5, 6, 7, 8];
+function RiskRadarDashboard({ data }: { data: RiskRadarResponseDto }) {
+  const { portfolio, critical, watchlist, opportunity } = data;
 
   return (
     <>
@@ -126,7 +136,11 @@ function RiskRadarDashboard({ data }: { data: BankRiskRadarDto }) {
         title="Risk Radar"
         description="What needs attention, what's healthy, what's growing — at a glance."
         actions={
-          <Button variant="secondary" leadingIcon={<IconAttribution className="!h-4 !w-4" />} disabled>
+          <Button
+            variant="secondary"
+            leadingIcon={<IconAttribution className="!h-4 !w-4" />}
+            disabled
+          >
             Open Performance
           </Button>
         }
@@ -145,7 +159,7 @@ function RiskRadarDashboard({ data }: { data: BankRiskRadarDto }) {
             <CardBody>
               <div className="-mx-1 flex gap-3 overflow-x-auto pb-1">
                 {critical.slice(0, 6).map((loan) => (
-                  <CriticalLoanCard key={loan.loanId} loan={loan} />
+                  <CriticalLoanCard key={loan.id} loan={loan} />
                 ))}
               </div>
             </CardBody>
@@ -155,28 +169,25 @@ function RiskRadarDashboard({ data }: { data: BankRiskRadarDto }) {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
           <MetricTile
             label="Active loans"
-            value={formatNumber(activeCount)}
+            value={formatNumber(portfolio.activeCount)}
             hint={
-              outstanding > 0
-                ? `${formatCurrency(outstanding, { compact: true })} outstanding`
+              portfolio.outstandingTotalNaira > 0
+                ? `${formatCurrency(portfolio.outstandingTotalNaira, { compact: true })} outstanding`
                 : undefined
             }
-            trend={metrics.activeLoansTrend ?? sparkDefault}
           />
           <MetricTile
             label="Total disbursed"
-            value={formatCurrency(metrics.totalDisbursedNaira ?? 0, { compact: true })}
-            trend={metrics.disbursedTrend ?? sparkDefault}
+            value={formatCurrency(portfolio.disbursedTotalNaira, { compact: true })}
           />
           <MetricTile
             label="Repayment rate"
-            value={formatPercent(metrics.repaymentRate ?? 0)}
-            trend={metrics.repaymentTrend ?? sparkDefault}
+            value={formatPercent(portfolio.repaymentRate)}
           />
           <MetricTile
             label="Default rate"
-            value={formatPercent(metrics.defaultRate ?? 0)}
-            trend={metrics.defaultTrend ?? sparkDefault}
+            value={formatPercent(portfolio.defaultRate)}
+            hint={`${portfolio.atRiskCount} at risk`}
           />
         </div>
 
@@ -184,19 +195,19 @@ function RiskRadarDashboard({ data }: { data: BankRiskRadarDto }) {
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle>Watch list</CardTitle>
-              <Badge tone="warning">{watch.length}</Badge>
+              <Badge tone="warning">{watchlist.length}</Badge>
             </CardHeader>
             <CardBody>
-              {watch.length === 0 ? (
+              {watchlist.length === 0 ? (
                 <EmptyState
                   icon={<IconBorrowers className="!h-5 !w-5" />}
                   title="Nothing on the watch list"
-                  description="No borrowers showing yellow-flag patterns right now."
+                  description="No yellow-flag loans right now."
                 />
               ) : (
                 <ul className="divide-y divide-outline-variant text-sm">
-                  {watch.slice(0, 8).map((item) => (
-                    <WatchRow key={item.loanId} item={item} />
+                  {watchlist.slice(0, 8).map((loan) => (
+                    <WatchRow key={loan.id} loan={loan} />
                   ))}
                 </ul>
               )}
@@ -205,121 +216,121 @@ function RiskRadarDashboard({ data }: { data: BankRiskRadarDto }) {
 
           <Card>
             <CardHeader>
-              <CardTitle>Live events</CardTitle>
-              <Badge tone="success" variant="soft">
-                <StatusDot tone="success" pulse /> Soon
-              </Badge>
+              <CardTitle>Lending opportunities</CardTitle>
+              <Badge variant="soft">{opportunity.length}</Badge>
             </CardHeader>
             <CardBody>
-              <EmptyState
-                title="SSE feed — Phase 4"
-                description="FRONTEND_INTEGRATION.md §7 — `/v1/stream` consumers wire here once Backend Phase 4 lands. Until then, use manual refresh or polling."
-              />
+              {opportunity.length === 0 ? (
+                <EmptyState
+                  title="No opportunities surfaced"
+                  description="Pre-approved workers without an active loan will appear here as the platform identifies them."
+                />
+              ) : (
+                <ul className="space-y-2">
+                  {opportunity.slice(0, 5).map((row) => (
+                    <OpportunityRow key={row.id} row={row} />
+                  ))}
+                </ul>
+              )}
             </CardBody>
           </Card>
         </div>
-
-        <Card>
-          <CardHeader>
-            <div>
-              <CardTitle>Opportunity</CardTitle>
-              <p className="mt-0.5 text-xs text-ink-muted">
-                {opportunity.length === 0
-                  ? 'Eligible borrowers surfaced by the platform credit model appear here.'
-                  : `${opportunity.length} prospects matched your criteria.`}
-              </p>
-            </div>
-            <Button variant="secondary" size="sm" disabled>
-              View all
-            </Button>
-          </CardHeader>
-          <CardBody>
-            {opportunity.length === 0 ? (
-              <EmptyState
-                title="No opportunities yet"
-                description="When the Risk Radar payload includes `opportunity`, pre-approved borrowers render in this grid."
-              />
-            ) : (
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-                {opportunity.slice(0, 6).map((row) => (
-                  <OpportunityCard key={row.id} row={row} />
-                ))}
-              </div>
-            )}
-          </CardBody>
-        </Card>
       </div>
     </>
   );
 }
 
-function CriticalLoanCard({ loan }: { loan: BankRiskRadarCriticalItemDto }) {
-  const loanHref = `/loans/${encodeURIComponent(loan.loanId)}`;
+function CriticalLoanCard({ loan }: { loan: LoanDto }) {
   return (
-    <div className="flex w-72 shrink-0 flex-col gap-2 rounded-lg border border-danger-500/20 bg-danger-50/40 p-3 dark:bg-danger-950/20">
+    <Link
+      href={`/loans/${encodeURIComponent(loan.id)}`}
+      className="flex w-72 shrink-0 flex-col gap-2 rounded-lg border border-danger-500/20 bg-danger-50/40 p-3 hover:bg-danger-50 dark:bg-danger-950/20"
+    >
       <div className="flex items-center gap-2">
-        <Avatar name={loan.borrowerName ?? loan.loanId} size="sm" />
+        <Avatar
+          name={loan.borrower.displayName}
+          src={loan.borrower.photoUrl ?? undefined}
+          size="sm"
+        />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-ink">{loan.borrowerName ?? 'Borrower'}</p>
+          <p className="truncate text-sm font-medium text-ink">
+            {loan.borrower.displayName}
+          </p>
           <p className="truncate font-mono text-[10px] text-ink-muted" data-numeric>
-            {loan.loanId}
+            {loan.id}
           </p>
         </div>
-        <Badge tone="danger">{loan.riskLevel ?? 'RED'}</Badge>
+        <Badge tone="danger">RED</Badge>
       </div>
       <div className="flex items-baseline justify-between text-xs text-ink-muted">
         <span>Outstanding</span>
         <span className="font-medium text-ink" data-numeric>
-          {formatCurrency(loan.outstandingNaira ?? 0)}
+          {formatCurrency(loan.outstandingNaira)}
         </span>
       </div>
-      {loan.headline ? <p className="text-xs text-danger-700">{loan.headline}</p> : null}
-      <Link
-        href={loanHref}
-        className="inline-flex h-8 items-center justify-center rounded-lg border border-neutral-200 bg-white px-3 text-xs font-medium text-neutral-900 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800"
-      >
-        Investigate
-      </Link>
-    </div>
+      {loan.nextPaymentDueAt ? (
+        <p className="text-xs text-danger-700">
+          Next due {new Date(loan.nextPaymentDueAt).toLocaleDateString()}
+        </p>
+      ) : null}
+    </Link>
   );
 }
 
-function WatchRow({ item }: { item: BankRiskRadarWatchItemDto }) {
-  const loanHref = `/loans/${encodeURIComponent(item.loanId)}`;
+function WatchRow({ loan }: { loan: LoanDto }) {
   return (
     <li className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
       <StatusDot tone="warning" />
-      <Avatar name={item.borrowerName ?? item.loanId} size="sm" />
+      <Avatar
+        name={loan.borrower.displayName}
+        src={loan.borrower.photoUrl ?? undefined}
+        size="sm"
+      />
       <div className="min-w-0 flex-1">
-        <Link href={loanHref} className="truncate text-sm font-medium text-ink hover:text-accent-600">
-          {item.borrowerName ?? item.loanId}
+        <Link
+          href={`/loans/${encodeURIComponent(loan.id)}`}
+          className="truncate text-sm font-medium text-ink hover:text-accent-600"
+        >
+          {loan.borrower.displayName}
         </Link>
-        <p className="text-xs text-ink-muted">{item.detail ?? 'Requires monitoring'}</p>
+        <p className="text-xs text-ink-muted">
+          Score {loan.borrower.score} ·{' '}
+          {loan.nextPaymentDueAt
+            ? `next due ${new Date(loan.nextPaymentDueAt).toLocaleDateString()}`
+            : 'no upcoming payment'}
+        </p>
       </div>
       <span className="text-sm font-medium text-ink tabular-nums" data-numeric>
-        {formatCurrency(item.outstandingNaira ?? 0)}
+        {formatCurrency(loan.outstandingNaira)}
       </span>
     </li>
   );
 }
 
-function OpportunityCard({ row }: { row: BankRiskRadarOpportunityDto }) {
-  const href = `/borrowers/${encodeURIComponent(row.id)}`;
+function OpportunityRow({ row }: { row: OpportunityBorrowerDto }) {
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-outline p-3">
-      <Avatar name={row.fullName ?? row.id} />
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium text-ink">{row.fullName ?? row.id}</p>
-        <p className="truncate text-xs text-ink-muted">
-          Score {row.reliabilityScore ?? '—'} · {row.jobsCompleted ?? 0} jobs
-        </p>
-      </div>
+    <li>
       <Link
-        href={href}
-        className="inline-flex h-8 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white px-3 text-xs font-medium text-neutral-900 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100 dark:hover:bg-neutral-800"
+        href={`/borrowers/worker/${encodeURIComponent(row.id)}`}
+        className="flex items-center gap-3 rounded-lg border border-outline p-3 hover:bg-surface-container-high"
       >
-        Profile
+        <Avatar name={row.displayName} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-ink">{row.displayName}</p>
+          <p className="truncate text-xs text-ink-muted">
+            Score {row.score} ·{' '}
+            <Badge
+              tone={row.eligibility === 'pre_approved' ? 'success' : 'info'}
+              variant="soft"
+            >
+              {row.eligibility.replace(/_/g, ' ')}
+            </Badge>
+          </p>
+        </div>
+        <span className="shrink-0 text-xs font-medium text-ink tabular-nums" data-numeric>
+          up to {formatCurrency(row.maxAmountNaira, { compact: true })}
+        </span>
       </Link>
-    </div>
+    </li>
   );
 }

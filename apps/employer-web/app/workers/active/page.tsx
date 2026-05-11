@@ -1,9 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import { useQuery } from '@tanstack/react-query';
 import {
+  AlertBanner,
   Avatar,
   Badge,
+  Button,
   Card,
   CardBody,
   CardHeader,
@@ -12,49 +15,56 @@ import {
   MapPlaceholder,
   PageHeader,
   RoutedTabs,
+  Skeleton,
   StatusDot,
   type DataTableColumn,
 } from '@forge/ui';
 import { IconCamera, IconClock, IconLocation, IconShield } from '@forge/ui/icons';
-import { formatRelativeTime } from '@forge/ui/utils';
-import type { Job } from '@forge/types';
-import { getActiveJobs, MOCK_WORKERS } from '@forge/mock-data';
 import { workersTabs } from '../../../lib/nav';
-
-interface ActiveAssignment {
-  job: Job;
-  worker: (typeof MOCK_WORKERS)[number];
-}
+import {
+  fetchActiveAssignments,
+  type ActiveAssignmentDto,
+} from '../../../lib/workersApi';
 
 export default function WorkersActivePage() {
-  const inProgress = getActiveJobs().filter(
-    (j) => j.status === 'in_progress' && j.assignedWorkerId,
-  );
-  const assignments: ActiveAssignment[] = inProgress.flatMap((j) => {
-    const worker = MOCK_WORKERS.find((w) => w.id === j.assignedWorkerId);
-    return worker ? [{ job: j, worker }] : [];
+  const activeQuery = useQuery({
+    queryKey: ['employer', 'workers', 'active'],
+    queryFn: fetchActiveAssignments,
+    refetchInterval: 30_000,
+    retry: false,
   });
 
-  const pins = assignments.map(({ job }) => ({
-    id: job.id,
-    lat: job.location.lat,
-    lng: job.location.lng,
-    tone: 'warning' as const,
+  const assignments = activeQuery.data?.data ?? [];
+
+  const pins = assignments.map((a) => ({
+    id: a.job.id,
+    lat: a.job.lat,
+    lng: a.job.lng,
+    tone:
+      a.gpsVerification.overall === 'verified'
+        ? ('success' as const)
+        : a.gpsVerification.overall === 'flagged'
+          ? ('danger' as const)
+          : ('warning' as const),
   }));
 
-  const columns: DataTableColumn<ActiveAssignment>[] = [
+  const columns: DataTableColumn<ActiveAssignmentDto>[] = [
     {
       key: 'name',
       header: 'Worker',
-      sortBy: ({ worker }) => worker.fullName,
-      cell: ({ worker }) => (
+      sortBy: (a) => a.worker.fullName,
+      cell: (a) => (
         <div className="flex items-center gap-2">
-          <Avatar name={worker.fullName} size="sm" />
+          <Avatar
+            name={a.worker.fullName}
+            src={a.worker.photoUrl ?? undefined}
+            size="sm"
+          />
           <Link
-            href={`/workers/${worker.id}`}
+            href={`/workers/${a.worker.id}`}
             className="text-sm font-medium text-neutral-900 hover:underline"
           >
-            {worker.fullName}
+            {a.worker.fullName}
           </Link>
         </div>
       ),
@@ -62,58 +72,61 @@ export default function WorkersActivePage() {
     {
       key: 'job',
       header: 'Job',
-      cell: ({ job }) => (
-        <Link href={`/jobs/${job.id}`} className="text-sm hover:underline">
-          {job.title}
+      cell: (a) => (
+        <Link href={`/jobs/${a.job.id}`} className="text-sm hover:underline">
+          {a.job.title}
         </Link>
       ),
     },
     {
       key: 'started',
-      header: 'Started',
-      sortBy: ({ job }) => job.startedAt ?? '',
-      cell: ({ job }) =>
-        job.startedAt ? (
-          <span className="text-xs text-neutral-500">
-            {formatRelativeTime(job.startedAt)}
-          </span>
-        ) : (
-          '—'
-        ),
-    },
-    {
-      key: 'gps',
-      header: 'GPS verified',
-      cell: () => (
-        <Badge tone="success" variant="soft">
-          <IconShield className="!h-3 !w-3" /> Verified
-        </Badge>
-      ),
-    },
-    {
-      key: 'photo',
-      header: 'Photo proof',
-      cell: () => (
-        <span className="inline-flex items-center gap-1 text-xs text-neutral-500">
-          <IconCamera className="!h-3.5 !w-3.5" /> Pending
+      header: 'Elapsed',
+      sortBy: (a) => a.elapsedMinutes,
+      cell: (a) => (
+        <span
+          className="inline-flex items-center gap-1 text-xs text-neutral-700 tabular-nums"
+          data-numeric
+        >
+          <IconClock className="!h-3 !w-3" />
+          {a.elapsedMinutes}m
         </span>
       ),
     },
     {
-      key: 'eta',
-      header: 'Elapsed',
-      cell: ({ job }) =>
-        job.startedAt ? (
-          <span
-            className="inline-flex items-center gap-1 text-xs text-neutral-700 tabular-nums"
-            data-numeric
-          >
-            <IconClock className="!h-3 !w-3" />
-            {Math.max(
-              0,
-              Math.round((Date.now() - new Date(job.startedAt).getTime()) / 60000),
-            )}
-            m
+      key: 'gps',
+      header: 'GPS',
+      cell: (a) => {
+        const overall = a.gpsVerification.overall;
+        const tone =
+          overall === 'verified' ? 'success' : overall === 'flagged' ? 'danger' : 'warning';
+        return (
+          <Badge tone={tone} variant="soft">
+            <IconShield className="!h-3 !w-3" /> {overall}
+          </Badge>
+        );
+      },
+    },
+    {
+      key: 'photo',
+      header: 'Photo proof',
+      cell: (a) =>
+        a.hasPhotoProof ? (
+          <Badge tone="success" variant="soft">
+            <IconCamera className="!h-3 !w-3" /> Uploaded
+          </Badge>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-xs text-neutral-500">
+            <IconCamera className="!h-3.5 !w-3.5" /> Pending
+          </span>
+        ),
+    },
+    {
+      key: 'distance',
+      header: 'Last GPS',
+      cell: (a) =>
+        a.gpsVerification.lastEventDistanceMeters != null ? (
+          <span className="text-xs text-neutral-500 tabular-nums" data-numeric>
+            {a.gpsVerification.lastEventDistanceMeters}m
           </span>
         ) : (
           '—'
@@ -135,27 +148,58 @@ export default function WorkersActivePage() {
           </Badge>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Live locations</CardTitle>
-            <span className="text-xs text-neutral-500">
-              <IconLocation className="!h-3 !w-3 -mt-0.5 mr-0.5 inline-block" />
-              Lagos
-            </span>
-          </CardHeader>
-          <CardBody>
-            <MapPlaceholder pins={pins} className="aspect-[16/6]" />
-          </CardBody>
-        </Card>
+        {activeQuery.isError ? (
+          <AlertBanner
+            tone="danger"
+            title="Couldn’t load active workers"
+            description={
+              activeQuery.error instanceof Error
+                ? activeQuery.error.message
+                : 'Unknown error'
+            }
+            action={
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => void activeQuery.refetch()}
+              >
+                Retry
+              </Button>
+            }
+          />
+        ) : (
+          <>
+            <Card>
+              <CardHeader>
+                <CardTitle>Live locations</CardTitle>
+                <span className="text-xs text-neutral-500">
+                  <IconLocation className="!h-3 !w-3 -mt-0.5 mr-0.5 inline-block" />
+                  Lagos
+                </span>
+              </CardHeader>
+              <CardBody>
+                <MapPlaceholder pins={pins} className="aspect-[16/6]" />
+              </CardBody>
+            </Card>
 
-        <DataTable
-          data={assignments}
-          columns={columns}
-          rowKey={({ job }) => job.id}
-          emptyTitle="No workers on the clock"
-          emptyDescription="When workers start a job for you, they appear here."
-          pagination={{ pageSizeOptions: [10, 25, 50, 100], itemLabel: 'worker' }}
-        />
+            {activeQuery.isLoading ? (
+              <div className="space-y-2">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Skeleton key={i} className="h-10 w-full" />
+                ))}
+              </div>
+            ) : (
+              <DataTable
+                data={assignments}
+                columns={columns}
+                rowKey={(a) => a.sessionId}
+                emptyTitle="No workers on the clock"
+                emptyDescription="When workers start a job for you, they appear here."
+                pagination={{ pageSizeOptions: [10, 25, 50, 100], itemLabel: 'worker' }}
+              />
+            )}
+          </>
+        )}
       </div>
     </>
   );
