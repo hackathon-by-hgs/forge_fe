@@ -91,6 +91,19 @@ export const DECISION_TONE: Record<Decision, StatusTone> = {
   reject: 'danger',
 };
 
+/** Safe for unknown / API-missing recommendation enums. */
+export function safeDecisionLabel(decision: string | null | undefined): string {
+  if (!decision) return '—';
+  const label = DECISION_LABEL[decision as Decision];
+  return label ?? decision.replace(/_/g, ' ');
+}
+
+/** Safe for unknown / API-missing recommendation enums. */
+export function safeDecisionTone(decision: string | null | undefined): StatusTone {
+  if (!decision) return 'neutral';
+  return DECISION_TONE[decision as Decision] ?? 'neutral';
+}
+
 export interface AuditEvent {
   id: string;
   actor: string;
