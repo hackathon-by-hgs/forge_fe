@@ -49,7 +49,9 @@ const schema = z
     address: z.string().min(5, 'Add a recognisable address').max(200),
     startAt: z.string().min(1, 'Pick a start date and time'),
     audience: z.enum(['public', 'team_first']),
-    geofenceRadiusMeters: z.coerce.number().int().min(50).max(25_000),
+    // BE wires this in kilometres despite the historical `…Meters` suffix.
+    // Range mirrors the input min/max in the form.
+    geofenceRadiusMeters: z.coerce.number().int().min(1).max(25),
     postNow: z.boolean(),
     requiredEquipment: z.string().optional(),
   })
@@ -95,7 +97,7 @@ const DEFAULTS: FormValues = {
   address: '',
   startAt: '',
   audience: 'public',
-  geofenceRadiusMeters: 200,
+  geofenceRadiusMeters: 5,
   postNow: true,
   requiredEquipment: '',
 };
@@ -490,15 +492,15 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
               <Input type="datetime-local" {...register('startAt')} />
             </FormField>
             <FormField
-              label="Geofence (m)"
+              label="Geofence (km)"
               error={errors.geofenceRadiusMeters?.message ?? fieldErrors.geofenceRadiusMeters}
-              hint="50m–25km — workers must be within this radius of the pin (also used for worker discovery)."
+              hint="1km–25km — workers must be within this radius of the pin (also used for worker discovery)."
             >
               <Input
                 type="number"
                 min={1}
                 max={25}
-                step={4}
+                step={1}
                 {...register('geofenceRadiusMeters')}
               />
             </FormField>
@@ -512,7 +514,7 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
           <LocationPicker
             value={{ lat: watchedLat, lng: watchedLng }}
             onChange={handlePinChange}
-            radiusMeters={watchedRadius}
+            radiusMeters={(watchedRadius ?? 0) * 1000}
             onAddressSelect={handleAddressFromSearch}
             onAddressResolved={handleAddressResolved}
             googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
