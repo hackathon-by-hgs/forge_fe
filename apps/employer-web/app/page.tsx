@@ -32,8 +32,6 @@ import {
   formatShortDate,
 } from '@forge/ui/utils';
 import type { JobStatus } from '@forge/types';
-import { ActivityFeed } from '../components/ActivityFeed';
-import type { ActivityEvent } from '../lib/activity';
 import { JOB_STATUS_TONE } from '../lib/jobUtils';
 import { fetchEmployerOverview } from '../lib/employerOverview';
 import { ApiError } from '../lib/api';
@@ -82,7 +80,7 @@ export default function OverviewPage() {
               ))}
             </div>
           </div>
-        </div>
+        </div>  
       </>
     );
   }
@@ -99,6 +97,12 @@ export default function OverviewPage() {
               <p className="mt-1 text-xs text-neutral-600">
                 If you believe this is a mistake, contact support with your account email.
               </p>
+              <a
+                href="mailto:support@forge.app?subject=Missing%20business%20dashboard"
+                className="mt-3 inline-flex h-9 items-center justify-center rounded-md border border-outline bg-surface px-3 text-sm font-medium text-neutral-900 hover:bg-surface-container-high"
+              >
+                Contact support
+              </a>
             </div>
           </div>
         </>
@@ -144,8 +148,6 @@ export default function OverviewPage() {
   const attentionItems = attention.filter((a) => a.count > 0);
   const attentionTotal = attentionItems.reduce((s, a) => s + a.count, 0);
 
-  const events: ActivityEvent[] = [];
-
   return (
     <>
       <PageHeader
@@ -186,7 +188,11 @@ export default function OverviewPage() {
             <CardBody>
               <MapPlaceholder
                 pins={pins}
+                googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
                 className="aspect-[16/9]"
+                onPinClick={(pin) => {
+                  router.push(`/jobs/${pin.jobId ?? pin.id}`);
+                }}
                 hint={
                   <span className="inline-flex items-center gap-1">
                     <IconLocation className="!h-3 !w-3" />
@@ -239,53 +245,39 @@ export default function OverviewPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Recent activity</CardTitle>
-              <Button variant="ghost" size="sm" disabled>
-                View all
-              </Button>
-            </CardHeader>
-            <CardBody>
-              <ActivityFeed events={events} />
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Needs your attention</CardTitle>
-              {attentionTotal > 0 ? <Badge tone="warning">{attentionTotal}</Badge> : null}
-            </CardHeader>
-            <CardBody>
-              {attentionItems.length === 0 ? (
-                <p className="text-sm text-neutral-600">You’re all caught up.</p>
-              ) : (
-                <ul className="-mx-1 space-y-1 text-sm">
-                  {attentionItems.map((item) => (
-                    <li key={`${item.kind}-${item.href}`}>
-                      <Link
-                        href={item.href}
-                        className="flex items-center gap-2 rounded-md px-1 py-1.5 hover:bg-neutral-50"
-                      >
-                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-warning-50 text-warning-600">
-                          {attentionIcon(item.kind)}
-                        </span>
-                        <span className="flex-1">
-                          {item.kind === 'applications_waiting' && 'Applications waiting'}
-                          {item.kind === 'starting_soon' && 'Jobs starting soon'}
-                          {item.kind === 'worker_late' && 'Workers running late'}
-                          <span className="tabular-nums"> · {item.count}</span>
-                        </span>
-                        <span className="text-xs text-neutral-400">Open</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardBody>
-          </Card>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Needs your attention</CardTitle>
+            {attentionTotal > 0 ? <Badge tone="warning">{attentionTotal}</Badge> : null}
+          </CardHeader>
+          <CardBody>
+            {attentionItems.length === 0 ? (
+              <p className="text-sm text-neutral-600">You’re all caught up.</p>
+            ) : (
+              <ul className="-mx-1 grid grid-cols-1 gap-1 text-sm md:grid-cols-2 lg:grid-cols-3">
+                {attentionItems.map((item) => (
+                  <li key={`${item.kind}-${item.href}`}>
+                    <Link
+                      href={item.href}
+                      className="flex items-center gap-2 rounded-md px-1 py-1.5 hover:bg-neutral-50"
+                    >
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-warning-50 text-warning-600">
+                        {attentionIcon(item.kind)}
+                      </span>
+                      <span className="flex-1">
+                        {item.kind === 'applications_waiting' && 'Applications waiting'}
+                        {item.kind === 'starting_soon' && 'Jobs starting soon'}
+                        {item.kind === 'worker_late' && 'Workers running late'}
+                        <span className="tabular-nums"> · {item.count}</span>
+                      </span>
+                      <span className="text-xs text-neutral-400">Open</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardBody>
+        </Card>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card>
@@ -390,7 +382,9 @@ export default function OverviewPage() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-neutral-900">{j.title}</p>
                       <p className="text-xs text-neutral-500">
-                        {'—'} · {formatShortDate(j.scheduledStartAt)}
+                        {/* `neighborhood` is mistyped as Record<string, never> in the OpenAPI spec; runtime is a string. */}
+                        {(typeof j.neighborhood === 'string' ? j.neighborhood : '—')} ·{' '}
+                        {formatShortDate(j.scheduledStartAt)}
                       </p>
                     </div>
                     <span

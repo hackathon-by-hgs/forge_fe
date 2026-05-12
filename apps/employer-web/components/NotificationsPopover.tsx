@@ -19,7 +19,7 @@ import {
 } from '@forge/ui/icons';
 import { formatRelativeTime } from '@forge/ui/utils';
 import type { components } from '@forge/types/api';
-import { api } from '../lib/api';
+import { api, ApiError } from '../lib/api';
 import {
   mapDashboardNotification,
   type AppNotification,
@@ -44,24 +44,26 @@ const TONE: Record<NotificationKind, string> = {
 
 type NotificationsListResponseDto = components['schemas']['NotificationsListResponseDto'];
 
+const LIST_KEY = ['notifications', 'list', { page: 1, pageSize: 10 }] as const;
+const UNREAD_KEY = ['notifications', 'unread-count'] as const;
+
 export function NotificationsPopover() {
   const queryClient = useQueryClient();
 
   const listQuery = useQuery({
-    queryKey: ['notifications', 'list', { page: 1, pageSize: 10 }],
-    queryFn: async () => {
-      const raw = await api.get<NotificationsListResponseDto>('/v1/notifications?page=1&pageSize=10');
-      return raw.data.map(mapDashboardNotification);
-    },
+    queryKey: LIST_KEY,
+    queryFn: () => api.get<NotificationsListResponseDto>('/v1/notifications?page=1&pageSize=10'),
+    select: (raw) => raw.data.map(mapDashboardNotification),
   });
 
   const unreadQuery = useQuery({
-    queryKey: ['notifications', 'unread-count'],
+    queryKey: UNREAD_KEY,
     queryFn: async () => {
       const raw = await api.get<components['schemas']['UnreadCountDto']>('/v1/notifications/unread-count');
       return raw.unreadCount;
     },
     refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
   });
 
   const items = listQuery.data ?? [];
@@ -72,16 +74,72 @@ export function NotificationsPopover() {
     mutationFn: async () => {
       await api.post<unknown>('/v1/notifications/mark-all-read');
     },
-    onSuccess: async () => {
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: ['notifications'] });
+      const prevList = queryClient.getQueryData(LIST_KEY);
+      const prevUnread = queryClient.getQueryData(UNREAD_KEY);
+      queryClient.setQueryData<NotificationsListResponseDto>(
+        LIST_KEY,
+        (old) =>
+          old
+            ? { ...old, data: old.data.map((n) => ({ ...n, unread: false })) }
+            : old,
+      );
+      queryClient.setQueryData(UNREAD_KEY, 0);
+      return { prevList, prevUnread };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prevList !== undefined) {
+        queryClient.setQueryData(LIST_KEY, ctx.prevList);
+      }
+      if (ctx?.prevUnread !== undefined) {
+        queryClient.setQueryData(UNREAD_KEY, ctx.prevUnread);
+      }
+    },
+    onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 
   const markOneRead = useMutation({
     mutationFn: async (id: string) => {
-      await api.post<unknown>(`/v1/notifications/${id}/read`);
+      try {
+        await api.post<unknown>(`/v1/notifications/${id}/read`);
+      } catch (e) {
+        // 404 = already read or expired — spec says ignore.
+        if (e instanceof ApiError && e.status === 404) return;
+        throw e;
+      }
     },
-    onSuccess: async () => {
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ['notifications'] });
+      const prevList = queryClient.getQueryData(LIST_KEY);
+      const prevUnread = queryClient.getQueryData(UNREAD_KEY);
+      queryClient.setQueryData<NotificationsListResponseDto>(
+        LIST_KEY,
+        (old) =>
+          old
+            ? {
+                ...old,
+                data: old.data.map((n) => (n.id === id ? { ...n, unread: false } : n)),
+              }
+            : old,
+      );
+      queryClient.setQueryData<number | undefined>(
+        UNREAD_KEY,
+        (old) => (typeof old === 'number' ? Math.max(0, old - 1) : old),
+      );
+      return { prevList, prevUnread };
+    },
+    onError: (_err, _id, ctx) => {
+      if (ctx?.prevList !== undefined) {
+        queryClient.setQueryData(LIST_KEY, ctx.prevList);
+      }
+      if (ctx?.prevUnread !== undefined) {
+        queryClient.setQueryData(UNREAD_KEY, ctx.prevUnread);
+      }
+    },
+    onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });

@@ -1116,6 +1116,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/employers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Worker-mobile employer profile (hero + stats + about + active/history split).
+         * @description **Audience:** Worker mobile app — `lib/features/employers/presentation/employer_detail_screen.dart`.
+         *
+         *     **Powers:** "About the employer" → "View profile" deeplink from job detail.
+         *
+         *
+         *
+         *     **Behavior:** Extends the slim `Employer` shape that's already embedded in `/jobs` rows
+         *
+         *     (same `id`, `name`, `photo_url`, `rating`, `jobs_posted`, `member_since`, `phone_number`) and adds
+         *
+         *     profile-screen fields: `verified`, `business_type` (display label), `bio`, `primary_location`, and a
+         *
+         *     `stats` block with `open_jobs`, `completed_jobs`, `completion_rate`, `average_pay`,
+         *
+         *     `average_response_time_minutes`, `ratings_breakdown`.
+         *
+         *
+         *
+         *     **Trust signals:** `completion_rate` returns `0` when `completed_jobs < 10` so the mobile can render
+         *
+         *     "New employer" copy instead of a misleading rate. `average_response_time_minutes` is computed over a
+         *
+         *     30-day rolling window so stale applications don't skew the number.
+         */
+        get: operations["EmployersController_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employers/{id}/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Paginated job list scoped to one employer (active + recent history).
+         * @description **Audience:** Worker mobile app — same `JobCard` widget as `/jobs`.
+         *
+         *     **Powers:** "Active jobs" + "Recent history" sections on the employer profile screen.
+         *
+         *     The mobile splits the rendered list at the first `closed` row to label the two groups.
+         *
+         *
+         *
+         *     **Per-row shape** is identical to `GET /jobs` plus a `status` field (`open | closed`).
+         *
+         *
+         *
+         *     **Ordering:** open jobs first (sorted `start_time DESC`), then closed jobs (sorted `start_time DESC`).
+         *
+         *     Closed jobs are capped at the last 30 days. `lat`/`lng` are required so distance + travel-time fields
+         *
+         *     are computed against the worker's current location, including for closed rows (rendered in muted text).
+         *
+         *
+         *
+         *     **Filters:** `?status=open|closed|all` (default `all`).
+         */
+        get: operations["EmployersController_jobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/dashboard/auth/email/register": {
         parameters: {
             query?: never;
@@ -1666,6 +1748,1255 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/employer/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List jobs scoped to the calling employer.
+         * @description **Audience:** Employer-web (`business_owner | business_admin | business_hiring_manager`).
+         *
+         *     **Powers:** `/jobs/active` Kanban + table, `/jobs/history`, `/jobs/drafts`, and the all-jobs list view.
+         *
+         *
+         *
+         *     **Filters:** `status[]`, `type` (dashboard vocab: loader|driver|unloader|general), `neighborhood`,
+         *
+         *     `q` (matches title/neighborhood/id, case-insensitive), date range `from`/`to` (inclusive `from`, exclusive `to`).
+         *
+         *     **Sort:** `sortBy=postedAt|scheduledStartAt|payNaira`, `sortDir=asc|desc`. Default `postedAt desc`.
+         *
+         *     **Pagination:** offset (`?page=&pageSize=`, max 100). Response envelope is `{ data, pagination }`.
+         *
+         *
+         *
+         *     Tenant-scoped: results are always filtered by the JWT's `employerId`. Soft-deleted jobs (`deletedAt != null`)
+         *
+         *     are excluded — workers and the dashboard never see them.
+         */
+        get: operations["EmployerJobsController_list"];
+        put?: never;
+        /**
+         * Create a job. Idempotent — retries with the same key replay the original response (24h cache).
+         * @description **Audience:** Employer-web.
+         *
+         *     **Powers:** `/jobs/new` form submit.
+         *
+         *
+         *
+         *     **Behavior:** `postNow=true` → status `open` (visible to workers immediately). `postNow=false` →
+         *
+         *     status `draft` (employer-only, can be published later via `/publish`). `audience=team_first`
+         *
+         *     hides the job from non-team workers for the first 30 minutes after publish (BACKEND_BRIEF §11.1).
+         *
+         *
+         *
+         *     **Idempotency:** required `Idempotency-Key` (UUID v4). The same key + body returns the original response;
+         *
+         *     same key + different body returns 409 CONFLICT.
+         */
+        post: operations["EmployerJobsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/jobs/active": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Active jobs only (status in open|applications_in|accepted|in_progress|pending_verification).
+         * @description **Audience:** Employer-web.
+         *
+         *     **Powers:** `/jobs/active` Kanban — returns the full set (no pagination) so columns can group by status.
+         *
+         *     Sorted by `scheduledStartAt asc` so soonest-starting jobs surface first.
+         */
+        get: operations["EmployerJobsController_active"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/jobs/recent-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Top 3 most-recent posted-or-completed jobs as "post like a recent job" templates.
+         * @description **Audience:** Employer-web.
+         *
+         *     **Powers:** "Post like a recent job" cards on `/jobs/new`. Each card carries enough fields
+         *
+         *     (title, type, payNaira, durationHours, location, requiredEquipment) to pre-fill the post-job form on tap.
+         */
+        get: operations["EmployerJobsController_recentTemplates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/jobs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Single job, employer-scoped.
+         * @description **Audience:** Employer-web. **Powers:** `/jobs/[id]` detail page header + summary card.
+         */
+        get: operations["EmployerJobsController_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Edit a job. Allowed only while the job is in `draft` or `open` status.
+         * @description **Audience:** Employer-web.
+         *
+         *     **Powers:** `/jobs/[id]` edit drawer / `/jobs/[id]/edit` page.
+         *
+         *
+         *
+         *     **Behavior:** Partial update — only fields present in the body are touched. Editing a published `open` job
+         *
+         *     in a way that materially changes scope (pay, location, start time) is allowed but does not auto-notify
+         *
+         *     applicants in this checkpoint; that's a Phase 4 cron concern.
+         */
+        patch: operations["EmployerJobsController_update"];
+        trace?: never;
+    };
+    "/v1/employer/jobs/{id}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Chronological JobEvent list for the status timeline on the detail page.
+         * @description **Audience:** Employer-web.
+         *
+         *     **Powers:** Timeline card on `/jobs/[id]` showing every event from posting to completion
+         *
+         *     (`job_posted`, `application_received`, `application_accepted`, `worker_clocked_in`, `photo_proof_uploaded`,
+         *
+         *     `job_completed`, `payment_initiated`, `payment_processed`, …). See BACKEND_BRIEF §4 for the full event-kind list.
+         *
+         *
+         *
+         *     Events are append-only and ordered `occurredAt asc`. The timeline grows as the job progresses; SSE in Phase 4
+         *
+         *     will push new events between refetches.
+         */
+        get: operations["EmployerJobsController_timeline"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/jobs/{id}/applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pending + decided applications for a job, ranked by score and distance.
+         * @description **Audience:** Employer-web.
+         *
+         *     **Powers:** "Applicants" tab on `/jobs/[id]` and the accept/reject inline drawer.
+         *
+         *
+         *
+         *     **Ranking:** Each row carries `rankScore` in `[0, 1]` blending reliability score (40%), distance (25%),
+         *
+         *     on-time history (20%), and average rating (15%). Default ordering is status-then-rank — pending applicants
+         *
+         *     rank-sorted first, then accepted, then rejected/withdrawn.
+         *
+         *
+         *
+         *     **Wire normalisation:** DB stores `status='applied'` for pending applications; this endpoint normalises
+         *
+         *     to `status='pending'` per BACKEND_BRIEF §4. The accept/reject mutations land in Phase 2b.
+         */
+        get: operations["EmployerJobsController_applications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/jobs/{id}/proof": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Photos + clock events + GPS verification for the completion-proof card.
+         * @description **Audience:** Employer-web.
+         *
+         *     **Powers:** "Proof" card on `/jobs/[id]` shown once the job is in `pending_verification` or `completed`.
+         *
+         *     Renders the photo lightbox + clock-in/clock-out timeline + GPS verdict badge.
+         *
+         *
+         *
+         *     **`gpsVerification.overall`:** `verified` if every clock event passed both the 100m geofence and the 30m
+         *
+         *     GPS-accuracy threshold (BACKEND_BRIEF §11.3). `flagged` if any event failed. `pending` if no clock events yet.
+         *
+         *
+         *
+         *     **Photo URLs:** absolute URLs ready for `<img src>`. Stored S3 keys are resolved against
+         *
+         *     `UPLOAD_PUBLIC_BASE_URL` server-side; the FE just renders.
+         */
+        get: operations["EmployerJobsController_proof"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/jobs/export.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Streamed CSV of jobs matching the same filters as `GET /employer/jobs`.
+         * @description **Audience:** Employer-web.
+         *
+         *     **Powers:** "Export jobs (CSV)" action on `/jobs` and `/jobs/active`. Streamed response — content does not buffer
+         *
+         *     in memory regardless of result size.
+         *
+         *
+         *
+         *     **Format:** `text/csv; charset=utf-8` with a UTF-8 BOM so Excel renders ₦ + Yoruba/Igbo names correctly
+         *
+         *     (BACKEND_BRIEF §11.9). RFC 4180 quoting. Filters/sort match `GET /employer/jobs`.
+         */
+        get: operations["EmployerJobsController_exportCsv"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/jobs/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Move a draft job to `open`. Workers can now see and apply.
+         * @description **Audience:** Employer-web. **Powers:** "Publish" CTA on `/jobs/drafts` and on the `/jobs/[id]` header for drafts.
+         *
+         *
+         *
+         *     **Behavior:** 409 INVALID_STATE if the job is not currently `draft`. Emits a `job_published` JobEvent.
+         */
+        post: operations["EmployerJobsController_publish"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/jobs/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a job. Allowed in draft|open|applications_in|accepted.
+         * @description **Audience:** Employer-web. **Powers:** "Cancel job" action on `/jobs/[id]`.
+         *
+         *
+         *
+         *     **Behavior:** Auto-rejects all pending applications, fires a `job_cancelled` JobEvent, and dispatches a worker-mobile
+         *
+         *     notification to the assigned worker (if any). 409 INVALID_STATE if the job is past `accepted` (in-progress
+         *
+         *     or later — those need a different escalation path).
+         */
+        post: operations["EmployerJobsController_cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/jobs/{id}/applications/{appId}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept an application. Atomically auto-rejects all other pending applications on the same job.
+         * @description **Audience:** Employer-web. **Powers:** "Accept" CTA on the applicants tab of `/jobs/[id]`.
+         *
+         *
+         *
+         *     **Behavior (BACKEND_BRIEF §11.2):** Single transaction:
+         *
+         *       1. Marks this application `accepted`
+         *
+         *       2. Marks all other pending applications on the same job `rejected`
+         *
+         *       3. Sets `Job.assignedWorkerId` and transitions status → `accepted`
+         *
+         *       4. Emits one `application_accepted` + N `application_rejected` JobEvents
+         *
+         *       5. Creates worker-mobile notification rows for everyone affected
+         *
+         *
+         *
+         *     **Errors:** 404 if the application doesn't exist on this job. 409 INVALID_STATE if the job already has an
+         *
+         *     assigned worker, or the application is not in `pending` status.
+         */
+        post: operations["EmployerJobsController_acceptApplication"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/jobs/{id}/applications/{appId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject a single application. Fires JobEvent + worker notification.
+         * @description **Audience:** Employer-web. **Powers:** "Reject" inline on the applicants tab.
+         */
+        post: operations["EmployerJobsController_rejectApplication"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/jobs/{id}/invoice": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate a single-job invoice for a completed job. Idempotent.
+         * @description **Audience:** Employer-web. Owner + admin only.
+         *
+         *     **Powers:** "Generate invoice" CTA on the proof card of `/jobs/[id]` (visible once status=`completed`).
+         *
+         *
+         *
+         *     **Behavior:** Writes an `Invoice` row with one line item (the job + assigned worker). Subtotal = job pay, total =
+         *
+         *     subtotal (no tax math in this checkpoint). Returns the invoice with `pdfUrl: null` — Phase 3 wires the PDF render
+         *
+         *     job that populates `pdfS3Key` and signs the URL.
+         *
+         *
+         *
+         *     **Errors:** 409 INVALID_STATE if the job is not yet `completed` or has no assigned worker.
+         */
+        post: operations["EmployerJobsController_generateInvoice"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/workers/active-assignments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Workers currently on a job for this employer.
+         * @description **Audience:** Employer-web. **Powers:** `/workers/active` live map + table.
+         *
+         *
+         *
+         *     Returns one row per `WorkSession.status = in_progress`, scoped to the calling employer's jobs.
+         *
+         *     Each row carries the worker summary, the job (with GPS coordinates for the map pin), elapsed minutes
+         *
+         *     since clock-in, a `hasPhotoProof` flag, and a GPS verdict (`verified | flagged | pending`) computed
+         *
+         *     against the 100m radius + 30m accuracy threshold (BACKEND_BRIEF §11.3).
+         */
+        get: operations["EmployerWorkersController_activeAssignments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/workers/team": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Saved-team workers: explicit additions OR ≥ 2 completed jobs for this employer.
+         * @description **Audience:** Employer-web. **Powers:** `/workers/team`.
+         *
+         *
+         *
+         *     **Sort:** `hired` (jobs done for this employer), `rating` (averageRating desc), `recent` (last job desc,
+         *
+         *     addedAt fallback). Default `recent`. Offset paginated.
+         */
+        get: operations["EmployerWorkersController_team"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/workers/team/{workerId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Explicitly add a worker to this employer's team.
+         * @description Idempotent — adding a worker who is already on the team replays the existing membership row.
+         */
+        post: operations["EmployerWorkersController_addToTeam"];
+        /**
+         * Remove an explicit team membership.
+         * @description Removes only the explicit `EmployerTeamMember` row. If the worker still has ≥ 2 completed jobs
+         *
+         *     with this employer, they remain on the implicit team and the `/workers/team` list still shows them.
+         */
+        delete: operations["EmployerWorkersController_removeFromTeam"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/workers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Browse workers within 10km of the employer's registered location.
+         * @description **Audience:** Employer-web. **Powers:** `/workers/browse` table.
+         *
+         *
+         *
+         *     Workers without a `homeLocation` are excluded (we can't compute hiring radius for them). Filters:
+         *
+         *     `skill`, `neighborhood`, `scoreMin`, `scoreMax`, `eligibility`, `q` (matches name, neighborhood, id).
+         *
+         *     Offset paginated.
+         */
+        get: operations["EmployerWorkersController_browse"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/workers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Worker profile from the calling employer's perspective.
+         * @description **Audience:** Employer-web. **Powers:** `/workers/[id]` profile page.
+         *
+         *
+         *
+         *     Adds employer-relative context to the public worker shape: `pastJobsWithEmployerCount`,
+         *
+         *     `recentReviews[]` (5 most recent, any employer), `reliabilitySnapshot`, and the `blocked` + `onTeam`
+         *
+         *     flags scoped to this caller. 404 if the worker doesn't exist or is soft-deleted.
+         */
+        get: operations["EmployerWorkersController_profile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/workers/{id}/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Past jobs this worker did specifically for the calling employer.
+         * @description **Audience:** Employer-web. **Powers:** "Jobs with us" list on the worker profile.
+         *
+         *
+         *
+         *     Includes `completed`, `in_progress`, and `pending_verification` applications. Sorted by
+         *
+         *     `completedAt desc` (with `appliedAt` fallback). Offset paginated.
+         */
+        get: operations["EmployerWorkersController_workerJobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/workers/{id}/block": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Block a worker from applying to this employer's jobs.
+         * @description Idempotent — re-blocking updates the stored reason.
+         */
+        post: operations["EmployerWorkersController_block"];
+        /** Unblock a worker. 404 if not currently blocked. */
+        delete: operations["EmployerWorkersController_unblock"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/transactions/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The 4 metric tiles on `/payments/transactions`.
+         * @description **Audience:** Employer-web.
+         *
+         *     **Powers:** Top-row tiles on `/payments/transactions`: paid this month, pending, average job cost (90-day), largest payment (90-day).
+         *
+         *
+         *
+         *     Cheap aggregate query — safe to refetch on focus. Tenant-scoped via JWT.
+         */
+        get: operations["EmployerTransactionsController_summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/transactions/export.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Streamed CSV of transactions matching the same filters as the list.
+         * @description **Audience:** Employer-web. **Powers:** "Export CSV" on `/payments/transactions`.
+         *
+         *
+         *
+         *     **Format:** `text/csv; charset=utf-8` with UTF-8 BOM. RFC 4180 quoting. Streamed — content does not buffer.
+         */
+        get: operations["EmployerTransactionsController_exportCsv"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List transactions for the calling employer.
+         * @description **Audience:** Employer-web. **Powers:** Main transactions table on `/payments/transactions`.
+         *
+         *
+         *
+         *     **Filters:** `status` (pending|processing|completed|failed|reversed), `from`/`to` (inclusive/exclusive),
+         *
+         *     `q` (matches worker name, Squad reference, job ID, transaction ID). Offset pagination.
+         *
+         *
+         *
+         *     **Status normalisation:** the DB stores some legacy `succeeded` rows from the worker-mobile side; this endpoint
+         *
+         *     normalises them to `completed` on the wire. Filtering by `status=completed` also matches `succeeded` rows.
+         */
+        get: operations["EmployerTransactionsController_list"];
+        put?: never;
+        /**
+         * Initiate a manual transfer to a worker. Idempotent.
+         * @description **Audience:** Employer-web. Owner + admin only — hiring managers cannot move money.
+         *
+         *     **Powers:** "Send payment" sheet on `/payments/transactions` (rare flow — most transfers happen automatically
+         *
+         *     on job completion).
+         *
+         *
+         *
+         *     **Behavior:** Writes a `Transaction` row with `status=pending`. The Squad webhook transitions it to
+         *
+         *     `completed` once the real provider integration lands (Phase 5). For the demo, rows stay `pending` until
+         *
+         *     manually flipped.
+         */
+        post: operations["EmployerTransactionsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/transactions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Single transaction with worker + linked-job context.
+         * @description **Audience:** Employer-web. **Powers:** Transaction detail drawer.
+         */
+        get: operations["EmployerTransactionsController_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/invoices": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List invoices for the calling employer.
+         * @description **Audience:** Employer-web. **Powers:** Main table on `/payments/invoices`.
+         *
+         *     **Filters:** `status` (draft|sent|paid), `from`/`to` on `issuedAt`. Offset pagination.
+         */
+        get: operations["EmployerInvoicesController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/invoices/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Single invoice with line items.
+         * @description **Audience:** Employer-web. **Powers:** Invoice detail drawer.
+         */
+        get: operations["EmployerInvoicesController_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/invoices/generate-batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate one invoice covering all completed jobs in a date range. Idempotent.
+         * @description **Audience:** Employer-web. Owner + admin only.
+         *
+         *     **Powers:** "Generate batch invoice" sheet on `/payments/invoices`.
+         *
+         *
+         *
+         *     **Behavior:** Aggregates all `completed` jobs whose `completedAt` falls in `[from, to)`, optionally filtered by
+         *
+         *     `workerIds[]` and/or `jobIds[]`. Writes one `Invoice` row with N line items (one per job). 422
+         *
+         *     `NO_INVOICEABLE_JOBS` if nothing matches. PDF render is Phase 5 — response carries `pdfUrl: null` for now.
+         */
+        post: operations["EmployerInvoicesController_generateBatch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/invoices/{id}/send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send the invoice by email and flip its status to `sent`.
+         * @description **Audience:** Employer-web. Owner + admin only.
+         *
+         *     **Powers:** "Send invoice" CTA on the invoice detail drawer.
+         *
+         *
+         *
+         *     **Behavior:** Dispatches via Resend to `Employer.invoicingEmail` (Settings → Billing). 422
+         *
+         *     `INVOICING_EMAIL_MISSING` if the employer hasn't set one. 409 `INVALID_STATE` if the invoice is already paid.
+         *
+         *     In Phase 5 the email will carry the PDF attachment.
+         */
+        post: operations["EmployerInvoicesController_send"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/invoices/{id}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Signed redirect to the invoice PDF in S3.
+         * @description **Audience:** Employer-web. **Powers:** "Download PDF" link on the invoice drawer.
+         *
+         *
+         *
+         *     **Status:** Returns 503 `PDF_NOT_READY` in Phase 3 — the render job lands in Phase 5. The FE should show a
+         *
+         *     "Generating…" placeholder when the response is 503 and re-enable the link once the BE returns 200.
+         */
+        get: operations["EmployerInvoicesController_pdf"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/payouts/upcoming": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Future scheduled payouts (status in `scheduled` or `processing`).
+         * @description **Audience:** Employer-web. **Powers:** "Upcoming payouts" card on `/payments/payouts`.
+         *
+         *     Ordered `scheduledFor asc`. No pagination — small set.
+         */
+        get: operations["EmployerPayoutsController_upcoming"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/payouts/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Past payouts (status in `paid` or `failed`). Paginated.
+         * @description **Audience:** Employer-web. **Powers:** "Payout history" table.
+         */
+        get: operations["EmployerPayoutsController_history"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/payouts/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pause auto-debit payouts. Idempotent.
+         * @description **Audience:** Employer-web. Owner + admin only.
+         */
+        post: operations["EmployerPayoutsController_pause"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/payouts/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume auto-debit payouts. Idempotent.
+         * @description **Audience:** Employer-web. Owner + admin only.
+         */
+        post: operations["EmployerPayoutsController_resume"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/payouts/top-up": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Initiate a Squad wallet top-up. Returns a Squad checkout URL.
+         * @description **Audience:** Employer-web. Owner + admin only.
+         *
+         *     **Powers:** "Top up wallet" CTA on `/payments/payouts`. The FE redirects to `checkoutUrl` (window.location.assign).
+         *
+         *
+         *
+         *     **Demo behaviour:** The endpoint returns a deterministic-looking but non-functional Squad checkout URL
+         *
+         *     (`https://checkout.squadco.com/dev/checkout?ref=…`). No real money moves. The FE can still wire the full
+         *
+         *     redirect flow — when Phase 5 lands and Squad is sandbox-wired, the same endpoint will mint a real checkout
+         *
+         *     URL and the FE needs no change.
+         */
+        post: operations["EmployerPayoutsController_topUp"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bank/risk-radar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Composite payload for the bank dashboard home page.
+         * @description **Audience:** Bank-web (`bank_credit_officer | bank_risk_analyst`).
+         *
+         *     **Powers:** `/` route on `bank-web` — the entire Risk Radar page in one round-trip.
+         *
+         *
+         *
+         *     **Response shape:**
+         *
+         *     - `critical`: red-flag active loans (up to 20), ordered by next-payment-due
+         *
+         *     - `watchlist`: yellow-flag active loans (up to 20)
+         *
+         *     - `portfolio`: aggregate metrics (active count, at-risk count, disbursed total, outstanding total, repayment rate, default rate)
+         *
+         *     - `opportunity`: top 5 pre-approved/eligible workers without an active loan with this bank — drives the "new lending opportunity" strip
+         *
+         *
+         *
+         *     Tenant-scoped: all queries filter by JWT's `bankId`. Phase 4 closes the `/v1/bank/risk-radar` 404 you saw in production.
+         */
+        get: operations["BankController_riskRadar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bank/loans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List loans in the bank portfolio. Filterable, paginated.
+         * @description **Audience:** Bank-web. **Powers:** `/loans` portfolio table.
+         *
+         *
+         *
+         *     **Filters:** `riskLevel` (green|yellow|red), `status` (full BRIEF §4 enum), `borrowerType` (worker|business),
+         *
+         *     `q` (matches loan id + borrower id + borrower name). Offset pagination, default sort `createdAt desc`.
+         */
+        get: operations["BankController_listLoans"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bank/loans/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Single loan with the full repayment schedule + paid-to-date totals.
+         * @description **Audience:** Bank-web. **Powers:** `/loans/[id]` detail page.
+         */
+        get: operations["BankController_loanDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bank/loans/{id}/disburse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Disburse an approved loan. Transitions status → active and seeds the repayment schedule. Idempotent.
+         * @description **Audience:** Bank-web. Credit-officer only (read-only role gets 403).
+         *
+         *     **Powers:** "Disburse" CTA on `/loans/[id]` when status is `approved`.
+         *
+         *
+         *
+         *     **Behavior (single transaction):** sets `status=active`, `disbursedAt=now`, `outstandingBalance=principal`,
+         *
+         *     seeds N monthly repayment rows, fires `loan_disbursed` worker notification (for worker borrowers), and
+         *
+         *     increments `Bank.totalActiveLoans` + `Bank.totalDisbursedNaira`.
+         *
+         *
+         *
+         *     **Squad note:** Real disbursement to the borrower's wallet is stubbed for the demo — no money moves.
+         *
+         *     Phase 5 wires the Squad transfer (rows already idempotent via `Idempotency-Key`).
+         */
+        post: operations["BankController_disburse"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bank/loan-repayments/{id}/pay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark a scheduled repayment as paid. Idempotent.
+         * @description **Audience:** Bank-web. Credit-officer only.
+         *
+         *     **Powers:** "Mark paid" inline action on the loan-detail repayment table.
+         *
+         *
+         *
+         *     **Behavior:** Updates the repayment row, decrements the loan's outstanding balance, and (if `outstanding=0`)
+         *
+         *     flips the loan to `repaid`, fires a `loan_repayment_made` worker notification, and decrements
+         *
+         *     `Bank.totalActiveLoans`. 409 `INVALID_STATE` if the repayment is already paid or the loan is not `active|at_risk`.
+         */
+        post: operations["BankController_markRepaymentPaid"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bank/loan-applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List loan applications for this bank. Filterable, paginated.
+         * @description **Audience:** Bank-web. **Powers:** `/applications` queue.
+         *
+         *
+         *
+         *     **Filters:** `status` (default `pending`), `borrowerType`, `recommendedDecision`, `q`
+         *
+         *     (matches application id + borrower id + borrower name). Default sort `appliedAt desc`.
+         */
+        get: operations["BankController_listApplications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bank/loan-applications/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Single loan application with the scoring engine recommendation.
+         * @description **Audience:** Bank-web. **Powers:** `/applications/[id]` review page.
+         */
+        get: operations["BankController_applicationDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bank/loan-applications/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve a pending application — creates the Loan row (status=approved). Idempotent.
+         * @description **Audience:** Bank-web. Credit-officer only.
+         *
+         *     **Powers:** "Approve" CTA on `/applications/[id]`. Body fields are optional overrides; defaults to the
+         *
+         *     requested amount, an APR of 14%, and the requested term. The application flips to `approved` and a new
+         *
+         *     Loan row is created in `approved` status — disburse via `POST /loans/:id/disburse` once the borrower confirms.
+         *
+         *
+         *
+         *     **Idempotency:** required `Idempotency-Key` (UUID v4). Replays the original `Loan` row on retry — the prior
+         *
+         *     `INVALID_STATE` backstop covered the case where the client knew the call succeeded, but not the lost-response
+         *
+         *     case. With the key, both are safe.
+         */
+        post: operations["BankController_approveApplication"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bank/loan-applications/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject a pending application with a reason. Idempotent.
+         * @description **Audience:** Bank-web. Credit-officer only. Reason is logged + included in the audit payload.
+         *
+         *
+         *
+         *     **Idempotency:** required `Idempotency-Key`. Replays the original rejection on retry; reuse with a different
+         *
+         *     reason returns 409 `CONFLICT`.
+         */
+        post: operations["BankController_rejectApplication"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bank/borrowers/{borrowerType}/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Borrower profile (worker or business) with loan history + underwriting metrics.
+         * @description **Audience:** Bank-web. **Powers:** `/borrowers/[type]/[id]` profile page.
+         *
+         *
+         *
+         *     `:borrowerType` is `worker` or `business` (worker IDs and employer IDs share the same `wkr_…`/`emp_…`
+         *
+         *     namespace, so we discriminate in the path rather than the body). Returns a single shape carrying either
+         *
+         *     `workerMetrics` or `businessMetrics` depending on the type. Loan history is scoped to this bank only.
+         */
+        get: operations["BankController_borrower"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/notifications": {
         parameters: {
             query?: never;
@@ -1796,6 +3127,42 @@ export interface paths {
         get: operations["SearchController_go"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/webhooks/squad": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Squad webhook receiver. Signature-verified + idempotent on transaction_reference.
+         * @description **Audience:** Squad (server-to-server). Not called by any FE.
+         *
+         *     **Powers:** Transitions internal `Transaction` rows based on Squad-confirmed outcomes —
+         *
+         *     `Transfer.success` → `completed`, `Transfer.failed` → `failed`, etc.
+         *
+         *
+         *
+         *     **Signature:** HMAC-SHA512 of the raw request body using `SQUAD_WEBHOOK_SECRET`,
+         *
+         *     sent in the `x-squad-signature` header. Bodies that fail verification return 401 without revealing why.
+         *
+         *
+         *
+         *     **Idempotency:** Dedupes on `transaction_reference` — replaying the same event is a no-op.
+         *
+         *     Always returns 200 OK so Squad doesn't spam retries; the BE handles state internally.
+         */
+        post: operations["SquadWebhookController_handle"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1978,40 +3345,54 @@ export interface components {
             member_since: string;
         };
         JobDto: {
-            /** @example job_a3f81c */
+            /** @example job_00123 */
             id: string;
+            /** @example emp_0001 */
+            employerId: string;
+            /** @enum {string} */
+            type: "loader" | "driver" | "unloader" | "general";
+            /** @example Trailer offload, Apapa wharf */
+            title: string;
+            description: string;
             /**
-             * @example loader
+             * @description Integer Naira.
+             * @example 5000
+             */
+            payNaira: number;
+            /** @example 6 */
+            durationHours: number;
+            location: components["schemas"]["JobLocationDto"];
+            /** @example 200 */
+            geofenceRadiusMeters: number;
+            /** @enum {string} */
+            status: "draft" | "open" | "applications_in" | "accepted" | "in_progress" | "pending_verification" | "completed" | "cancelled";
+            /**
+             * @example public
              * @enum {string}
              */
-            type: "loader" | "driver" | "unloader" | "general_labor" | "welder";
-            /** @example Load 5 tons of rebar */
-            title: string;
-            /** @example Loading bundled 12mm rebar onto a 911 truck... */
-            description: string;
-            /** @example 5000 */
-            pay_amount: number;
-            /** @example 4 */
-            duration_hours: number;
-            location: components["schemas"]["LocationDto"];
-            /** @example 320 */
-            distance_meters: number;
-            /** @example 4 */
-            travel_time_walking_minutes: number;
-            /** @example 1 */
-            travel_time_driving_minutes: number;
-            /** @example 2026-05-09T15:00:00Z */
-            start_time: string;
+            audience: "public" | "team_first";
+            /** @example 2026-05-10T14:30:00+01:00 */
+            audienceFlippedAt?: Record<string, never> | null;
+            /** @example 2026-05-10T08:30:00+01:00 */
+            postedAt: string;
+            /** @example 2026-05-11T07:00:00+01:00 */
+            scheduledStartAt: string;
+            startedAt?: Record<string, never> | null;
+            completedAt?: Record<string, never> | null;
+            /** @example 7 */
+            applicationsCount: number;
+            /** @example wkr_0042 */
+            assignedWorkerId?: Record<string, never> | null;
+            /** @description Hydrated worker summary. Null until acceptance. */
+            assignedWorker?: components["schemas"]["AssignedWorkerSummaryDto"] | null;
+            cancelledReason?: Record<string, never> | null;
             /**
              * @example [
-             *       "work gloves",
-             *       "boots"
+             *       "Safety boots",
+             *       "Gloves"
              *     ]
              */
-            required_equipment: string[];
-            employer: components["schemas"]["EmployerDto"];
-            /** @example 0.94 */
-            relevance_score?: number;
+            requiredEquipment: string[];
         };
         JobsFeedResponseDto: {
             items: components["schemas"]["JobDto"][];
@@ -2218,30 +3599,35 @@ export interface components {
             worker_note?: string;
         };
         TransactionDto: {
-            /** @example txn_e7290b */
+            /** @example txn_00789 */
             id: string;
-            /** @enum {string} */
-            kind: "job_payment" | "loan_disbursement" | "loan_repayment" | "withdrawal";
+            /** @example sq_4e9a1c2b */
+            squadReference?: Record<string, never> | null;
+            /** @example emp_0001 */
+            employerId: string;
+            /** @example wkr_0042 */
+            workerId: string;
+            /** @example Tunde Adeyemi */
+            workerName?: Record<string, never> | null;
+            /** @example job_00123 */
+            jobId?: Record<string, never> | null;
+            /** @example Trailer offload, Apapa wharf */
+            jobTitle?: Record<string, never> | null;
             /**
-             * @description Signed; + credit, − debit.
+             * @description Integer Naira.
              * @example 5000
              */
-            amount: number;
-            /** @example 2026-05-09T19:08:12Z */
+            amountNaira: number;
+            /** @enum {string} */
+            status: "pending" | "processing" | "completed" | "failed" | "reversed";
+            /** @example 2026-05-10T14:00:00+01:00 */
             timestamp: string;
-            /** @example Adeolu Iron Wholesale */
-            title: string;
-            /** @example Loading job · Owode-Onirin */
-            subtitle: string;
-            /** @example sqd_8a3f2c1d */
-            squad_reference: Record<string, never> | null;
-            /** @example job_a3f81c */
-            related_job_id: Record<string, never> | null;
+            settledAt?: Record<string, never> | null;
+            failureReason?: Record<string, never> | null;
         };
         TransactionsListResponseDto: {
-            items: components["schemas"]["TransactionDto"][];
-            next_cursor: Record<string, never> | null;
-            has_more: boolean;
+            data: components["schemas"]["TransactionDto"][];
+            pagination: components["schemas"]["PaginationMetaDto"];
         };
         RelatedJobSummaryDto: {
             id: string;
@@ -2424,49 +3810,72 @@ export interface components {
             loan: components["schemas"]["LoanSummaryDto"] | null;
         };
         LoanRepaymentDto: {
-            /** @example rep_a8c2f1 */
+            /** @example rep_8a3f2c */
             id: string;
-            /** @example 1000 */
-            amount: number;
-            /** @example 2026-05-09T19:08:12Z */
-            paid_at: string;
-            /** @example job_a3f81c */
-            from_job_id: string;
-            /** @example Load 5 tons of rebar */
-            from_job_title: string;
-            /** @example txn_e7290c */
-            transaction_id: string;
+            /** @example loan_8a3f2c */
+            loanId: string;
+            /** @example 12500 */
+            amountNaira: number;
+            scheduledFor?: Record<string, never> | null;
+            paidAt?: Record<string, never> | null;
+            /**
+             * @example scheduled
+             * @enum {string}
+             */
+            status: "scheduled" | "paid" | "missed";
+            fromJobId?: Record<string, never> | null;
+            fromJobTitle?: Record<string, never> | null;
+            transactionId?: Record<string, never> | null;
         };
         LoanDetailDto: {
-            /** @example loan_3c8a2f */
+            /** @example loan_8a3f2c */
             id: string;
-            /** @example 50000 */
-            principal: number;
-            /** @example 32000 */
-            outstanding_balance: number;
-            /** @example 5 */
-            interest_rate_percent: number;
-            /** @example 0.2 */
-            repayment_percent_per_job: number;
+            /** @example bnk2_gtbank */
+            bankId: string;
             /** @enum {string} */
-            status: "pending" | "approved" | "rejected" | "active" | "repaid";
-            /** @example 2026-04-10T12:30:00Z */
-            disbursed_at: Record<string, never> | null;
-            estimated_decision_at?: Record<string, never> | null;
-            rejection_reason?: Record<string, never> | null;
-            /** @enum {string|null} */
-            purpose?: "stock_purchase" | "tools" | "transport" | "family_emergency" | "other" | null;
-            /** @example 1000 */
-            next_repayment_estimate?: number;
-            /** @example On your next job */
-            next_repayment_when?: string;
-            /** @example 18 */
-            repayments_count?: number;
-            /** @example 18000 */
-            repayments_total?: number;
-            /** @example 2026-07-15T00:00:00Z */
-            expected_full_repayment_at: Record<string, never> | null;
+            borrowerType: "worker" | "business";
+            borrower: components["schemas"]["BorrowerSummaryDto"];
+            /**
+             * @description Integer Naira.
+             * @example 500000
+             */
+            principalNaira: number;
+            /** @example 320000 */
+            outstandingNaira: number;
+            /**
+             * @description APR as a decimal (0.14 = 14%).
+             * @example 0.14
+             */
+            apr: number;
+            /** @example 6 */
+            termMonths?: Record<string, never> | null;
+            /** @example 0.15 */
+            repaymentPercentPerJob: number;
+            /** @enum {string} */
+            status: "draft" | "pending_review" | "approved" | "active" | "at_risk" | "repaid" | "defaulted" | "rejected" | "written_off";
+            /** @enum {string} */
+            riskLevel: "green" | "yellow" | "red";
+            purpose?: Record<string, never> | null;
+            disbursedAt?: Record<string, never> | null;
+            expectedFullRepaymentAt?: Record<string, never> | null;
+            nextPaymentDueAt?: Record<string, never> | null;
+            /** @example 82 */
+            scoreAtApproval?: Record<string, never> | null;
+            /** @example 0.93 */
+            predictedRepaymentRate?: Record<string, never> | null;
+            rejectionReason?: Record<string, never> | null;
+            createdAt: string;
             repayments: components["schemas"]["LoanRepaymentDto"][];
+            /**
+             * @description Total paid to date.
+             * @example 75000
+             */
+            totalPaidNaira: number;
+            /**
+             * @description Fraction of scheduled repayments paid on time.
+             * @example 0.85
+             */
+            onTimeRepaymentRate: number;
         };
         ApplyLoanDto: {
             /** @example 50000 */
@@ -2628,6 +4037,131 @@ export interface components {
             /** @example 2026-05-10T19:08:30Z */
             expires_at: string;
             liveness: components["schemas"]["LivenessVerdictDto"];
+        };
+        EmployerPrimaryLocationDto: {
+            /** @example Apapa Wharf, Lagos */
+            address: string;
+            /** @example 6.4474 */
+            lat: number;
+            /** @example 3.3611 */
+            lng: number;
+        };
+        EmployerRatingsBreakdownDto: {
+            /** @example 3 */
+            1: number;
+            /** @example 5 */
+            2: number;
+            /** @example 8 */
+            3: number;
+            /** @example 24 */
+            4: number;
+            /**
+             * @description 5-star count
+             * @example 98
+             */
+            5: number;
+        };
+        EmployerStatsDto: {
+            /** @example 4 */
+            open_jobs: number;
+            /** @example 138 */
+            completed_jobs: number;
+            /**
+             * @description 0.0 – 1.0. completed / (completed + cancelled). Returns 0 when completed_jobs < 10 (treat as "new employer" on the mobile).
+             * @example 0.97
+             */
+            completion_rate: number;
+            /**
+             * @description Average pay in NGN integer.
+             * @example 6500
+             */
+            average_pay: number;
+            /**
+             * @description Median minutes from worker apply → employer accept/reject (30-day rolling window).
+             * @example 18
+             */
+            average_response_time_minutes: number;
+            ratings_breakdown: components["schemas"]["EmployerRatingsBreakdownDto"];
+        };
+        EmployerProfileDto: {
+            /** @example emp_8a3f2c1d */
+            id: string;
+            /** @example Lagos Logistics Co. */
+            name: string;
+            /** @example https://cdn.forge.app/employers/emp_8a3f2c1d.jpg */
+            photo_url: Record<string, never> | null;
+            /**
+             * @description 0.0 – 5.0, one decimal.
+             * @example 4.7
+             */
+            rating: number;
+            /** @example 142 */
+            jobs_posted: number;
+            /** @example 2024-03-12T10:30:00Z */
+            member_since: string;
+            /** @example +2348012345678 */
+            phone_number?: Record<string, never> | null;
+            /**
+             * @description Triggers the verified badge on the hero. Admin-flipped after KYC.
+             * @example true
+             */
+            verified: boolean;
+            /**
+             * @description Free-form short label, derived from BusinessType but not enum-bounded on the wire.
+             * @example Logistics & freight
+             */
+            business_type: string;
+            /** @example Lagos-wide container offloading. Same workers welcome to come back. */
+            bio?: Record<string, never> | null;
+            primary_location: components["schemas"]["EmployerPrimaryLocationDto"];
+            stats: components["schemas"]["EmployerStatsDto"];
+        };
+        EmployerJobItemDto: {
+            /** @example job_a3f81c */
+            id: string;
+            /**
+             * @example loader
+             * @enum {string}
+             */
+            type: "loader" | "driver" | "unloader" | "general_labor" | "welder";
+            /** @example Load 5 tons of rebar */
+            title: string;
+            /** @example Loading bundled 12mm rebar onto a 911 truck... */
+            description: string;
+            /** @example 5000 */
+            pay_amount: number;
+            /** @example 4 */
+            duration_hours: number;
+            location: components["schemas"]["LocationDto"];
+            /** @example 320 */
+            distance_meters: number;
+            /** @example 4 */
+            travel_time_walking_minutes: number;
+            /** @example 1 */
+            travel_time_driving_minutes: number;
+            /** @example 2026-05-09T15:00:00Z */
+            start_time: string;
+            /**
+             * @example [
+             *       "work gloves",
+             *       "boots"
+             *     ]
+             */
+            required_equipment: string[];
+            employer: components["schemas"]["EmployerDto"];
+            /** @example 0.94 */
+            relevance_score?: number;
+            /**
+             * @description `open` = currently accepting applicants. `closed` = filled, cancelled, or past start time.
+             * @example open
+             * @enum {string}
+             */
+            status: "open" | "closed";
+        };
+        EmployerJobsResponseDto: {
+            items: components["schemas"]["EmployerJobItemDto"][];
+            next_cursor: Record<string, never> | null;
+            has_more: boolean;
         };
         RegisterDto: {
             /** @example tunde@adeolu.ng */
@@ -2948,6 +4482,913 @@ export interface components {
             total: number;
             /** @example 10 */
             totalPages: number;
+        };
+        JobsListResponseDto: {
+            data: components["schemas"]["JobDto"][];
+            pagination: components["schemas"]["PaginationMetaDto"];
+        };
+        ActiveJobsResponseDto: {
+            data: components["schemas"]["JobDto"][];
+        };
+        JobLocationDto: {
+            /** @example 6.4458 */
+            lat: number;
+            /** @example 3.3608 */
+            lng: number;
+            /** @example 14 Wharf Road, Apapa, Lagos */
+            address: string;
+            /** @example Apapa */
+            neighborhood?: Record<string, never> | null;
+        };
+        JobTemplateDto: {
+            /** @example job_00123 */
+            id: string;
+            title: string;
+            /** @enum {string} */
+            type: "loader" | "driver" | "unloader" | "general";
+            /** @example 5000 */
+            payNaira: number;
+            /** @example 6 */
+            durationHours: number;
+            location: components["schemas"]["JobLocationDto"];
+            requiredEquipment: string[];
+            /**
+             * @description When this template was last used.
+             * @example 2026-05-08T10:00:00+01:00
+             */
+            lastUsedAt: string;
+        };
+        JobTemplatesResponseDto: {
+            data: components["schemas"]["JobTemplateDto"][];
+        };
+        AssignedWorkerSummaryDto: {
+            /** @example wkr_0042 */
+            id: string;
+            /** @example Tunde Adeyemi */
+            fullName: string;
+            /** @example https://cdn.forge.app/workers/wkr_0042.jpg */
+            photoUrl?: Record<string, never> | null;
+            /**
+             * @example loader
+             * @enum {string}
+             */
+            primarySkill: "loader" | "driver" | "unloader" | "general";
+        };
+        JobTimelineEventDto: {
+            /** @example jev_8a3f2c */
+            id: string;
+            /**
+             * @description Activity event kind. See BACKEND_BRIEF §4 for the canonical list.
+             * @example application_received
+             */
+            kind: string;
+            /** @example wkr_0042 */
+            actorId: string;
+            /**
+             * @example worker
+             * @enum {string}
+             */
+            actorType: "worker" | "employer" | "system";
+            /** @description Event-specific payload (e.g. application id, rejected applicant ids, GPS). */
+            payload?: {
+                [key: string]: unknown;
+            };
+            /** @example 2026-05-10T08:35:00+01:00 */
+            occurredAt: string;
+        };
+        JobTimelineResponseDto: {
+            data: components["schemas"]["JobTimelineEventDto"][];
+        };
+        ApplicationWorkerDto: {
+            /** @example wkr_0042 */
+            id: string;
+            /** @example Tunde Adeyemi */
+            fullName: string;
+            /** @enum {string} */
+            primarySkill: "loader" | "driver" | "unloader" | "general";
+            /** @example https://cdn.forge.app/workers/wkr_0042.jpg */
+            photoUrl?: Record<string, never> | null;
+            /**
+             * @description Worker reliability score 0–100.
+             * @example 92
+             */
+            reliabilityScore: number;
+            /** @example 4.7 */
+            averageRating: number;
+            /** @example 38 */
+            jobsCompleted: number;
+        };
+        JobApplicationItemDto: {
+            /** @example app_8a3f2c */
+            id: string;
+            /** @example job_00123 */
+            jobId: string;
+            /** @example wkr_0042 */
+            workerId: string;
+            /**
+             * @description DB value 'applied' is normalised to 'pending' on the wire (BACKEND_BRIEF §4).
+             * @example pending
+             * @enum {string}
+             */
+            status: "pending" | "accepted" | "rejected" | "withdrawn";
+            /** @example 2026-05-10T08:35:00+01:00 */
+            appliedAt: string;
+            decidedAt?: Record<string, never> | null;
+            withdrawnAt?: Record<string, never> | null;
+            /**
+             * @description Worker home → job site, in meters.
+             * @example 4200
+             */
+            distanceMeters?: Record<string, never> | null;
+            note?: Record<string, never> | null;
+            worker: components["schemas"]["ApplicationWorkerDto"];
+            /**
+             * @description Server-computed rank score in [0, 1]. Higher is better — drives default sort.
+             * @example 0.81
+             */
+            rankScore: number;
+        };
+        JobApplicationsResponseDto: {
+            data: components["schemas"]["JobApplicationItemDto"][];
+            /** @example 7 */
+            total: number;
+        };
+        PhotoProofItemDto: {
+            /** @example prf_8a3f2c */
+            id: string;
+            /** @example wkr_0042 */
+            workerId: string;
+            /** @example 2026-05-10T14:00:00+01:00 */
+            at: string;
+            /** @example https://cdn.forge.app/proof/prf_8a3f2c.jpg */
+            url: string;
+            exif: {
+                lat?: number | null;
+                lng?: number | null;
+                takenAt?: string | null;
+            };
+        };
+        GpsPointDto: {
+            /** @example 6.4458 */
+            lat: number;
+            /** @example 3.3608 */
+            lng: number;
+        };
+        ClockEventItemDto: {
+            /** @example cev_8a3f2c */
+            id: string;
+            /**
+             * @example clock_in
+             * @enum {string}
+             */
+            kind: "clock_in" | "clock_out";
+            /** @example 2026-05-10T08:31:00+01:00 */
+            at: string;
+            gps: components["schemas"]["GpsPointDto"];
+            /**
+             * @description GPS accuracy in meters at the time of the event.
+             * @example 18
+             */
+            gpsAccuracyMeters: number;
+            /**
+             * @description True if within 100m of the job geofence AND accuracy ≤ 30m (BACKEND_BRIEF §11.3).
+             * @example true
+             */
+            verified: boolean;
+        };
+        GpsVerificationDto: {
+            /** @example true */
+            clockInVerified: boolean;
+            /** @example true */
+            clockOutVerified: boolean;
+            /**
+             * @description Aggregate verdict. "flagged" = at least one event failed geofence/accuracy.
+             * @example verified
+             * @enum {string}
+             */
+            overall: "verified" | "flagged" | "pending";
+            /** @description Distance from job site for the most-recent clock event, in meters. */
+            lastEventDistanceMeters?: Record<string, never> | null;
+        };
+        JobProofResponseDto: {
+            photos: components["schemas"]["PhotoProofItemDto"][];
+            clockEvents: components["schemas"]["ClockEventItemDto"][];
+            gpsVerification: components["schemas"]["GpsVerificationDto"];
+        };
+        JobLocationInputDto: {
+            /** @example 6.4458 */
+            lat: number;
+            /** @example 3.3608 */
+            lng: number;
+            /** @example 14 Wharf Road, Apapa, Lagos */
+            address: string;
+            /** @example Apapa */
+            neighborhood?: string;
+        };
+        CreateJobDto: {
+            /** @example Trailer offload, Apapa wharf */
+            title: string;
+            /** @example Six-hour loader shift… */
+            description: string;
+            /** @enum {string} */
+            type: "loader" | "driver" | "unloader" | "general";
+            /**
+             * @description Integer Naira, ≥ 1500.
+             * @example 5000
+             */
+            payNaira: number;
+            /** @example 6 */
+            durationHours: number;
+            location: components["schemas"]["JobLocationInputDto"];
+            /** @default 200 */
+            geofenceRadiusMeters: number;
+            /**
+             * @default public
+             * @enum {string}
+             */
+            audience: "public" | "team_first";
+            /** @example 2026-05-11T07:00:00+01:00 */
+            scheduledStartAt: string;
+            /**
+             * @example [
+             *       "Safety boots",
+             *       "Gloves"
+             *     ]
+             */
+            requiredEquipment?: string[];
+            /**
+             * @description true → status=`open` (visible to workers immediately). false → status=`draft` (employer-only).
+             * @example true
+             */
+            postNow: boolean;
+        };
+        UpdateJobDto: {
+            title?: string;
+            description?: string;
+            /** @enum {string} */
+            type?: "loader" | "driver" | "unloader" | "general";
+            payNaira?: number;
+            durationHours?: number;
+            location?: components["schemas"]["JobLocationInputDto"];
+            geofenceRadiusMeters?: number;
+            /** @enum {string} */
+            audience?: "public" | "team_first";
+            scheduledStartAt?: string;
+            requiredEquipment?: string[];
+        };
+        CancelJobDto: {
+            /**
+             * @description Optional reason — surfaces in audit + worker notification.
+             * @example Worker no-show
+             */
+            reason?: string;
+        };
+        GenerateInvoiceDto: {
+            /**
+             * @description Optional due date (ISO). Defaults to issuedAt + 14 days.
+             * @example 2026-05-31
+             */
+            dueAt?: string;
+        };
+        InvoiceLineItemDto: {
+            /** @example job_00123 */
+            jobId: string;
+            /** @example Tunde Adeyemi */
+            workerName: string;
+            /** @example Trailer offload, Apapa wharf */
+            jobTitle: string;
+            /** @example 5000 */
+            amountNaira: number;
+        };
+        InvoiceDto: {
+            /** @example inv_8a3f2c */
+            id: string;
+            /** @example INV-01023 */
+            number: string;
+            /** @example emp_0001 */
+            employerId: string;
+            lineItems: components["schemas"]["InvoiceLineItemDto"][];
+            /** @example 12000 */
+            subtotalNaira: number;
+            /** @example 12000 */
+            totalNaira: number;
+            /** @enum {string} */
+            status: "draft" | "sent" | "paid";
+            /** @example 2026-05-10T12:00:00+01:00 */
+            issuedAt: string;
+            /** @example 2026-05-24T12:00:00+01:00 */
+            dueAt?: Record<string, never> | null;
+            paidAt?: Record<string, never> | null;
+            /** @description Signed PDF URL (S3) when generated. null until the render job runs (Phase 5). */
+            pdfUrl?: Record<string, never> | null;
+        };
+        WorkerSummaryDto: {
+            /** @example wkr_0042 */
+            id: string;
+            /** @example Tunde Adeyemi */
+            fullName: string;
+            /**
+             * @example loader
+             * @enum {string}
+             */
+            primarySkill: "loader" | "driver" | "unloader" | "general";
+            /** @example https://cdn.forge.app/workers/wkr_0042.jpg */
+            photoUrl?: Record<string, never> | null;
+            /** @example Yaba */
+            homeNeighborhood?: Record<string, never> | null;
+            /**
+             * @description Reliability score 0–100.
+             * @example 92
+             */
+            reliabilityScore: number;
+            /**
+             * @description Average employer rating across completed jobs.
+             * @example 4.7
+             */
+            averageRating: number;
+            /** @example 38 */
+            jobsCompleted: number;
+            /** @example 0.94 */
+            onTimeRate: number;
+            /**
+             * @example eligible
+             * @enum {string}
+             */
+            eligibility: "ineligible" | "eligible" | "pre_approved";
+        };
+        ActiveAssignmentJobDto: {
+            /** @example job_00123 */
+            id: string;
+            /** @example Warehouse unload, Apapa */
+            title: string;
+            /** @enum {string} */
+            type: "loader" | "driver" | "unloader" | "general";
+            /** @example 6.4541 */
+            lat: number;
+            /** @example 3.3947 */
+            lng: number;
+            /** @example 8 Wharf Rd, Apapa */
+            address: string;
+            /** @example 2026-05-10T08:00:00+01:00 */
+            scheduledStartAt: string;
+            /** @example 2026-05-10T08:04:00+01:00 */
+            startedAt: string;
+        };
+        ActiveAssignmentGpsDto: {
+            /**
+             * @example verified
+             * @enum {string}
+             */
+            overall: "pending" | "verified" | "flagged";
+            /** @example true */
+            clockInVerified: boolean;
+            /**
+             * @description Meters from job site at the last clock event.
+             * @example 12
+             */
+            lastEventDistanceMeters?: Record<string, never> | null;
+        };
+        ActiveAssignmentDto: {
+            /** @example ses_8a3f2c */
+            sessionId: string;
+            worker: components["schemas"]["WorkerSummaryDto"];
+            job: components["schemas"]["ActiveAssignmentJobDto"];
+            /**
+             * @description Minutes elapsed since clock-in.
+             * @example 47
+             */
+            elapsedMinutes: number;
+            /**
+             * @description True once a photo_proof_uploaded JobEvent or PhotoProof row exists for this job.
+             * @example true
+             */
+            hasPhotoProof: boolean;
+            gpsVerification: components["schemas"]["ActiveAssignmentGpsDto"];
+        };
+        ActiveAssignmentsResponseDto: {
+            data: components["schemas"]["ActiveAssignmentDto"][];
+        };
+        TeamListResponseDto: {
+            data: components["schemas"]["TeamMemberDto"][];
+            pagination: components["schemas"]["PaginationMetaDto"];
+        };
+        TeamMembershipDto: {
+            /** @example wkr_0042 */
+            workerId: string;
+            /** @example emp_0001 */
+            employerId: string;
+            /** @example 2026-05-10T17:42:00+01:00 */
+            addedAt: string;
+        };
+        WorkerListResponseDto: {
+            data: components["schemas"]["WorkerSummaryDto"][];
+            pagination: components["schemas"]["PaginationMetaDto"];
+        };
+        WorkerHomeLocationDto: {
+            /** @example 6.5244 */
+            lat: number;
+            /** @example 3.3792 */
+            lng: number;
+            /** @example 14 Adeola Odeku, Yaba, Lagos */
+            address?: Record<string, never> | null;
+        };
+        WorkerReviewDto: {
+            /** @example rev_3fa8c1 */
+            id: string;
+            /** @example job_00123 */
+            jobId: string;
+            /** @example Plateau Logistics */
+            employerName: string;
+            /** @example 5 */
+            rating: number;
+            /** @example Showed up early and unloaded the truck cleanly. */
+            body: string;
+            /** @example 2026-04-12T10:23:00+01:00 */
+            createdAt: string;
+        };
+        WorkerReliabilitySnapshotDto: {
+            /** @example 2025-08-04T12:00:00+01:00 */
+            memberSince: string;
+            /** @example 38 */
+            jobsCompleted: number;
+            /** @example 0.94 */
+            onTimeRate: number;
+            /**
+             * @description 4-week trailing average weekly income, in Naira.
+             * @example 24500
+             */
+            averageWeeklyIncomeNaira: number;
+            /**
+             * @description Coefficient of variation of weekly income, 0..1+.
+             * @example 0.18
+             */
+            incomeVolatilityPct: number;
+        };
+        WorkerProfileDto: {
+            /** @example wkr_0042 */
+            id: string;
+            /** @example Tunde Adeyemi */
+            fullName: string;
+            /**
+             * @example loader
+             * @enum {string}
+             */
+            primarySkill: "loader" | "driver" | "unloader" | "general";
+            /** @example https://cdn.forge.app/workers/wkr_0042.jpg */
+            photoUrl?: Record<string, never> | null;
+            /** @example Yaba */
+            homeNeighborhood?: Record<string, never> | null;
+            /**
+             * @description Reliability score 0–100.
+             * @example 92
+             */
+            reliabilityScore: number;
+            /**
+             * @description Average employer rating across completed jobs.
+             * @example 4.7
+             */
+            averageRating: number;
+            /** @example 38 */
+            jobsCompleted: number;
+            /** @example 0.94 */
+            onTimeRate: number;
+            /**
+             * @example eligible
+             * @enum {string}
+             */
+            eligibility: "ineligible" | "eligible" | "pre_approved";
+            /** @example 2025-08-04T12:00:00+01:00 */
+            joinedAt: string;
+            /** @example 18500 */
+            totalEarnedNaira: number;
+            /** @example 24500 */
+            averageWeeklyIncomeNaira: number;
+            /** @example 0.18 */
+            incomeVolatilityPct: number;
+            homeLocation?: components["schemas"]["WorkerHomeLocationDto"] | null;
+            /**
+             * @description Completed jobs this worker has done for the calling employer.
+             * @example 7
+             */
+            pastJobsWithEmployerCount: number;
+            recentReviews: components["schemas"]["WorkerReviewDto"][];
+            reliabilitySnapshot: components["schemas"]["WorkerReliabilitySnapshotDto"];
+            /**
+             * @description True when this worker is blocked from this employer.
+             * @example false
+             */
+            blocked: boolean;
+            /**
+             * @description True when this worker is on this employer's saved team.
+             * @example true
+             */
+            onTeam: boolean;
+        };
+        WorkerJobItemDto: {
+            /** @example job_00123 */
+            jobId: string;
+            /** @example Warehouse unload, Apapa */
+            title: string;
+            /** @enum {string} */
+            type: "loader" | "driver" | "unloader" | "general";
+            /** @example 2026-04-12T08:00:00+01:00 */
+            scheduledStartAt: string;
+            /** @example 2026-04-12T15:42:00+01:00 */
+            completedAt?: Record<string, never> | null;
+            /** @example 7500 */
+            payNaira: number;
+            /**
+             * @example completed
+             * @enum {string}
+             */
+            status: "completed" | "cancelled" | "in_progress" | "pending_verification";
+        };
+        WorkerJobsResponseDto: {
+            data: components["schemas"]["WorkerJobItemDto"][];
+            pagination: components["schemas"]["PaginationMetaDto"];
+        };
+        BlockWorkerBodyDto: {
+            /** @example No-showed twice in April. */
+            reason?: string;
+        };
+        BlockDto: {
+            /** @example wkr_0042 */
+            workerId: string;
+            /** @example emp_0001 */
+            employerId: string;
+            /** @example 2026-05-10T17:42:00+01:00 */
+            blockedAt: string;
+            /** @example No-showed twice in April. */
+            reason?: Record<string, never> | null;
+        };
+        TransactionsSummaryDto: {
+            /**
+             * @description Total amount of `completed` transactions issued this calendar month.
+             * @example 450000
+             */
+            paidThisMonthNaira: number;
+            /**
+             * @description Count of currently `pending` or `processing` transactions.
+             * @example 4
+             */
+            pendingCount: number;
+            /**
+             * @description Sum of amounts for those pending/processing transactions.
+             * @example 75000
+             */
+            pendingAmountNaira: number;
+            /**
+             * @description Average amountNaira across this employer's `completed` transactions in the last 90 days.
+             * @example 5200
+             */
+            averageJobCostNaira: number;
+            /**
+             * @description Largest single completed payment in the last 90 days.
+             * @example 12000
+             */
+            largestPaymentNaira: number;
+        };
+        CreateManualTransactionDto: {
+            /** @example wkr_0042 */
+            workerId: string;
+            /**
+             * @description Integer Naira, ≥ 100.
+             * @example 5000
+             */
+            amountNaira: number;
+            /**
+             * @description Optional — link this transfer to a specific job.
+             * @example job_00123
+             */
+            jobId?: string;
+            /** @example Bonus for double-shift on Tuesday */
+            description?: string;
+        };
+        InvoicesListResponseDto: {
+            data: components["schemas"]["InvoiceDto"][];
+            pagination: components["schemas"]["PaginationMetaDto"];
+        };
+        GenerateBatchInvoiceDto: {
+            /**
+             * @description Inclusive lower bound on job completion date.
+             * @example 2026-05-01
+             */
+            from: string;
+            /**
+             * @description Exclusive upper bound on job completion date.
+             * @example 2026-06-01
+             */
+            to: string;
+            /** @description Optional filter — only include line items for these workers. */
+            workerIds?: string[];
+            /** @description Optional filter — only include line items for these jobs. */
+            jobIds?: string[];
+        };
+        PayoutDto: {
+            /** @example pyt_8a3f2c */
+            id: string;
+            /** @example emp_0001 */
+            employerId: string;
+            /** @example 2026-05-13T09:00:00+01:00 */
+            scheduledFor: string;
+            /** @example 75000 */
+            amountNaira: number;
+            /** @enum {string} */
+            status: "scheduled" | "processing" | "paid" | "failed";
+            /** @example Weekly auto-debit for Adeolu Logistics */
+            description: string;
+            paidAt?: Record<string, never> | null;
+            failedReason?: Record<string, never> | null;
+        };
+        PayoutsUpcomingResponseDto: {
+            /** @description Status in `scheduled` or `processing`, ordered `scheduledFor asc`. */
+            data: components["schemas"]["PayoutDto"][];
+            /**
+             * @description `Employer.payoutsPaused` mirrored here so the dashboard can pick "Pause" vs "Resume" without a separate `/settings/squad` round-trip.
+             * @example false
+             */
+            paused: boolean;
+        };
+        PayoutsHistoryResponseDto: {
+            /** @description Status in `paid` or `failed`, ordered `paidAt desc`. */
+            data: components["schemas"]["PayoutDto"][];
+            pagination: components["schemas"]["PaginationMetaDto"];
+        };
+        PayoutsPauseStatusDto: {
+            /** @example true */
+            paused: boolean;
+        };
+        TopUpDto: {
+            /**
+             * @description Top-up amount in integer Naira. Min ₦1,000.
+             * @example 100000
+             */
+            amountNaira: number;
+            /** @example Top-up for May payouts */
+            description?: string;
+        };
+        TopUpResponseDto: {
+            /** @example https://checkout.squadco.com/dev/checkout?ref=top_8a3f2c */
+            checkoutUrl: string;
+            /**
+             * @description Squad checkout reference. Surfaces on the webhook.
+             * @example top_8a3f2c
+             */
+            checkoutReference: string;
+            /** @example 100000 */
+            amountNaira: number;
+            /**
+             * @description When the checkout link expires (15 min).
+             * @example 2026-05-10T14:30:00+01:00
+             */
+            expiresAt: string;
+        };
+        BorrowerSummaryDto: {
+            /** @example wkr_0042 */
+            id: string;
+            /** @enum {string} */
+            type: "worker" | "business";
+            /** @example Tunde Adeyemi */
+            displayName: string;
+            /** @example https://cdn.forge.app/workers/wkr_0042.jpg */
+            photoUrl?: Record<string, never> | null;
+            /**
+             * @description Reliability (worker) or credit (business) score, 0–100.
+             * @example 78
+             */
+            score: number;
+        };
+        LoanDto: {
+            /** @example loan_8a3f2c */
+            id: string;
+            /** @example bnk2_gtbank */
+            bankId: string;
+            /** @enum {string} */
+            borrowerType: "worker" | "business";
+            borrower: components["schemas"]["BorrowerSummaryDto"];
+            /**
+             * @description Integer Naira.
+             * @example 500000
+             */
+            principalNaira: number;
+            /** @example 320000 */
+            outstandingNaira: number;
+            /**
+             * @description APR as a decimal (0.14 = 14%).
+             * @example 0.14
+             */
+            apr: number;
+            /** @example 6 */
+            termMonths?: Record<string, never> | null;
+            /** @example 0.15 */
+            repaymentPercentPerJob: number;
+            /** @enum {string} */
+            status: "draft" | "pending_review" | "approved" | "active" | "at_risk" | "repaid" | "defaulted" | "rejected" | "written_off";
+            /** @enum {string} */
+            riskLevel: "green" | "yellow" | "red";
+            purpose?: Record<string, never> | null;
+            disbursedAt?: Record<string, never> | null;
+            expectedFullRepaymentAt?: Record<string, never> | null;
+            nextPaymentDueAt?: Record<string, never> | null;
+            /** @example 82 */
+            scoreAtApproval?: Record<string, never> | null;
+            /** @example 0.93 */
+            predictedRepaymentRate?: Record<string, never> | null;
+            rejectionReason?: Record<string, never> | null;
+            createdAt: string;
+        };
+        BankPortfolioMetricsDto: {
+            /** @example 42 */
+            activeCount: number;
+            /** @example 18 */
+            atRiskCount: number;
+            /**
+             * @description Total disbursed across all active loans.
+             * @example 24500000
+             */
+            disbursedTotalNaira: number;
+            /**
+             * @description Sum of outstanding balances across active loans.
+             * @example 16300000
+             */
+            outstandingTotalNaira: number;
+            /**
+             * @description Repayment rate across all loans (paid on time / total scheduled).
+             * @example 0.92
+             */
+            repaymentRate: number;
+            /**
+             * @description Default rate across all loans.
+             * @example 0.04
+             */
+            defaultRate: number;
+        };
+        OpportunityBorrowerDto: {
+            /** @example wkr_0042 */
+            id: string;
+            /** @example Tunde Adeyemi */
+            displayName: string;
+            /**
+             * @description Score 0–100. Drives the opportunity-list ranking.
+             * @example 96
+             */
+            score: number;
+            /**
+             * @example pre_approved
+             * @enum {string}
+             */
+            eligibility: "eligible" | "pre_approved";
+            /**
+             * @description Indicative max loan amount.
+             * @example 250000
+             */
+            maxAmountNaira: number;
+        };
+        RiskRadarResponseDto: {
+            /** @description `riskLevel === "red"` loans needing immediate attention. */
+            critical: components["schemas"]["LoanDto"][];
+            /** @description `riskLevel === "yellow"` loans on the watchlist. */
+            watchlist: components["schemas"]["LoanDto"][];
+            portfolio: components["schemas"]["BankPortfolioMetricsDto"];
+            /** @description Pre-approved + eligible workers without an active loan — top 5 by score. */
+            opportunity: components["schemas"]["OpportunityBorrowerDto"][];
+        };
+        BankLoansListResponseDto: {
+            data: components["schemas"]["LoanDto"][];
+            pagination: components["schemas"]["PaginationMetaDto"];
+        };
+        DisburseLoanDto: {
+            /**
+             * @description Optional override of the approved principal at disbursement time. Defaults to the loan's current principal.
+             * @example 500000
+             */
+            principalNairaOverride?: number;
+        };
+        MarkRepaymentPaidDto: {
+            /**
+             * @description Optional partial-payment amount. Defaults to the scheduled amount.
+             * @example 12500
+             */
+            amountNairaOverride?: number;
+            /** @description Optional related transaction id linking the payment to the wallet ledger. */
+            transactionId?: string;
+        };
+        LoanApplicationDto: {
+            /** @example lap_8a3f2c */
+            id: string;
+            /** @example bnk2_gtbank */
+            bankId: string;
+            /** @enum {string} */
+            borrowerType: "worker" | "business";
+            borrower: components["schemas"]["BorrowerSummaryDto"];
+            /** @example 500000 */
+            amountRequestedNaira: number;
+            /** @example 6 */
+            termMonths: number;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected";
+            /** @enum {string} */
+            recommendedDecision: "approve" | "approve_with_conditions" | "reject";
+            /**
+             * @description Confidence in [0, 100].
+             * @example 87
+             */
+            recommendationConfidencePct: number;
+            /** @example Reliability score 92 over 38 completed jobs with on-time rate 0.97. */
+            recommendationReason: string;
+            appliedAt: string;
+            decidedAt?: Record<string, never> | null;
+        };
+        BankApplicationsListResponseDto: {
+            data: components["schemas"]["LoanApplicationDto"][];
+            pagination: components["schemas"]["PaginationMetaDto"];
+        };
+        ApproveLoanApplicationDto: {
+            /**
+             * @description Optional override of the requested principal. Defaults to `amountRequestedNaira`.
+             * @example 500000
+             */
+            principalNairaOverride?: number;
+            /**
+             * @description APR as a decimal. Defaults to 0.14 (14%) for the demo.
+             * @example 0.14
+             */
+            aprOverride?: number;
+            /** @description Optional override of the requested term in months. */
+            termMonthsOverride?: number;
+        };
+        RejectLoanApplicationDto: {
+            /** @example Credit score below threshold and recent missed repayments. */
+            reason: string;
+        };
+        WorkerBorrowerMetricsDto: {
+            /**
+             * @description Reliability score 0–100.
+             * @example 92
+             */
+            reliabilityScore: number;
+            /** @example 38 */
+            jobsCompleted: number;
+            /** @example 0.97 */
+            onTimeRate: number;
+            /**
+             * @description Lifetime earnings in Naira.
+             * @example 240000
+             */
+            totalEarnedNaira: number;
+            /** @example 28000 */
+            averageWeeklyIncomeNaira: number;
+            /**
+             * @description Income volatility coefficient.
+             * @example 0.18
+             */
+            incomeVolatilityPct: number;
+            /**
+             * @example eligible
+             * @enum {string}
+             */
+            eligibility: "ineligible" | "eligible" | "pre_approved";
+        };
+        BusinessBorrowerMetricsDto: {
+            /**
+             * @description Credit score 0–100.
+             * @example 78
+             */
+            creditScore: number;
+            /**
+             * @description Lifetime labor spend.
+             * @example 1240000
+             */
+            totalLaborSpendNaira: number;
+            /** @example 142 */
+            jobsPosted: number;
+            /** @example 84 */
+            workersHired: number;
+            /** @example 0.96 */
+            paymentTimelinessRate: number;
+        };
+        BorrowerProfileDto: {
+            /** @example wkr_0042 */
+            id: string;
+            /** @enum {string} */
+            type: "worker" | "business";
+            /** @example Tunde Adeyemi */
+            displayName: string;
+            photoUrl?: Record<string, never> | null;
+            phoneNumber?: Record<string, never> | null;
+            /** @example 2024-08-12T09:00:00+01:00 */
+            memberSince: string;
+            /** @description Present when `type === "worker"`. */
+            workerMetrics?: components["schemas"]["WorkerBorrowerMetricsDto"];
+            /** @description Present when `type === "business"`. */
+            businessMetrics?: components["schemas"]["BusinessBorrowerMetricsDto"];
+            /** @description Active + past loans with this bank. */
+            loans: components["schemas"]["LoanDto"][];
+            /**
+             * @description Lifetime defaults — drives a "high risk" red badge in the UI.
+             * @example 0
+             */
+            defaultsCount: number;
         };
         NotificationsListResponseDto: {
             data: components["schemas"]["NotificationDto"][];
@@ -4473,6 +6914,74 @@ export interface operations {
             };
         };
     };
+    EmployersController_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployerProfileDto"];
+                };
+            };
+            /** @description EMPLOYER_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployersController_jobs: {
+        parameters: {
+            query: {
+                status?: "open" | "closed" | "all";
+                /** @description Worker's current latitude (drives distance fields). */
+                lat: number;
+                lng: number;
+                /** @description Opaque cursor from a prior response. */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployerJobsResponseDto"];
+                };
+            };
+            /** @description EMPLOYER_NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
     DashboardAuthController_register: {
         parameters: {
             query?: never;
@@ -5096,6 +7605,1585 @@ export interface operations {
             };
         };
     };
+    EmployerJobsController_list: {
+        parameters: {
+            query?: {
+                /** @description Filter by status. Comma-separated or repeated `?status=open&status=accepted`. */
+                status?: ("draft" | "open" | "applications_in" | "accepted" | "in_progress" | "pending_verification" | "completed" | "cancelled")[];
+                type?: "loader" | "driver" | "unloader" | "general";
+                neighborhood?: string;
+                /** @description Case-insensitive prefix match on title + neighborhood + id. */
+                q?: string;
+                /** @description Inclusive ISO date (YYYY-MM-DD or full ISO). */
+                from?: string;
+                /** @description Exclusive ISO date. */
+                to?: string;
+                sortBy?: "postedAt" | "scheduledStartAt" | "payNaira";
+                sortDir?: "asc" | "desc";
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobsListResponseDto"];
+                };
+            };
+            /** @description NO_EMPLOYER_SCOPE */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerJobsController_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUID v4 — server caches the response for 24h and returns the same body on retry. */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateJobDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDto"];
+                };
+            };
+            /** @description IDEMPOTENCY_KEY_REQUIRED | VALIDATION_FAILED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description CONFLICT (idempotency key reuse with different body) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerJobsController_active: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActiveJobsResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerJobsController_recentTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobTemplatesResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerJobsController_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerJobsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateJobDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description JOB_LOCKED — job is past draft/open */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerJobsController_timeline: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobTimelineResponseDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerJobsController_applications: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobApplicationsResponseDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerJobsController_proof: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobProofResponseDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerJobsController_exportCsv: {
+        parameters: {
+            query?: {
+                /** @description Filter by status. Comma-separated or repeated `?status=open&status=accepted`. */
+                status?: ("draft" | "open" | "applications_in" | "accepted" | "in_progress" | "pending_verification" | "completed" | "cancelled")[];
+                type?: "loader" | "driver" | "unloader" | "general";
+                neighborhood?: string;
+                /** @description Case-insensitive prefix match on title + neighborhood + id. */
+                q?: string;
+                /** @description Inclusive ISO date (YYYY-MM-DD or full ISO). */
+                from?: string;
+                /** @description Exclusive ISO date. */
+                to?: string;
+                sortBy?: "postedAt" | "scheduledStartAt" | "payNaira";
+                sortDir?: "asc" | "desc";
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CSV stream. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    EmployerJobsController_publish: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description INVALID_STATE */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerJobsController_cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CancelJobDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description INVALID_STATE */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerJobsController_acceptApplication: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                appId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobApplicationItemDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description INVALID_STATE */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerJobsController_rejectApplication: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                appId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobApplicationItemDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description INVALID_STATE */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerJobsController_generateInvoice: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUID v4 — server caches the response for 24h and returns the same body on retry. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["GenerateInvoiceDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description INVALID_STATE | CONFLICT (idempotency reuse) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerWorkersController_activeAssignments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActiveAssignmentsResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerWorkersController_team: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                sortBy?: "hired" | "rating" | "recent";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamListResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerWorkersController_addToTeam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamMembershipDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerWorkersController_removeFromTeam: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workerId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Removed. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerWorkersController_browse: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                /** @description Filter by primary skill (dashboard vocabulary). */
+                skill?: "loader" | "driver" | "unloader" | "general";
+                neighborhood?: string;
+                scoreMin?: number;
+                scoreMax?: number;
+                eligibility?: "ineligible" | "eligible" | "pre_approved";
+                /** @description Free-text search on name + neighborhood + worker id. */
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerListResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerWorkersController_profile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerProfileDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerWorkersController_workerJobs: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerJobsResponseDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerWorkersController_block: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["BlockWorkerBodyDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BlockDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerWorkersController_unblock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Unblocked. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerTransactionsController_summary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionsSummaryDto"];
+                };
+            };
+        };
+    };
+    EmployerTransactionsController_exportCsv: {
+        parameters: {
+            query?: {
+                status?: "pending" | "processing" | "completed" | "failed" | "reversed";
+                from?: string;
+                /** @description Exclusive upper bound. */
+                to?: string;
+                /** @description Matches worker name + Squad reference + job ID + transaction ID. */
+                q?: string;
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    EmployerTransactionsController_list: {
+        parameters: {
+            query?: {
+                status?: "pending" | "processing" | "completed" | "failed" | "reversed";
+                from?: string;
+                /** @description Exclusive upper bound. */
+                to?: string;
+                /** @description Matches worker name + Squad reference + job ID + transaction ID. */
+                q?: string;
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionsListResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerTransactionsController_create: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUID v4 — server caches the response for 24h and returns the same body on retry. */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateManualTransactionDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionDto"];
+                };
+            };
+            /** @description NOT_FOUND — worker or job missing */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerTransactionsController_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerInvoicesController_list: {
+        parameters: {
+            query?: {
+                status?: "draft" | "sent" | "paid";
+                /** @description Inclusive issuedAt lower bound. */
+                from?: string;
+                /** @description Exclusive issuedAt upper bound. */
+                to?: string;
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoicesListResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerInvoicesController_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerInvoicesController_generateBatch: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUID v4 — server caches the response for 24h and returns the same body on retry. */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GenerateBatchInvoiceDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceDto"];
+                };
+            };
+            /** @description NO_INVOICEABLE_JOBS | INVALID_RANGE */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerInvoicesController_send: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvoiceDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description INVALID_STATE */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description INVOICING_EMAIL_MISSING */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerInvoicesController_pdf: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Signed PDF URL. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description PDF_NOT_READY */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerPayoutsController_upcoming: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutsUpcomingResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerPayoutsController_history: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutsHistoryResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerPayoutsController_pause: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutsPauseStatusDto"];
+                };
+            };
+        };
+    };
+    EmployerPayoutsController_resume: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PayoutsPauseStatusDto"];
+                };
+            };
+        };
+    };
+    EmployerPayoutsController_topUp: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TopUpDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TopUpResponseDto"];
+                };
+            };
+        };
+    };
+    BankController_riskRadar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskRadarResponseDto"];
+                };
+            };
+            /** @description NO_BANK_SCOPE */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    BankController_listLoans: {
+        parameters: {
+            query?: {
+                riskLevel?: "green" | "yellow" | "red";
+                status?: "draft" | "pending_review" | "approved" | "active" | "at_risk" | "repaid" | "defaulted" | "rejected" | "written_off";
+                borrowerType?: "worker" | "business";
+                /** @description Matches loan id + borrower id + borrower name (case-insensitive). */
+                q?: string;
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankLoansListResponseDto"];
+                };
+            };
+        };
+    };
+    BankController_loanDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoanDetailDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    BankController_disburse: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUID v4 — server caches the response for 24h and returns the same body on retry. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["DisburseLoanDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoanDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description INVALID_STATE */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    BankController_markRepaymentPaid: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUID v4 — server caches the response for 24h and returns the same body on retry. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["MarkRepaymentPaidDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoanRepaymentDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description INVALID_STATE */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    BankController_listApplications: {
+        parameters: {
+            query?: {
+                status?: "pending" | "approved" | "rejected";
+                borrowerType?: "worker" | "business";
+                recommendedDecision?: "approve" | "approve_with_conditions" | "reject";
+                /** @description Matches application id + borrower id + borrower name. */
+                q?: string;
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BankApplicationsListResponseDto"];
+                };
+            };
+        };
+    };
+    BankController_applicationDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoanApplicationDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    BankController_approveApplication: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUID v4 — server caches the response for 24h and returns the same body on retry. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ApproveLoanApplicationDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoanDto"];
+                };
+            };
+            /** @description IDEMPOTENCY_KEY_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description INVALID_STATE | CONFLICT (idempotency reuse) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    BankController_rejectApplication: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUID v4 — server caches the response for 24h and returns the same body on retry. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RejectLoanApplicationDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoanApplicationDto"];
+                };
+            };
+            /** @description IDEMPOTENCY_KEY_REQUIRED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description INVALID_STATE | CONFLICT (idempotency reuse) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    BankController_borrower: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                borrowerType: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BorrowerProfileDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
     NotificationsController_list: {
         parameters: {
             query?: {
@@ -5200,6 +9288,23 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["SearchResponseDto"];
                 };
+            };
+        };
+    };
+    SquadWebhookController_handle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

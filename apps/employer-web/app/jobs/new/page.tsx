@@ -1,3 +1,8 @@
+'use client';
+
+import Link from 'next/link';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Button,
   Card,
@@ -5,17 +10,20 @@ import {
   CardHeader,
   CardTitle,
   PageHeader,
+  Skeleton,
 } from '@forge/ui';
-import Link from 'next/link';
-import { PostJobForm } from './PostJobForm';
-import { MOCK_JOBS } from '@forge/mock-data';
 import { formatCurrency } from '@forge/ui/utils';
+import { listRecentTemplates, type JobTemplate } from '../../../lib/jobsApi';
+import { PostJobForm } from './PostJobForm';
 
 export default function PostAJobPage() {
-  const recent = MOCK_JOBS.filter((j) => j.status !== 'draft' && j.status !== 'cancelled').slice(
-    0,
-    3,
-  );
+  const templatesQuery = useQuery({
+    queryKey: ['employer', 'jobs', 'recent-templates'],
+    queryFn: listRecentTemplates,
+    retry: false,
+  });
+
+  const [appliedTemplate, setAppliedTemplate] = useState<JobTemplate | null>(null);
 
   return (
     <>
@@ -36,29 +44,46 @@ export default function PostAJobPage() {
             </Link>
           </CardHeader>
           <CardBody>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              {recent.map((j) => (
-                <button
-                  key={j.id}
-                  type="button"
-                  className="rounded-lg border border-outline bg-surface p-3 text-left transition-colors hover:border-accent-300 hover:bg-accent-50/40"
-                >
-                  <p className="line-clamp-1 text-sm font-medium text-neutral-900">
-                    {j.title}
-                  </p>
-                  <p className="mt-1 text-xs text-neutral-500">
-                    {j.location.neighborhood} ·{' '}
-                    <span className="font-medium text-neutral-900 tabular-nums" data-numeric>
-                      {formatCurrency(j.payNaira)}
-                    </span>
-                  </p>
-                </button>
-              ))}
-            </div>
+            {templatesQuery.isLoading ? (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-20 w-full" />
+                ))}
+              </div>
+            ) : (templatesQuery.data?.data ?? []).length === 0 ? (
+              <p className="text-sm text-neutral-500">
+                No recent jobs yet. Post a job below and we’ll save it as a template for next
+                time.
+              </p>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                {templatesQuery.data!.data.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setAppliedTemplate(t)}
+                    className="rounded-lg border border-outline bg-surface p-3 text-left transition-colors hover:border-accent-300 hover:bg-accent-50/40"
+                  >
+                    <p className="line-clamp-1 text-sm font-medium text-neutral-900">
+                      {t.title}
+                    </p>
+                    <p className="mt-1 text-xs text-neutral-500">
+                      {t.location.neighborhood ?? t.location.address} ·{' '}
+                      <span
+                        className="font-medium text-neutral-900 tabular-nums"
+                        data-numeric
+                      >
+                        {formatCurrency(t.payNaira)}
+                      </span>
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
           </CardBody>
         </Card>
 
-        <PostJobForm />
+        <PostJobForm template={appliedTemplate} />
       </div>
     </>
   );

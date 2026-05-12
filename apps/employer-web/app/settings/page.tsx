@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Avatar,
@@ -59,6 +60,13 @@ import {
 type TeamMemberDto = components['schemas']['TeamMemberDto'];
 type PendingInvitationDto = components['schemas']['PendingInvitationDto'];
 
+type SettingsTab = 'profile' | 'team' | 'notifications' | 'squad' | 'billing';
+
+function isSettingsTab(raw: string | null, allowed: readonly SettingsTab[]): raw is SettingsTab {
+  if (!raw) return false;
+  return allowed.includes(raw as SettingsTab);
+}
+
 function walletIdLabel(walletId: SquadStatusDto['walletId']): string {
   if (walletId == null) return '—';
   if (typeof walletId === 'string') return walletId;
@@ -67,6 +75,7 @@ function walletIdLabel(walletId: SquadStatusDto['walletId']): string {
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
   const user = useAuth((s) => s.user);
   const role = user?.role;
   const canBiz = canPatchBusinessSquadBilling(role);
@@ -74,7 +83,20 @@ export default function SettingsPage() {
   const canRole = canChangeTeamRoles(role);
   const hiringOnly = isHiringManager(role);
 
-  const defaultTab = hiringOnly ? 'team' : 'profile';
+  const hiringDefault = useMemo<SettingsTab>(() => (hiringOnly ? 'team' : 'profile'), [hiringOnly]);
+  const resolvedTab = useMemo(() => {
+    const allowed: readonly SettingsTab[] = hiringOnly
+      ? (['team', 'notifications'] satisfies readonly SettingsTab[])
+      : (['profile', 'team', 'notifications', 'squad', 'billing'] satisfies readonly SettingsTab[]);
+    const raw = searchParams.get('tab');
+    if (!isSettingsTab(raw, allowed)) return hiringDefault;
+    return raw;
+  }, [searchParams, hiringOnly, hiringDefault]);
+
+  const [activeTab, setActiveTab] = useState<SettingsTab>(resolvedTab);
+  useEffect(() => {
+    setActiveTab(resolvedTab);
+  }, [resolvedTab]);
 
   const businessQuery = useQuery({
     queryKey: ['settings', 'business'],
@@ -180,14 +202,26 @@ export default function SettingsPage() {
     setBillingEmail(typeof billing.invoicingEmail === 'string' ? billing.invoicingEmail : '');
   }, [billing]);
 
+  const billingDirty = !!billing && (
+    (billingPlan && billingPlan !== billing.plan) ||
+    billingEmail !== (typeof billing.invoicingEmail === 'string' ? billing.invoicingEmail : '')
+  );
+
   const onInvite = async () => {
     setInviteError(null);
     try {
       await invite.mutateAsync({ email: inviteEmail.trim(), role: inviteRole });
       setInviteEmail('');
     } catch (e) {
-      if (e instanceof ApiError) setInviteError(e.message);
-      else setInviteError('Invite failed');
+      if (e instanceof ApiError) {
+        if (e.code === 'ALREADY_TEAM_MEMBER') {
+          setInviteError(`${inviteEmail.trim()} is already on your team.`);
+        } else {
+          setInviteError(e.message);
+        }
+      } else {
+        setInviteError('Invite failed');
+      }
     }
   };
 
@@ -203,7 +237,7 @@ export default function SettingsPage() {
       <PageHeader title="Settings" description="Business profile, team, billing, and integrations." />
 
       <div className="p-6">
-        <Tabs defaultValue={defaultTab}>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as SettingsTab)}>
           <TabsList className="flex flex-wrap gap-1">
             {!hiringOnly ? <TabsTrigger value="profile">Business profile</TabsTrigger> : null}
             <TabsTrigger value="team">Team</TabsTrigger>
@@ -498,17 +532,33 @@ export default function SettingsPage() {
                           onChange={(e) => setBillingEmail(e.target.value)}
                         />
                       </FormField>
-                      <Button
-                        disabled={!canBiz || saveBilling.isPending}
-                        onClick={() =>
-                          void saveBilling.mutateAsync({
-                            plan: billingPlan || undefined,
-                            invoicingEmail: billingEmail || undefined,
-                          })
-                        }
-                      >
-                        Save billing
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="secondary"
+                          disabled={!canBiz || saveBilling.isPending || !billingDirty}
+                          onClick={() => {
+                            setBillingPlan(billing.plan);
+                            setBillingEmail(
+                              typeof billing.invoicingEmail === 'string'
+                                ? billing.invoicingEmail
+                                : '',
+                            );
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          disabled={!canBiz || saveBilling.isPending || !billingDirty}
+                          onClick={() =>
+                            void saveBilling.mutateAsync({
+                              plan: billingPlan || undefined,
+                              invoicingEmail: billingEmail || undefined,
+                            })
+                          }
+                        >
+                          Save billing
+                        </Button>
+                      </div>
                     </>
                   ) : null}
                 </CardBody>

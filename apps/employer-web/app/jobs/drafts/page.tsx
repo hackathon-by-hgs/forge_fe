@@ -1,24 +1,54 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  AlertBanner,
   Badge,
   Button,
   DataTable,
   PageHeader,
+  Pagination,
   RoutedTabs,
+  Skeleton,
   type DataTableColumn,
 } from '@forge/ui';
 import { IconAdd } from '@forge/ui/icons';
 import { formatCurrency, formatRelativeTime } from '@forge/ui/utils';
-import type { Job } from '@forge/types';
-import { MOCK_JOBS } from '@forge/mock-data';
 import { jobsTabs } from '../../../lib/nav';
+import { listJobs, publishJob, type JobDto } from '../../../lib/jobsApi';
+import { ApiError } from '../../../lib/api';
 
 export default function JobsDraftsPage() {
-  const drafts = MOCK_JOBS.filter((j) => j.status === 'draft');
+  const queryClient = useQueryClient();
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [publishError, setPublishError] = useState<string | null>(null);
 
-  const columns: DataTableColumn<Job>[] = [
+  const draftsQuery = useQuery({
+    queryKey: ['employer', 'jobs', 'list', { status: ['draft'], page, pageSize }],
+    queryFn: () =>
+      listJobs({ status: ['draft'], page, pageSize, sortBy: 'postedAt', sortDir: 'desc' }),
+    retry: false,
+    placeholderData: (prev) => prev,
+  });
+
+  const publish = useMutation({
+    mutationFn: (id: string) => publishJob(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['employer', 'jobs'] });
+      void queryClient.invalidateQueries({ queryKey: ['employer', 'overview'] });
+    },
+    onError: (err) => {
+      setPublishError(err instanceof ApiError ? err.message : 'Couldn’t publish draft');
+    },
+  });
+
+  const drafts = draftsQuery.data?.data ?? [];
+  const pagination = draftsQuery.data?.pagination;
+
+  const columns: DataTableColumn<JobDto>[] = [
     {
       key: 'title',
       header: 'Job',
@@ -40,8 +70,7 @@ export default function JobsDraftsPage() {
     {
       key: 'location',
       header: 'Location',
-      sortBy: (j) => j.location.neighborhood,
-      cell: (j) => j.location.neighborhood,
+      cell: (j) => j.location.neighborhood ?? '—',
     },
     {
       key: 'last_edit',
@@ -62,7 +91,16 @@ export default function JobsDraftsPage() {
               Edit
             </Button>
           </Link>
-          <Button size="sm">Publish</Button>
+          <Button
+            size="sm"
+            loading={publish.isPending && publish.variables === j.id}
+            onClick={() => {
+              setPublishError(null);
+              publish.mutate(j.id);
+            }}
+          >
+            Publish
+          </Button>
         </div>
       ),
     },
@@ -82,21 +120,71 @@ export default function JobsDraftsPage() {
       <div className="space-y-4 p-6">
         <div className="flex items-center justify-between">
           <RoutedTabs items={jobsTabs} />
-          <Badge>{drafts.length} drafts</Badge>
+          <Badge>{pagination?.total ?? 0} drafts</Badge>
         </div>
-        <DataTable
-          data={drafts}
-          columns={columns}
-          rowKey={(j) => j.id}
-          emptyTitle="No drafts"
-          emptyDescription="Save a job as a draft and it will appear here."
-          emptyAction={
-            <Link href="/jobs/new">
-              <Button>Start a draft</Button>
-            </Link>
-          }
-          pagination={{ pageSizeOptions: [10, 25, 50, 100], itemLabel: 'draft' }}
-        />
+
+        {publishError ? (
+          <AlertBanner
+            tone="danger"
+            title="Publish failed"
+            description={publishError}
+            onDismiss={() => setPublishError(null)}
+          />
+        ) : null}
+
+        {draftsQuery.isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : draftsQuery.isError ? (
+          <AlertBanner
+            tone="danger"
+            title="Couldn’t load drafts"
+            description={
+              draftsQuery.error instanceof Error
+                ? draftsQuery.error.message
+                : 'Unknown error'
+            }
+            action={
+              <Button size="sm" variant="secondary" onClick={() => void draftsQuery.refetch()}>
+                Retry
+              </Button>
+            }
+          />
+        ) : (
+          <>
+            <div className="overflow-hidden rounded-xl border border-outline bg-surface-container">
+              <DataTable
+                data={drafts}
+                columns={columns}
+                rowKey={(j) => j.id}
+                emptyTitle="No drafts"
+                emptyDescription="Save a job as a draft and it will appear here."
+                emptyAction={
+                  <Link href="/jobs/new">
+                    <Button>Start a draft</Button>
+                  </Link>
+                }
+              />
+            </div>
+            {pagination ? (
+              <Pagination
+                page={pagination.page}
+                pageSize={pagination.pageSize}
+                total={pagination.total}
+                onPageChange={setPage}
+                pageSizeOptions={[10, 25, 50, 100]}
+                onPageSizeChange={(ps) => {
+                  setPageSize(ps);
+                  setPage(1);
+                }}
+                itemLabel="draft"
+              />
+            ) : null}
+          </>
+        )}
       </div>
     </>
   );

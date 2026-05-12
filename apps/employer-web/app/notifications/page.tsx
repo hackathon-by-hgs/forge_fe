@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Badge, Button, Card, CardBody, CardHeader, CardTitle, PageHeader } from '@forge/ui';
 import { formatRelativeTime } from '@forge/ui/utils';
 import type { components } from '@forge/types/api';
-import { api } from '../../lib/api';
+import { api, ApiError } from '../../lib/api';
 import { mapDashboardNotification, type AppNotification } from '../../lib/notifications';
 
 type NotificationsListResponseDto = components['schemas']['NotificationsListResponseDto'];
@@ -17,20 +17,48 @@ export default function NotificationsPage() {
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
 
+  const listKey = ['notifications', 'list', { page, pageSize: PAGE_SIZE }] as const;
+
   const listQuery = useQuery({
-    queryKey: ['notifications', 'list', { page, pageSize: PAGE_SIZE }],
-    queryFn: async () => {
-      return api.get<NotificationsListResponseDto>(
+    queryKey: listKey,
+    queryFn: () =>
+      api.get<NotificationsListResponseDto>(
         `/v1/notifications?page=${page}&pageSize=${PAGE_SIZE}`,
-      );
-    },
+      ),
   });
 
   const markOneRead = useMutation({
     mutationFn: async (id: string) => {
-      await api.post<unknown>(`/v1/notifications/${id}/read`);
+      try {
+        await api.post<unknown>(`/v1/notifications/${id}/read`);
+      } catch (e) {
+        if (e instanceof ApiError && e.status === 404) return;
+        throw e;
+      }
     },
-    onSuccess: async () => {
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: listKey });
+      const prev = queryClient.getQueryData<NotificationsListResponseDto>(listKey);
+      queryClient.setQueryData<NotificationsListResponseDto>(listKey, (old) =>
+        old
+          ? {
+              ...old,
+              data: old.data.map((n) => (n.id === id ? { ...n, unread: false } : n)),
+            }
+          : old,
+      );
+      queryClient.setQueryData<number | undefined>(
+        ['notifications', 'unread-count'],
+        (old) => (typeof old === 'number' ? Math.max(0, old - 1) : old),
+      );
+      return { prev };
+    },
+    onError: (_err, _id, ctx) => {
+      if (ctx?.prev !== undefined) {
+        queryClient.setQueryData(listKey, ctx.prev);
+      }
+    },
+    onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
@@ -39,7 +67,21 @@ export default function NotificationsPage() {
     mutationFn: async () => {
       await api.post<unknown>('/v1/notifications/mark-all-read');
     },
-    onSuccess: async () => {
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: listKey });
+      const prev = queryClient.getQueryData<NotificationsListResponseDto>(listKey);
+      queryClient.setQueryData<NotificationsListResponseDto>(listKey, (old) =>
+        old ? { ...old, data: old.data.map((n) => ({ ...n, unread: false })) } : old,
+      );
+      queryClient.setQueryData(['notifications', 'unread-count'], 0);
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev !== undefined) {
+        queryClient.setQueryData(listKey, ctx.prev);
+      }
+    },
+    onSettled: async () => {
       await queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });

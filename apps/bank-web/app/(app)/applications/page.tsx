@@ -1,66 +1,124 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
+  AlertBanner,
   Avatar,
   Badge,
   Button,
   DataTable,
   Input,
-  MetricTile,
   PageHeader,
+  Pagination,
   Select,
+  Skeleton,
   type DataTableColumn,
 } from '@forge/ui';
+import { IconExternal, IconSearch } from '@forge/ui/icons';
+import { formatCurrency, formatRelativeTime } from '@forge/ui/utils';
 import {
-  IconCheck,
-  IconClose,
-  IconExternal,
-  IconFilter,
-  IconSearch,
-} from '@forge/ui/icons';
-import {
-  formatCurrency,
-  formatNumber,
-  formatRelativeTime,
-} from '@forge/ui/utils';
-import type { LoanApplication } from '@forge/types';
-import {
-  MOCK_EMPLOYERS,
-  MOCK_LOAN_APPLICATIONS,
-  MOCK_WORKERS,
-} from '@forge/mock-data';
+  fetchApplications,
+  type BankApplicationsListQuery,
+  type BorrowerType,
+  type LoanApplicationDto,
+  type LoanApplicationStatusWire,
+  type RecommendedDecisionWire,
+} from '../../../lib/api/bankApi';
+import { toUserMessage } from '../../../lib/api/errors';
 import { DECISION_LABEL, DECISION_TONE } from '../../../lib/loanUtils';
 
-function resolveBorrower(app: LoanApplication) {
-  if (app.borrowerType === 'worker') {
-    const w = MOCK_WORKERS.find((wk) => wk.id === app.borrowerId);
-    return w
-      ? { name: w.fullName, score: w.reliabilityScore, kind: 'Worker' as const }
-      : { name: app.borrowerId, score: null, kind: 'Worker' as const };
-  }
-  const b = MOCK_EMPLOYERS.find((bz) => bz.id === app.borrowerId);
-  return b
-    ? { name: b.businessName, score: b.creditScore, kind: 'Business' as const }
-    : { name: app.borrowerId, score: null, kind: 'Business' as const };
+const STATUS_TABS: { label: string; status: LoanApplicationStatusWire }[] = [
+  { label: 'Pending', status: 'pending' },
+  { label: 'Approved', status: 'approved' },
+  { label: 'Rejected', status: 'rejected' },
+];
+
+const BORROWER_OPTIONS: { label: string; value: 'all' | BorrowerType }[] = [
+  { label: 'All borrowers', value: 'all' },
+  { label: 'Workers', value: 'worker' },
+  { label: 'Businesses', value: 'business' },
+];
+
+const DECISION_OPTIONS: { label: string; value: 'all' | RecommendedDecisionWire }[] = [
+  { label: 'All recommendations', value: 'all' },
+  { label: 'Approve', value: 'approve' },
+  { label: 'With conditions', value: 'approve_with_conditions' },
+  { label: 'Reject', value: 'reject' },
+];
+
+function StatusTabs({
+  value,
+  onChange,
+}: {
+  value: LoanApplicationStatusWire;
+  onChange: (next: LoanApplicationStatusWire) => void;
+}) {
+  return (
+    <div className="inline-flex h-9 items-center gap-1 rounded-lg border border-neutral-200 bg-white p-0.5">
+      {STATUS_TABS.map((t) => (
+        <button
+          key={t.status}
+          type="button"
+          onClick={() => onChange(t.status)}
+          className={`inline-flex h-8 items-center rounded-md px-3 text-sm font-medium transition-colors ${
+            value === t.status
+              ? 'bg-neutral-100 text-neutral-900'
+              : 'text-neutral-600 hover:text-neutral-900'
+          }`}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
 }
 
 export default function LoanApplicationsPage() {
-  const apps = MOCK_LOAN_APPLICATIONS;
-  const newToday = apps.filter(
-    (a) => Date.now() - new Date(a.appliedAt).getTime() < 24 * 60 * 60 * 1000,
-  );
-  const recApprove = apps.filter((a) => a.recommendedDecision === 'approve');
-  const recConditions = apps.filter(
-    (a) => a.recommendedDecision === 'approve_with_conditions',
-  );
-  const recReject = apps.filter((a) => a.recommendedDecision === 'reject');
-  const totalRequested = apps.reduce((s, a) => s + a.amountRequestedNaira, 0);
-  const avgConfidence = apps.length
-    ? apps.reduce((s, a) => s + a.recommendationConfidencePct, 0) / apps.length
-    : 0;
+  const [status, setStatus] = useState<LoanApplicationStatusWire>('pending');
+  const [borrowerType, setBorrowerType] = useState<'all' | BorrowerType>('all');
+  const [recommendedDecision, setRecommendedDecision] = useState<
+    'all' | RecommendedDecisionWire
+  >('all');
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
-  const columns: DataTableColumn<LoanApplication>[] = [
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 250);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [status, borrowerType, recommendedDecision, debouncedSearch, pageSize]);
+
+  const query: BankApplicationsListQuery = useMemo(
+    () => ({
+      status,
+      borrowerType: borrowerType === 'all' ? undefined : borrowerType,
+      recommendedDecision:
+        recommendedDecision === 'all' ? undefined : recommendedDecision,
+      q: debouncedSearch || undefined,
+      page,
+      pageSize,
+    }),
+    [status, borrowerType, recommendedDecision, debouncedSearch, page, pageSize],
+  );
+
+  const listQuery = useQuery({
+    queryKey: ['bank', 'applications', query],
+    queryFn: () => fetchApplications(query),
+    retry: false,
+    placeholderData: (prev) => prev,
+  });
+
+  const rows = listQuery.data?.data ?? [];
+  const pagination = listQuery.data?.pagination;
+
+  const columns: DataTableColumn<LoanApplicationDto>[] = [
     {
       key: 'applied',
       header: 'Applied',
@@ -74,31 +132,32 @@ export default function LoanApplicationsPage() {
     {
       key: 'borrower',
       header: 'Borrower',
-      sortBy: (a) => resolveBorrower(a).name,
-      cell: (a) => {
-        const b = resolveBorrower(a);
-        return (
-          <div className="flex items-center gap-2">
-            <Avatar name={b.name} size="sm" />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-neutral-900">
-                {b.name}
-              </p>
-              <p className="text-[10px] text-neutral-500">{b.kind}</p>
-            </div>
+      cell: (a) => (
+        <div className="flex items-center gap-2">
+          <Avatar
+            name={a.borrower.displayName}
+            src={a.borrower.photoUrl ?? undefined}
+            size="sm"
+          />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium text-neutral-900">
+              {a.borrower.displayName}
+            </p>
+            <p className="text-[10px] text-neutral-500">
+              {a.borrowerType === 'worker' ? 'Worker' : 'Business'}
+            </p>
           </div>
-        );
-      },
+        </div>
+      ),
     },
     {
       key: 'score',
       header: 'Score',
       align: 'right',
-      sortBy: (a) => resolveBorrower(a).score ?? 0,
+      sortBy: (a) => a.borrower.score,
       cellClassName: 'tabular-nums',
       cell: (a) => {
-        const s = resolveBorrower(a).score;
-        if (s == null) return <span className="text-neutral-400">—</span>;
+        const s = a.borrower.score;
         const tone =
           s >= 80
             ? 'text-success-700'
@@ -119,7 +178,6 @@ export default function LoanApplicationsPage() {
     {
       key: 'recommendation',
       header: 'Recommendation',
-      sortBy: (a) => a.recommendedDecision,
       cell: (a) => (
         <div className="flex items-center gap-2">
           <Badge tone={DECISION_TONE[a.recommendedDecision]}>
@@ -154,34 +212,16 @@ export default function LoanApplicationsPage() {
       header: '',
       align: 'right',
       cell: (a) => (
-        <div className="flex items-center justify-end gap-1">
+        <Link href={`/applications/${a.id}`}>
           <Button
             size="sm"
             variant="ghost"
-            leadingIcon={<IconCheck className="!h-3.5 !w-3.5" />}
-            aria-label="Approve"
+            aria-label="Open application"
+            leadingIcon={<IconExternal className="!h-3.5 !w-3.5" />}
           >
-            Approve
+            Open
           </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            leadingIcon={<IconClose className="!h-3.5 !w-3.5" />}
-            aria-label="Reject"
-          >
-            Reject
-          </Button>
-          <Link href={`/applications/${a.id}`}>
-            <Button
-              size="sm"
-              variant="ghost"
-              aria-label="Open application"
-              leadingIcon={<IconExternal className="!h-3.5 !w-3.5" />}
-            >
-              Open
-            </Button>
-          </Link>
-        </div>
+        </Link>
       ),
     },
   ];
@@ -191,83 +231,85 @@ export default function LoanApplicationsPage() {
       <PageHeader
         title="Loan Applications"
         description="Recommendations from the platform credit model. Decide, refer, or reject — every action is logged."
-        actions={<Button variant="secondary">Export queue</Button>}
       />
 
       <div className="space-y-4 p-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <MetricTile
-            label="In queue"
-            value={formatNumber(apps.length)}
-            hint={`${newToday.length} new in last 24h`}
-          />
-          <MetricTile
-            label="Total requested"
-            value={formatCurrency(totalRequested, { compact: true })}
-          />
-          <MetricTile
-            label="Recommended approve"
-            value={formatNumber(recApprove.length)}
-            hint={`+${recConditions.length} with conditions · ${recReject.length} reject`}
-          />
-          <MetricTile
-            label="Avg model confidence"
-            value={`${avgConfidence.toFixed(1)}%`}
-          />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <StatusTabs value={status} onChange={setStatus} />
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <Input
             type="search"
-            placeholder="Search by borrower, ref, or amount…"
+            placeholder="Search by application id, borrower id, or name…"
             leadingIcon={<IconSearch className="!h-4 !w-4" />}
             className="max-w-sm"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
           />
           <Select
             aria-label="Recommendation"
-            options={[
-              { label: 'All recommendations', value: 'all' },
-              { label: 'Approve', value: 'approve' },
-              { label: 'With conditions', value: 'approve_with_conditions' },
-              { label: 'Reject', value: 'reject' },
-            ]}
+            options={DECISION_OPTIONS}
             className="w-48"
-            defaultValue="all"
+            value={recommendedDecision}
+            onChange={(e) =>
+              setRecommendedDecision(e.target.value as typeof recommendedDecision)
+            }
           />
           <Select
             aria-label="Borrower type"
-            options={[
-              { label: 'All borrowers', value: 'all' },
-              { label: 'Workers', value: 'worker' },
-              { label: 'Businesses', value: 'business' },
-            ]}
+            options={BORROWER_OPTIONS}
             className="w-44"
-            defaultValue="all"
+            value={borrowerType}
+            onChange={(e) => setBorrowerType(e.target.value as typeof borrowerType)}
           />
-          <Select
-            aria-label="Sort"
-            options={[
-              { label: 'Newest first', value: 'new' },
-              { label: 'Highest amount', value: 'amount' },
-              { label: 'Highest confidence', value: 'confidence' },
-            ]}
-            className="w-44"
-            defaultValue="new"
-          />
-          <Button variant="secondary" leadingIcon={<IconFilter className="!h-4 !w-4" />}>
-            More filters
-          </Button>
         </div>
 
-        <DataTable
-          data={apps}
-          columns={columns}
-          rowKey={(a) => a.id}
-          density="compact"
-          emptyTitle="No applications in queue"
-          emptyDescription="New applications from the platform will appear here in real-time."
-          pagination={{ pageSizeOptions: [10, 25, 50, 100], itemLabel: 'application' }}
-        />
+        {listQuery.isError ? (
+          <AlertBanner
+            tone="danger"
+            title="Couldn’t load applications"
+            description={toUserMessage(listQuery.error)}
+            action={
+              <Button size="sm" variant="secondary" onClick={() => void listQuery.refetch()}>
+                Retry
+              </Button>
+            }
+          />
+        ) : listQuery.isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Skeleton key={i} className="h-10 w-full" />
+            ))}
+          </div>
+        ) : (
+          <>
+            <div className="overflow-hidden rounded-xl border border-outline bg-surface-container">
+              <DataTable
+                data={rows}
+                columns={columns}
+                rowKey={(a) => a.id}
+                density="compact"
+                emptyTitle="No applications match these filters"
+                emptyDescription="Applications from borrowers will appear here as they come in."
+              />
+            </div>
+            {pagination ? (
+              <Pagination
+                page={pagination.page}
+                pageSize={pagination.pageSize}
+                total={pagination.total}
+                onPageChange={setPage}
+                pageSizeOptions={[10, 25, 50, 100]}
+                onPageSizeChange={(ps) => {
+                  setPageSize(ps);
+                  setPage(1);
+                }}
+                itemLabel="application"
+              />
+            ) : null}
+          </>
+        )}
       </div>
     </>
   );

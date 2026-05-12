@@ -1,41 +1,37 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
-import { Badge, Pagination, paginate } from '@forge/ui';
+import { Badge } from '@forge/ui';
 import { formatCurrency, formatRelativeTime } from '@forge/ui/utils';
-import type { Job } from '@forge/types';
+import type { WorkerJobItemDto } from '../../../lib/workersApi';
 import { JOB_STATUS_LABEL, JOB_STATUS_TONE } from '../../../lib/jobUtils';
+import type { JobStatus } from '@forge/types';
 
-const PAGE_SIZE = 8;
-
-export function PastJobsList({ jobs }: { jobs: readonly Job[] }) {
-  const [page, setPage] = useState(1);
-  const visible = paginate(jobs, page, PAGE_SIZE);
-
+export function PastJobsList({ jobs }: { jobs: readonly WorkerJobItemDto[] }) {
   return (
-    <>
-      <ul className="divide-y divide-neutral-100">
-        {visible.map((j) => (
+    <ul className="divide-y divide-neutral-100">
+      {jobs.map((j) => {
+        const status = j.status as JobStatus;
+        return (
           <li
-            key={j.id}
+            key={j.jobId}
             className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
           >
             <div className="min-w-0">
               <Link
-                href={`/jobs/${j.id}`}
+                href={`/jobs/${j.jobId}`}
                 className="block truncate text-sm font-medium text-neutral-900 hover:underline"
               >
                 {j.title}
               </Link>
               <p className="text-xs text-neutral-500">
-                {j.location.neighborhood} ·{' '}
-                {formatRelativeTime(j.completedAt ?? j.postedAt)}
+                {j.type} ·{' '}
+                {formatRelativeTime(j.completedAt ?? j.scheduledStartAt)}
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <Badge tone={JOB_STATUS_TONE[j.status]}>
-                {JOB_STATUS_LABEL[j.status]}
+              <Badge tone={JOB_STATUS_TONE[status]}>
+                {JOB_STATUS_LABEL[status]}
               </Badge>
               <span
                 className="text-sm font-medium text-neutral-900 tabular-nums"
@@ -45,18 +41,8 @@ export function PastJobsList({ jobs }: { jobs: readonly Job[] }) {
               </span>
             </div>
           </li>
-        ))}
-      </ul>
-      {jobs.length > PAGE_SIZE ? (
-        <Pagination
-          page={page}
-          pageSize={PAGE_SIZE}
-          total={jobs.length}
-          onPageChange={setPage}
-          itemLabel="job"
-          className="-mx-5 mt-3 px-5"
-        />
-      ) : null}
-    </>
+        );
+      })}
+    </ul>
   );
 }

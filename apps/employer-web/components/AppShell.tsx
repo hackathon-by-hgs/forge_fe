@@ -4,7 +4,7 @@ import { type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Avatar, PageShell, Sidebar, TopBar } from '@forge/ui';
 import { IconBuilding } from '@forge/ui/icons';
-import { employerNavForRole } from '../lib/nav';
+import { employerNav } from '../lib/nav';
 import { useAuth } from '../lib/auth';
 import { getBusinessProfile } from '../lib/settingsApi';
 import { NotificationsPopover } from './NotificationsPopover';
@@ -34,7 +34,6 @@ export function AppShell({ children }: { children: ReactNode }) {
     enabled: Boolean(user),
   });
   const businessName = businessQuery.data?.businessName ?? 'Employer';
-  const navSections = employerNavForRole();
 
   const sidebarFooter = (
     <div className="flex items-center gap-2.5">
@@ -48,7 +47,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <PageShell
-      sidebar={<Sidebar brand={Brand} sections={navSections} footer={sidebarFooter} />}
+      sidebar={<Sidebar brand={Brand} sections={employerNav} footer={sidebarFooter} />}
       topBar={
         <TopBar
           search={
