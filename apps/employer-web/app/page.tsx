@@ -26,6 +26,7 @@ import {
   IconClock,
   IconAlert,
 } from '@forge/ui/icons';
+import { NubanFundingBlock } from '../components/NubanFundingBlock';
 import {
   formatCurrency,
   formatNumber,
@@ -279,9 +280,11 @@ export default function OverviewPage() {
           <Card>
             <CardHeader>
               <CardTitle>Cash position</CardTitle>
-              <Button variant="ghost" size="sm" disabled>
-                Top up wallet
-              </Button>
+              {cashPosition.virtualAccount ? (
+                <Badge tone="info" variant="soft">
+                  NUBAN issued
+                </Badge>
+              ) : null}
             </CardHeader>
             <CardBody className="space-y-4">
               <div>
@@ -308,6 +311,7 @@ export default function OverviewPage() {
                 height={140}
                 yFormatter={(v) => formatCurrency(v, { compact: true })}
               />
+              <NubanFundingBlock virtualAccount={cashPosition.virtualAccount} />
             </CardBody>
           </Card>
 

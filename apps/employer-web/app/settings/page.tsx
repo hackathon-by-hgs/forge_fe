@@ -22,6 +22,7 @@ import {
 } from '@forge/ui';
 import { IconAdd } from '@forge/ui/icons';
 import type { components } from '@forge/types/api';
+import { NubanFundingBlock } from '../../components/NubanFundingBlock';
 import { useAuth } from '../../lib/auth';
 import {
   canChangeTeamRoles,
@@ -466,6 +467,7 @@ export default function SettingsPage() {
                       <p className="text-xs text-neutral-500">
                         Payouts paused: {squadQuery.data.payoutsPaused ? 'Yes' : 'No'}
                       </p>
+                      <NubanFundingBlock virtualAccount={squadQuery.data.virtualAccount} />
                       <Button
                         variant="secondary"
                         disabled={!canBiz || disconnect.isPending}

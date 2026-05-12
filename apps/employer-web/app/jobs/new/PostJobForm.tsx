@@ -2,6 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -95,6 +96,12 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
   const queryClient = useQueryClient();
   const [serverError, setServerError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [insufficientFunds, setInsufficientFunds] = useState<{
+    message: string;
+    walletBalanceNaira: number;
+    requiredNaira: number;
+    shortfallNaira: number;
+  } | null>(null);
 
   const {
     register,
@@ -150,6 +157,11 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
       router.push(`/jobs/${job.id}`);
     },
     onError: (err) => {
+      const funds = insufficientFundsFromApi(err);
+      if (funds) {
+        setInsufficientFunds(funds);
+        return;
+      }
       const fe = fieldErrorsFromApi(err);
       if (fe) setFieldErrors(fe);
       setServerError(humanError(err));
@@ -159,6 +171,7 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
   const onSubmit = handleSubmit((values) => {
     setFieldErrors({});
     setServerError(null);
+    setInsufficientFunds(null);
     const loc = LOCATIONS_BY_ID[values.locationId] ?? DEFAULT_LOCATION;
     const equipment = (values.requiredEquipment ?? '')
       .split(',')
@@ -202,6 +215,38 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
 
   return (
     <form onSubmit={onSubmit} className="space-y-6 pb-24">
+      {insufficientFunds ? (
+        <AlertBanner
+          tone="warning"
+          title="Top up your wallet to publish this job"
+          description={
+            <span className="space-y-1">
+              <span className="block">{insufficientFunds.message}</span>
+              <span className="block text-xs text-neutral-600">
+                Wallet{' '}
+                <span className="font-medium tabular-nums">
+                  {formatCurrency(insufficientFunds.walletBalanceNaira)}
+                </span>{' '}
+                · Required{' '}
+                <span className="font-medium tabular-nums">
+                  {formatCurrency(insufficientFunds.requiredNaira)}
+                </span>{' '}
+                · Short{' '}
+                <span className="font-medium text-danger-700 tabular-nums">
+                  {formatCurrency(insufficientFunds.shortfallNaira)}
+                </span>
+              </span>
+            </span>
+          }
+          action={
+            <Link href="/">
+              <Button size="sm">Top up wallet</Button>
+            </Link>
+          }
+          onDismiss={() => setInsufficientFunds(null)}
+        />
+      ) : null}
+
       {serverError ? (
         <AlertBanner
           tone="danger"
@@ -466,4 +511,23 @@ function fieldErrorsFromApi(err: unknown): Record<string, string> | null {
     if (e?.field) out[e.field] = e.message ?? 'Invalid value';
   }
   return Object.keys(out).length ? out : null;
+}
+
+function insufficientFundsFromApi(err: unknown): {
+  message: string;
+  walletBalanceNaira: number;
+  requiredNaira: number;
+  shortfallNaira: number;
+} | null {
+  if (!(err instanceof ApiError) || err.code !== 'INSUFFICIENT_FUNDS') return null;
+  const d = err.details ?? {};
+  const wallet = typeof d.walletBalanceNaira === 'number' ? d.walletBalanceNaira : 0;
+  const required = typeof d.requiredNaira === 'number' ? d.requiredNaira : 0;
+  const shortfall = typeof d.shortfallNaira === 'number' ? d.shortfallNaira : Math.max(0, required - wallet);
+  return {
+    message: err.message,
+    walletBalanceNaira: wallet,
+    requiredNaira: required,
+    shortfallNaira: shortfall,
+  };
 }

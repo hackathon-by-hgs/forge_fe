@@ -25,9 +25,17 @@ type Nullable<T> = T | null;
 type TransactionWire = components['schemas']['TransactionDto'];
 export interface TransactionDto extends Omit<
   TransactionWire,
-  'squadReference' | 'workerName' | 'jobId' | 'jobTitle' | 'settledAt' | 'failureReason'
+  | 'squadReference'
+  | 'workerId'
+  | 'workerName'
+  | 'jobId'
+  | 'jobTitle'
+  | 'settledAt'
+  | 'failureReason'
 > {
   squadReference: Nullable<string>;
+  /** Nullable for top-up / loan-disbursement rows that have no worker counterparty. */
+  workerId: Nullable<string>;
   workerName: Nullable<string>;
   jobId: Nullable<string>;
   jobTitle: Nullable<string>;
@@ -36,6 +44,35 @@ export interface TransactionDto extends Omit<
 }
 
 export type TransactionStatus = TransactionDto['status'];
+
+/** Render kind derived from the BE row when no explicit `kind` is sent. */
+export type EmployerTxnRowKind =
+  | 'job_payment'
+  | 'top_up'
+  | 'loan_disbursement'
+  | 'wallet_credit';
+
+/**
+ * Classify a transaction row for the employer transactions table. Top-up and
+ * loan-disbursement rows carry `workerId: null`; we distinguish them by the
+ * Squad-reference prefix per FE_MONEY_END_TO_END.md §6.
+ */
+export function classifyEmployerTxn(t: TransactionDto): EmployerTxnRowKind {
+  if (t.workerId) return 'job_payment';
+  const ref = t.squadReference ?? '';
+  if (ref.startsWith('top_') || ref.startsWith('va_')) return 'top_up';
+  if (ref.startsWith('disb_') || ref.startsWith('internal_')) return 'loan_disbursement';
+  return 'wallet_credit';
+}
+
+/**
+ * `internal_…` Squad references are synthetic flags (job completion, business
+ * loan disbursement, loan auto-repayment) — not lookable in Squad's dashboard.
+ * Use this to gate "Squad reference" UI per FE_MONEY_END_TO_END.md §6.
+ */
+export function isRealSquadReference(ref: string | null | undefined): boolean {
+  return Boolean(ref && !ref.startsWith('internal_'));
+}
 
 export interface TransactionsListResponse {
   data: TransactionDto[];

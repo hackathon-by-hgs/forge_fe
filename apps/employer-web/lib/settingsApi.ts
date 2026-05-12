@@ -1,4 +1,5 @@
 import type { components } from '@forge/types/api';
+import type { VirtualAccount } from './employerOverview';
 import { api } from './api';
 
 export type BusinessProfileDto = components['schemas']['BusinessProfileDto'];
@@ -8,7 +9,12 @@ export type InviteTeamMemberDto = components['schemas']['InviteTeamMemberDto'];
 export type UpdateTeamMemberRoleDto = components['schemas']['UpdateTeamMemberRoleDto'];
 export type NotificationPrefsDto = components['schemas']['NotificationPrefsDto'];
 export type UpdateNotificationPrefsDto = components['schemas']['UpdateNotificationPrefsDto'];
-export type SquadStatusDto = components['schemas']['SquadStatusDto'];
+
+type SquadStatusWire = components['schemas']['SquadStatusDto'];
+/** `virtualAccount` is added by Phase 4.5; overlay until OpenAPI catches up. */
+export interface SquadStatusDto extends SquadStatusWire {
+  virtualAccount?: VirtualAccount | null;
+}
 export type BillingDto = components['schemas']['BillingDto'];
 export type UpdateBillingDto = components['schemas']['UpdateBillingDto'];
 
