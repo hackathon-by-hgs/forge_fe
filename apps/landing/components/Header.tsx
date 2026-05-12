@@ -108,7 +108,7 @@ export default function Header() {
             <Magnetic>
               <a 
                 href="#contact" 
-                className={`group px-8 py-3.5 rounded-[14px] text-[11px] font-bold tracking-[0.15em] uppercase flex items-center gap-4 transition-all duration-500 hover:scale-[1.02] active:scale-[0.98] ${s.cta} ${
+                className={`group px-8 py-3.5 text-[11px] font-bold tracking-[0.15em] uppercase flex items-center gap-4 transition-all duration-500 hover:scale-[1.02] active:scale-[0.98] ${s.cta} ${
                   isScrollingDown ? 'px-12 py-4 text-[13px] translate-y-2 shadow-xl' : ''
                 }`}
               >
@@ -128,14 +128,16 @@ export default function Header() {
           {/* Mobile hamburger */}
           <button
             id="mobile-menu-toggle"
-            className={`lg:hidden relative w-10 h-10 flex flex-col items-center justify-center gap-1.5 transition-all duration-500 ${
-              isScrollingDown ? 'opacity-0 scale-50 pointer-events-none' : 'opacity-100 scale-100'
+            className={`lg:hidden relative w-12 h-12 flex flex-col items-center justify-center gap-1.5 transition-all duration-500 rounded-full ${
+              isScrollingDown 
+                ? `${theme === 'light' ? 'bg-black' : 'bg-white'} shadow-2xl translate-y-2` 
+                : 'bg-transparent'
             }`}
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
           >
-            <span className={`block h-[1.5px] w-6 transition-all duration-300 origin-center ${s.hamburger} ${mobileOpen ? 'rotate-45 translate-y-[3.5px]' : ''}`} />
-            <span className={`block h-[1.5px] w-6 transition-all duration-300 origin-center ${s.hamburger} ${mobileOpen ? '-rotate-45 -translate-y-[3.5px]' : ''}`} />
+            <span className={`block h-[1.5px] w-6 transition-all duration-300 origin-center ${isScrollingDown ? (theme === 'light' ? 'bg-white' : 'bg-black') : s.hamburger} ${mobileOpen ? 'rotate-45 translate-y-[3.5px]' : ''}`} />
+            <span className={`block h-[1.5px] w-6 transition-all duration-300 origin-center ${isScrollingDown ? (theme === 'light' ? 'bg-white' : 'bg-black') : s.hamburger} ${mobileOpen ? '-rotate-45 -translate-y-[3.5px]' : ''}`} />
           </button>
         </div>
       </header>
