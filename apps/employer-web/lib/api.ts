@@ -1,4 +1,5 @@
 import type { components } from '@forge/types/api';
+import { AUTH_LOGIN_PATH } from './publicRoutes';
 
 export type ErrorResponseDto = components['schemas']['ErrorResponseDto'];
 
@@ -27,12 +28,23 @@ export function getAccessToken() {
   return accessToken;
 }
 
+/**
+ * API origin or same-origin base.
+ * For Next rewrites to the real API, use `NEXT_PUBLIC_API_BASE_URL=/` so requests are
+ * `/v1/...` on the app origin — matches HttpOnly refresh cookie Path=/v1/dashboard/auth.
+ * Use an absolute URL when calling the API host directly (BE must send cross-site-safe cookies).
+ */
 export function getApiBaseUrl() {
   const base = process.env.NEXT_PUBLIC_API_BASE_URL;
-  if (!base) {
+  if (base === undefined || base === null || !String(base).trim()) {
     throw new Error('Missing NEXT_PUBLIC_API_BASE_URL');
   }
-  return base.replace(/\/+$/, '');
+  const trimmed = String(base).trim().replace(/\/+$/, '');
+  // "/" only → same-origin relative URLs starting with /v1
+  if (trimmed === '' || trimmed === '/') {
+    return '';
+  }
+  return trimmed;
 }
 
 export async function parseResponseError(res: Response): Promise<ApiError> {
@@ -118,7 +130,7 @@ async function requestJson<T>(path: string, init: RequestInit, options?: Request
     const next = await refreshAccessToken();
     if (!next) {
       setAccessToken(null);
-      if (typeof window !== 'undefined') window.location.assign('/login');
+      if (typeof window !== 'undefined') window.location.assign(AUTH_LOGIN_PATH);
       throw new ApiError({ status: 401, code: 'AUTH_REQUIRED', message: 'Authentication required' });
     }
 
