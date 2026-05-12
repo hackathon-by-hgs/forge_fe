@@ -29,48 +29,58 @@ export default function LandingPage() {
       <Header />
 
       <main>
-        {/* ── LIGHT ZONE 1 ── */}
-        <div data-navbar-theme="light" className="relative z-[1] bg-white">
+        {/* Step 1: Hero + TrustStrip + Stats (white, sticky) */}
+        <section data-navbar-theme="light" className="sticky top-0 z-[10] bg-white min-h-screen">
           <Hero />
-          <TrustStrip />
-          <Stats />
-        </div>
+        </section>
 
-        {/* ── DARK CARD 1 ── */}
-        <ArchSection id="features-arch" className="z-[2]">
+        <section data-navbar-theme="light" className="sticky top-0 z-[11] bg-white min-h-[50vh] flex items-center">
+          <TrustStrip />
+        </section>
+
+        <section data-navbar-theme="light" className="sticky top-0 z-[12] bg-white min-h-screen">
+          <Stats />
+        </section>
+
+        {/* Step 2: Features (dark, slides over) */}
+        <ArchSection id="features" className="z-[13]">
           <Features />
         </ArchSection>
 
-        {/* ── LIGHT ZONE 2 ── */}
-        <div data-navbar-theme="light" className="relative z-[3] bg-white">
+        {/* Step 3: SuccessStories + Challenges (white, sticky) */}
+        <section data-navbar-theme="light" className="sticky top-0 z-[14] bg-white min-h-screen">
           <SuccessStories />
-          <Challenges />
-        </div>
+        </section>
 
-        {/* ── DARK CARD 2 ── */}
-        <ArchSection id="showcase-arch" className="z-[4]">
+        <section data-navbar-theme="light" className="sticky top-0 z-[15] bg-white min-h-screen">
+          <Challenges />
+        </section>
+
+        {/* Step 4: Showcase (dark, slides over) */}
+        <ArchSection id="showcase" className="z-[16]">
           <Showcase />
         </ArchSection>
 
-        {/* ── LIGHT ZONE 3 ── */}
-        <div data-navbar-theme="light" className="relative z-[5] bg-white">
+        {/* Step 5: Industries (white, sticky) */}
+        <section data-navbar-theme="light" className="sticky top-0 z-[17] bg-white min-h-screen">
           <Industries />
-        </div>
+        </section>
 
-        {/* ── DARK CARD 3 ── */}
-        <ArchSection id="testimonials-arch" className="z-[6]">
+        {/* Step 6: Testimonials (dark, slides over) */}
+        <ArchSection id="testimonials" className="z-[18]">
           <Testimonials />
         </ArchSection>
 
-        {/* ── DARK CARD 4 ── */}
-        <ArchSection id="contact-arch" className="z-[7]">
+        {/* Step 7: Contact (dark, slides over preceding dark) */}
+        <ArchSection id="contact" className="z-[19]">
           <ContactForm />
         </ArchSection>
       </main>
 
-      <div className="relative z-[8]">
+      {/* Footer (sticky) */}
+      <footer className="sticky top-0 z-[20] bg-white min-h-[40vh]" data-navbar-theme="light">
         <Footer />
-      </div>
+      </footer>
     </div>
   );
 }

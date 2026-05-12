@@ -18,17 +18,18 @@ const ArchSection: React.FC<ArchSectionProps> = ({
   children,
   className = '',
   id,
-  minHeight = 'auto',
+  minHeight = '100vh',
 }) => {
-  const clipId = useId().replace(/:/g, ''); // Ensure valid CSS ID
+  const clipId = useId().replace(/:/g, '');
 
   return (
     <section
       id={id}
       data-navbar-theme="dark"
-      className={`relative z-[var(--z-index,2)] -mt-[56px] bg-[#0f0f0f] ${className}`}
+      className={`relative bg-[#0f0f0f] ${className}`}
       style={{ 
         minHeight,
+        marginTop: '-80px',
         clipPath: `url(#${clipId})`,
         WebkitClipPath: `url(#${clipId})`,
       } as React.CSSProperties}
@@ -37,27 +38,25 @@ const ArchSection: React.FC<ArchSectionProps> = ({
         <defs>
           <clipPath id={clipId} clipPathUnits="objectBoundingBox">
             <path
-              d="M 0.04,0 
-                 Q 0,0 0,0.05 
-                 L 0,1 
-                 L 1,1 
-                 L 1,0.05 
-                 Q 1,0 0.96,0 
-                 L 0.85,0 
-                 Q 0.82,0 0.78,0.05 
-                 Q 0.74,0.1 0.7,0.05 
-                 Q 0.66,0 0.62,0 
-                 L 0.38,0 
-                 Q 0.34,0 0.3,0.05 
-                 Q 0.26,0.1 0.22,0.05 
-                 Q 0.18,0 0.15,0 
-                 L 0.04,0 Z"
+              transform="scale(0.001, 0.001666)"
+              d="M 0,70
+                 Q 0,0 70,0
+                 L 330,0
+                 Q 390,0 420,40
+                 Q 450,80 500,80
+                 Q 550,80 580,40
+                 Q 610,0 670,0
+                 L 930,0
+                 Q 1000,0 1000,70
+                 L 1000,600
+                 L 0,600
+                 Z"
             />
           </clipPath>
         </defs>
       </svg>
       
-      <div className="pt-[56px]">
+      <div className="pt-20">
         {children}
       </div>
     </section>

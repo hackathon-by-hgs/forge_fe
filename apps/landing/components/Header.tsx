@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Magnetic } from './';
 import { useNavbarTheme } from '@/hooks/useNavbarTheme';
@@ -15,7 +15,24 @@ const NAV_LINKS = [
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isScrollingDown, setIsScrollingDown] = useState(false);
+  const lastScrollY = useRef(0);
   const theme = useNavbarTheme();
+  
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY > lastScrollY.current && currentScrollY > 100) {
+        setIsScrollingDown(true);
+      } else {
+        setIsScrollingDown(false);
+      }
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? 'hidden' : '';
@@ -31,7 +48,7 @@ export default function Header() {
       hamburger: 'bg-black',
     },
     dark: {
-      nav: 'bg-transparent border-b border-white/10 backdrop-blur-[2px]',
+      nav: 'bg-black border-b border-white/10 shadow-lg',
       logo: 'text-white',
       links: 'text-white/80 hover:text-white',
       cta: 'bg-white text-black hover:bg-neutral-100',
@@ -45,17 +62,30 @@ export default function Header() {
     <>
       <header
         id="main-header"
-        className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 h-20 ${s.nav}`}
+        className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-500 h-20 ${
+          isScrollingDown ? 'bg-transparent border-transparent shadow-none' : `${s.nav}`
+        }`}
       >
         <div className="section-container flex items-center justify-between h-full">
           {/* Logo — minimalist asterisk + name */}
-          <Link href="/" className="flex items-center gap-1.5 group" id="logo-link">
+          <Link 
+            href="/" 
+            className={`flex items-center gap-1.5 group transition-all duration-500 ${
+              isScrollingDown ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'
+            }`} 
+            id="logo-link"
+          >
             <span className="text-[#FF4D00] text-2xl font-bold transition-transform duration-500 group-hover:rotate-180">∗</span>
             <span className={`text-xl font-bold tracking-tight transition-colors duration-300 ${s.logo}`}>forge</span>
           </Link>
 
           {/* Desktop nav — center */}
-          <nav className="hidden lg:flex items-center gap-10" id="desktop-nav">
+          <nav 
+            className={`hidden lg:flex items-center gap-10 transition-all duration-500 ${
+              isScrollingDown ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'
+            }`} 
+            id="desktop-nav"
+          >
             {NAV_LINKS.map((link) => (
               <a
                 key={link.label}
@@ -76,7 +106,12 @@ export default function Header() {
           {/* Desktop CTA — premium button */}
           <div className="hidden lg:flex items-center">
             <Magnetic>
-              <a href="#contact" className={`group px-8 py-3.5 rounded-[14px] text-[11px] font-bold tracking-[0.15em] uppercase flex items-center gap-4 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] ${s.cta}`}>
+              <a 
+                href="#contact" 
+                className={`group px-8 py-3.5 rounded-[14px] text-[11px] font-bold tracking-[0.15em] uppercase flex items-center gap-4 transition-all duration-500 hover:scale-[1.02] active:scale-[0.98] ${s.cta} ${
+                  isScrollingDown ? 'px-12 py-4 text-[13px] translate-y-2 shadow-xl' : ''
+                }`}
+              >
                 GET IN TOUCH
                 <div className="relative w-4 h-4 overflow-hidden">
                   <svg className="absolute inset-0 w-4 h-4 transition-transform duration-300 group-hover:translate-x-full group-hover:-translate-y-full" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -93,7 +128,9 @@ export default function Header() {
           {/* Mobile hamburger */}
           <button
             id="mobile-menu-toggle"
-            className="lg:hidden relative w-10 h-10 flex flex-col items-center justify-center gap-1.5"
+            className={`lg:hidden relative w-10 h-10 flex flex-col items-center justify-center gap-1.5 transition-all duration-500 ${
+              isScrollingDown ? 'opacity-0 scale-50 pointer-events-none' : 'opacity-100 scale-100'
+            }`}
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
           >
@@ -143,5 +180,3 @@ export default function Header() {
     </>
   );
 }
-
-// okay i want you to update the scroll behavour of the application, 
