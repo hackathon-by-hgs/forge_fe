@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Button, Spinner } from '@forge/ui';
 import { useAuthStore } from './store';
 import { isBankRole } from '../api/types';
+import { useForgeStream } from '../sse';
 
 /**
  * Client-side gate for the `(app)` route group.
@@ -48,7 +49,17 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     return <RoleMismatchPanel role={user.role} />;
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <StreamSubscriber />
+      {children}
+    </>
+  );
+}
+
+function StreamSubscriber() {
+  useForgeStream(true);
+  return null;
 }
 
 function BootOfflinePanel() {

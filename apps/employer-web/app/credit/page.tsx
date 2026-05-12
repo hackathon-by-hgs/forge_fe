@@ -180,14 +180,17 @@ function CreditHero({ credit }: { credit: EmployerCreditDto }) {
             </p>
             {credit.scoreDeltaPoints !== 0 ? (
               <p
-                className={`mt-1 text-xs ${
+                className={`mt-1 inline-flex items-center gap-1 text-xs ${
                   credit.scoreDeltaPoints > 0
                     ? 'text-success-600'
                     : 'text-danger-600'
                 }`}
               >
-                {credit.scoreDeltaPoints > 0 ? '+' : ''}
-                {credit.scoreDeltaPoints} vs 12 weeks ago
+                <span aria-hidden>{credit.scoreDeltaPoints > 0 ? '↑' : '↓'}</span>
+                <span>
+                  {credit.scoreDeltaPoints > 0 ? '+' : ''}
+                  {credit.scoreDeltaPoints} vs 12 weeks ago
+                </span>
               </p>
             ) : (
               <p className="mt-1 text-xs text-neutral-400">12-week history pending</p>

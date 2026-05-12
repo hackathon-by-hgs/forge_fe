@@ -6,7 +6,7 @@ export interface AlertBannerProps {
   tone?: Extract<StatusTone, 'warning' | 'danger' | 'info' | 'success'>;
   icon?: ReactNode;
   title: string;
-  description?: string;
+  description?: ReactNode;
   action?: ReactNode;
   onDismiss?: () => void;
   className?: string;
