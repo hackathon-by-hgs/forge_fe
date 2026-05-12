@@ -39,11 +39,11 @@ import {
   rejectApplication,
   type ApproveLoanApplicationInput,
 } from '../../../../lib/api/bankApi';
-import { ApiError, toUserMessage } from '../../../../lib/api/errors';
+import { ApiError, NetworkError, toUserMessage } from '../../../../lib/api/errors';
 import { useAuthStore } from '../../../../lib/auth/store';
 import {
-  DECISION_LABEL,
-  DECISION_TONE,
+  safeDecisionLabel,
+  safeDecisionTone,
   canDecideApplication,
   isCreditOfficer,
 } from '../../../../lib/loanUtils';
@@ -87,8 +87,14 @@ export function ApplicationDetailView({
     onSuccess: (loan) => {
       invalidate();
       setShowApprove(false);
-      // Send the officer straight to the new loan so they can immediately disburse.
-      router.push(`/loans/${loan.id}`);
+      const id = loan?.id?.trim();
+      if (!id) {
+        setActionError(
+          'Approval succeeded but no loan id was returned. Open Active loans to continue.',
+        );
+        return;
+      }
+      router.push(`/loans/${encodeURIComponent(id)}`);
     },
     onError: (err) => setActionError(toUserMessage(err)),
   });
@@ -105,7 +111,10 @@ export function ApplicationDetailView({
     onError: (err) => setActionError(toUserMessage(err)),
   });
 
-  if (detail.isLoading) {
+  const isInitialLoading = detail.isPending && !detail.data;
+  const isRefreshing = Boolean(detail.data) && detail.isFetching && !detail.isPending;
+
+  if (isInitialLoading) {
     return (
       <>
         <PageHeader
@@ -115,6 +124,9 @@ export function ApplicationDetailView({
             { label: applicationId },
           ]}
         />
+        <p className="sr-only" role="status">
+          Loading application details.
+        </p>
         <div className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
             <Skeleton className="h-48 w-full rounded-xl" />
@@ -131,6 +143,7 @@ export function ApplicationDetailView({
   if (detail.isError) {
     const err = detail.error;
     const isNotFound = err instanceof ApiError && err.status === 404;
+    const isOffline = err instanceof NetworkError;
     return (
       <>
         <PageHeader
@@ -142,19 +155,39 @@ export function ApplicationDetailView({
         />
         <div className="p-6">
           <AlertBanner
-            tone="warning"
-            title={isNotFound ? 'This application is no longer available' : 'Couldn’t load application'}
+            tone={isOffline ? 'danger' : 'warning'}
+            title={
+              isOffline
+                ? 'Cannot reach the server'
+                : isNotFound
+                  ? 'This application is no longer available'
+                  : 'Couldn’t load application'
+            }
             description={
-              isNotFound
-                ? 'It may have been removed or you don’t have access.'
-                : toUserMessage(err)
+              isOffline
+                ? 'Check your connection and try again.'
+                : isNotFound
+                  ? 'It may have been removed or you don’t have access.'
+                  : toUserMessage(err)
             }
             action={
-              <Link href="/applications">
-                <Button size="sm" variant="secondary">
-                  Back to queue
-                </Button>
-              </Link>
+              <div className="flex flex-wrap gap-2">
+                {!isNotFound ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    loading={detail.isFetching}
+                    onClick={() => void detail.refetch()}
+                  >
+                    Retry
+                  </Button>
+                ) : null}
+                <Link href="/applications">
+                  <Button size="sm" variant="secondary">
+                    Back to queue
+                  </Button>
+                </Link>
+              </div>
             }
           />
         </div>
@@ -162,17 +195,32 @@ export function ApplicationDetailView({
     );
   }
 
+  if (!detail.isSuccess || !detail.data) {
+    return null;
+  }
+
   const app = detail.data;
-  if (!app) return null;
-  const decidable = canDecideApplication(app.status);
+  const decidable = canDecideApplication(app?.status ?? '');
+  const borrowerName = app?.borrower?.displayName?.trim() || 'Application';
+  const borrowerId = app?.borrower?.id?.trim();
+  const borrowerType = app?.borrowerType;
+  const appId = app?.id?.trim() ?? applicationId;
+  const amount = app?.amountRequestedNaira ?? 0;
+  const termMonths = app?.termMonths ?? 0;
+  const appliedAt = app?.appliedAt;
+  const decidedAt = app?.decidedAt;
+  const recDecision = app?.recommendedDecision;
+  const recPct = app?.recommendationConfidencePct ?? 0;
+  const recReason = app?.recommendationReason?.trim() || '—';
+  const status = app?.status;
 
   return (
     <>
       <PageHeader
-        title={app.borrower.displayName}
+        title={borrowerName}
         breadcrumbs={[
           { label: 'Applications', href: '/applications' },
-          { label: app.id },
+          { label: appId },
         ]}
         actions={
           canMutate && decidable ? (
@@ -195,6 +243,16 @@ export function ApplicationDetailView({
           ) : null
         }
       />
+
+      {isRefreshing ? (
+        <p
+          className="px-6 pt-2 text-sm text-neutral-500"
+          role="status"
+          aria-live="polite"
+        >
+          Refreshing application…
+        </p>
+      ) : null}
 
       {actionError ? (
         <div className="px-6 pt-4">
@@ -224,58 +282,58 @@ export function ApplicationDetailView({
               <div className="flex items-center gap-2">
                 <Badge
                   tone={
-                    app.status === 'approved'
+                    status === 'approved'
                       ? 'success'
-                      : app.status === 'rejected'
+                      : status === 'rejected'
                         ? 'danger'
                         : 'info'
                   }
                 >
-                  {app.status === 'approved'
+                  {status === 'approved'
                     ? 'Approved'
-                    : app.status === 'rejected'
+                    : status === 'rejected'
                       ? 'Rejected'
                       : 'Pending'}
                 </Badge>
                 <span className="font-mono text-xs text-neutral-500" data-numeric>
-                  · {app.id}
+                  · {appId}
                 </span>
               </div>
               <span
                 className="text-2xl font-semibold text-neutral-900 tabular-nums"
                 data-numeric
               >
-                {formatCurrency(app.amountRequestedNaira)}
+                {formatCurrency(amount)}
               </span>
             </CardHeader>
             <CardBody className="space-y-5">
               <div className="flex items-start gap-4">
                 <Avatar
-                  name={app.borrower.displayName}
-                  src={app.borrower.photoUrl ?? undefined}
+                  name={borrowerName}
+                  src={app?.borrower?.photoUrl ?? undefined}
                   size="lg"
                 />
                 <div className="flex-1">
-                  <p className="text-lg font-semibold text-neutral-900">
-                    {app.borrower.displayName}
-                  </p>
+                  <p className="text-lg font-semibold text-neutral-900">{borrowerName}</p>
                   <p className="mt-0.5 inline-flex items-center gap-2 text-xs text-neutral-500">
                     <Badge variant="soft">
-                      {app.borrowerType === 'worker' ? 'Worker' : 'Business'}
+                      {borrowerType === 'business' ? 'Business' : 'Worker'}
                     </Badge>
-                    Score {app.borrower.score} · {app.termMonths} month term
+                    Score {app?.borrower?.score ?? 0} · {termMonths || '—'} month term
                   </p>
-                  <Link
-                    href={`/borrowers/${app.borrowerType}/${app.borrower.id}`}
-                    className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-accent-600 hover:underline"
-                  >
-                    Open borrower profile
-                    <IconExternal className="!h-3 !w-3" />
-                  </Link>
+                  {borrowerId && borrowerType ? (
+                    <Link
+                      href={`/borrowers/${encodeURIComponent(borrowerType)}/${encodeURIComponent(borrowerId)}`}
+                      className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-accent-600 hover:underline"
+                    >
+                      Open borrower profile
+                      <IconExternal className="!h-3 !w-3" />
+                    </Link>
+                  ) : null}
                 </div>
                 <RadialProgress
-                  value={app.borrower.score}
-                  label={app.borrowerType === 'worker' ? 'Reliability' : 'Credit'}
+                  value={app?.borrower?.score ?? 0}
+                  label={borrowerType === 'worker' ? 'Reliability' : 'Credit'}
                 />
               </div>
 
@@ -284,19 +342,23 @@ export function ApplicationDetailView({
                 items={[
                   {
                     label: 'Amount requested',
-                    value: formatCurrency(app.amountRequestedNaira),
+                    value: formatCurrency(amount),
                   },
                   {
                     label: 'Term',
-                    value: `${app.termMonths} months`,
+                    value: termMonths ? `${termMonths} months` : '—',
                   },
                   {
                     label: 'Applied',
-                    value: `${formatRelativeTime(app.appliedAt)} · ${formatAbsoluteDate(app.appliedAt)}`,
+                    value:
+                      appliedAt?.trim()
+                        ? `${formatRelativeTime(appliedAt)} · ${formatAbsoluteDate(appliedAt)}`
+                        : '—',
                   },
                   {
                     label: 'Decided',
-                    value: app.decidedAt ? formatAbsoluteDate(app.decidedAt) : '—',
+                    value:
+                      decidedAt?.trim() ? formatAbsoluteDate(decidedAt) : '—',
                   },
                 ]}
               />
@@ -311,9 +373,7 @@ export function ApplicationDetailView({
                   All three signals together — the credit officer makes the final call.
                 </p>
               </div>
-              <Badge tone={DECISION_TONE[app.recommendedDecision]}>
-                {DECISION_LABEL[app.recommendedDecision]}
-              </Badge>
+              <Badge tone={safeDecisionTone(recDecision)}>{safeDecisionLabel(recDecision)}</Badge>
             </CardHeader>
             <CardBody>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -321,14 +381,14 @@ export function ApplicationDetailView({
                   <p className="text-xs text-neutral-500">Decision</p>
                   <p
                     className={`mt-1 text-lg font-semibold ${
-                      app.recommendedDecision === 'approve'
+                      recDecision === 'approve'
                         ? 'text-success-700'
-                        : app.recommendedDecision === 'approve_with_conditions'
+                        : recDecision === 'approve_with_conditions'
                           ? 'text-warning-700'
                           : 'text-danger-700'
                     }`}
                   >
-                    {DECISION_LABEL[app.recommendedDecision]}
+                    {safeDecisionLabel(recDecision)}
                   </p>
                 </div>
                 <div>
@@ -337,7 +397,7 @@ export function ApplicationDetailView({
                     className="mt-1 text-lg font-semibold tabular-nums text-neutral-900"
                     data-numeric
                   >
-                    {app.recommendationConfidencePct}%
+                    {recPct}%
                   </p>
                 </div>
                 <div>
@@ -345,7 +405,7 @@ export function ApplicationDetailView({
                   <p className="mt-1 text-xs text-neutral-600">
                     {decidable
                       ? 'Use the buttons above to approve (with optional principal/APR/term overrides) or reject.'
-                      : `Already ${app.status}.`}
+                      : `Already ${status ?? 'processed'}.`}
                   </p>
                 </div>
               </div>
@@ -353,7 +413,7 @@ export function ApplicationDetailView({
                 <p className="text-xs font-medium uppercase tracking-wide text-neutral-500">
                   Why
                 </p>
-                <p className="mt-1 text-sm text-neutral-700">{app.recommendationReason}</p>
+                <p className="mt-1 text-sm text-neutral-700">{recReason}</p>
               </div>
             </CardBody>
           </Card>
@@ -367,28 +427,32 @@ export function ApplicationDetailView({
             <CardBody className="space-y-3">
               <div className="flex items-center gap-3">
                 <Avatar
-                  name={app.borrower.displayName}
-                  src={app.borrower.photoUrl ?? undefined}
+                  name={borrowerName}
+                  src={app?.borrower?.photoUrl ?? undefined}
                   size="md"
                 />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-neutral-900">
-                    {app.borrower.displayName}
+                    {borrowerName}
                   </p>
                   <p className="truncate text-xs text-neutral-500">
-                    Score {app.borrower.score}
+                    Score {app?.borrower?.score ?? 0}
                   </p>
                 </div>
               </div>
-              <Link href={`/borrowers/${app.borrowerType}/${app.borrower.id}`}>
-                <Button
-                  variant="secondary"
-                  className="w-full"
-                  trailingIcon={<IconExternal className="!h-4 !w-4" />}
+              {borrowerId && borrowerType ? (
+                <Link
+                  href={`/borrowers/${encodeURIComponent(borrowerType)}/${encodeURIComponent(borrowerId)}`}
                 >
-                  Open full profile
-                </Button>
-              </Link>
+                  <Button
+                    variant="secondary"
+                    className="w-full"
+                    trailingIcon={<IconExternal className="!h-4 !w-4" />}
+                  >
+                    Open full profile
+                  </Button>
+                </Link>
+              ) : null}
             </CardBody>
           </Card>
 
@@ -399,12 +463,15 @@ export function ApplicationDetailView({
             <CardBody>
               <KeyValueList
                 items={[
-                  { label: 'Reference', value: app.id },
-                  { label: 'Status', value: app.status },
-                  { label: 'Applied', value: formatRelativeTime(app.appliedAt) },
+                  { label: 'Reference', value: appId },
+                  { label: 'Status', value: status ?? '—' },
+                  {
+                    label: 'Applied',
+                    value: appliedAt?.trim() ? formatRelativeTime(appliedAt) : '—',
+                  },
                   {
                     label: 'Decided',
-                    value: app.decidedAt ? formatAbsoluteDate(app.decidedAt) : '—',
+                    value: decidedAt?.trim() ? formatAbsoluteDate(decidedAt) : '—',
                   },
                 ]}
               />
@@ -420,18 +487,15 @@ export function ApplicationDetailView({
           </DialogHeader>
           <DialogBody className="space-y-3">
             <p className="text-sm text-neutral-600">
-              This creates a new loan in <strong>approved</strong> status. You can
-              disburse it on the next page.
+              This creates a new loan in <strong>approved</strong> status. You can disburse
+              it on the next page.
             </p>
-            <FormField
-              label="Principal override"
-              hint={`Default: ${formatCurrency(app.amountRequestedNaira)}`}
-            >
+            <FormField label="Principal override" hint={`Default: ${formatCurrency(amount)}`}>
               <Input
                 type="number"
                 min={1000}
                 step={1000}
-                placeholder={String(app.amountRequestedNaira)}
+                placeholder={String(amount)}
                 value={principalOverride}
                 onChange={(e) => setPrincipalOverride(e.target.value)}
               />
@@ -449,14 +513,14 @@ export function ApplicationDetailView({
             </FormField>
             <FormField
               label="Term override (months)"
-              hint={`Default: ${app.termMonths}`}
+              hint={`Default: ${termMonths || '—'}`}
             >
               <Input
                 type="number"
                 min={1}
                 max={60}
                 step={1}
-                placeholder={String(app.termMonths)}
+                placeholder={termMonths ? String(termMonths) : ''}
                 value={termMonthsOverride}
                 onChange={(e) => setTermMonthsOverride(e.target.value)}
               />
@@ -492,8 +556,7 @@ export function ApplicationDetailView({
           </DialogHeader>
           <DialogBody className="space-y-3">
             <p className="text-sm text-neutral-600">
-              The reason is logged and shared with the borrower in their next
-              notification.
+              The reason is logged and shared with the borrower in their next notification.
             </p>
             <FormField label="Reason" required>
               <Textarea

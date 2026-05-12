@@ -9,6 +9,7 @@
  */
 
 import { request } from './client';
+import { ApiError } from './errors';
 
 // ── Enums ───────────────────────────────────────────────────────────────────
 
@@ -267,6 +268,71 @@ const LOAN_STATUS_SET = new Set<string>([
 
 const RISK_LEVEL_SET = new Set<string>(['green', 'yellow', 'red']);
 
+const APPLICATION_STATUS_SET = new Set<string>(['pending', 'approved', 'rejected']);
+
+const RECOMMENDED_DECISION_SET = new Set<string>([
+  'approve',
+  'approve_with_conditions',
+  'reject',
+]);
+
+function normalizePaginationMeta(
+  raw: unknown,
+  fallbacks: { page: number; pageSize: number },
+): PaginationMeta {
+  const fp = Math.max(1, Math.floor(numField(fallbacks.page, 1)));
+  const fps = Math.max(1, Math.min(100, Math.floor(numField(fallbacks.pageSize, 25))));
+  if (!raw || typeof raw !== 'object') {
+    return { page: fp, pageSize: fps, total: 0, totalPages: 1 };
+  }
+  const p = raw as Record<string, unknown>;
+  const pageSize = Math.max(1, Math.min(100, Math.floor(numField(p.pageSize, fps))));
+  const total = Math.max(0, Math.floor(numField(p.total, 0)));
+  const totalPages = total === 0 ? 1 : Math.max(1, Math.ceil(total / pageSize));
+  let page = Math.max(1, Math.floor(numField(p.page, fp)));
+  if (page > totalPages) page = totalPages;
+  return { page, pageSize, total, totalPages };
+}
+
+/**
+ * Coerce `GET /v1/bank/loan-applications` JSON into a safe shape (lists, pagination,
+ * and each row) so the queue UI never throws on partial API payloads.
+ */
+export function normalizeBankApplicationsListResponse(
+  raw: unknown,
+  request: Pick<BankApplicationsListQuery, 'page' | 'pageSize'> = {},
+): BankApplicationsListResponse {
+  const fallbackPage = Math.max(1, Math.floor(numField(request.page, 1)));
+  const fallbackPageSize = Math.max(
+    1,
+    Math.min(100, Math.floor(numField(request.pageSize, 25))),
+  );
+
+  if (!raw || typeof raw !== 'object') {
+    return {
+      data: [],
+      pagination: normalizePaginationMeta(undefined, {
+        page: fallbackPage,
+        pageSize: fallbackPageSize,
+      }),
+    };
+  }
+
+  const o = raw as Record<string, unknown>;
+  const dataIn = Array.isArray(o.data) ? o.data : [];
+  const pagination = normalizePaginationMeta(o.pagination, {
+    page: fallbackPage,
+    pageSize: fallbackPageSize,
+  });
+
+  return {
+    data: dataIn
+      .map(normalizeLoanApplicationDto)
+      .filter((row): row is LoanApplicationDto => row !== null),
+    pagination,
+  };
+}
+
 function normalizeBorrowerSummary(raw: unknown): BorrowerSummaryDto {
   if (!raw || typeof raw !== 'object') {
     return {
@@ -294,6 +360,51 @@ function normalizeBorrowerSummary(raw: unknown): BorrowerSummaryDto {
           ? null
           : undefined,
     score: numField(b.score, 0),
+  };
+}
+
+function normalizeLoanApplicationDto(raw: unknown): LoanApplicationDto | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.id !== 'string' || !r.id) return null;
+
+  const statusRaw = r.status;
+  const recRaw = r.recommendedDecision;
+  const status: LoanApplicationStatusWire =
+    typeof statusRaw === 'string' && APPLICATION_STATUS_SET.has(statusRaw)
+      ? (statusRaw as LoanApplicationStatusWire)
+      : 'pending';
+  const recommendedDecision: RecommendedDecisionWire =
+    typeof recRaw === 'string' && RECOMMENDED_DECISION_SET.has(recRaw)
+      ? (recRaw as RecommendedDecisionWire)
+      : 'reject';
+
+  const decidedRaw = r.decidedAt;
+  const decidedAt =
+    typeof decidedRaw === 'string'
+      ? decidedRaw
+      : decidedRaw === null
+        ? null
+        : undefined;
+
+  return {
+    id: r.id,
+    bankId: typeof r.bankId === 'string' ? r.bankId : '',
+    borrowerType: r.borrowerType === 'business' ? 'business' : 'worker',
+    borrower: normalizeBorrowerSummary(r.borrower),
+    amountRequestedNaira: numField(r.amountRequestedNaira, 0),
+    termMonths: Math.max(1, Math.floor(numField(r.termMonths, 1))),
+    status,
+    recommendedDecision,
+    recommendationConfidencePct: Math.min(
+      100,
+      Math.max(0, numField(r.recommendationConfidencePct, 0)),
+    ),
+    recommendationReason:
+      typeof r.recommendationReason === 'string' ? r.recommendationReason : '',
+    appliedAt:
+      typeof r.appliedAt === 'string' ? r.appliedAt : new Date(0).toISOString(),
+    decidedAt,
   };
 }
 
@@ -408,9 +519,64 @@ export async function fetchRiskRadar(): Promise<RiskRadarResponseDto> {
 
 // ── Loans ───────────────────────────────────────────────────────────────────
 
-export function fetchLoans(q?: BankLoansListQuery): Promise<BankLoansListResponse> {
+/**
+ * Coerce `GET /v1/bank/loans` JSON into a safe list + pagination shape.
+ */
+export function normalizeBankLoansListResponse(
+  raw: unknown,
+  request: Pick<BankLoansListQuery, 'page' | 'pageSize'> = {},
+): BankLoansListResponse {
+  const fallbackPage = Math.max(1, Math.floor(numField(request.page, 1)));
+  const fallbackPageSize = Math.max(
+    1,
+    Math.min(100, Math.floor(numField(request.pageSize, 25))),
+  );
+  if (!raw || typeof raw !== 'object') {
+    return {
+      data: [],
+      pagination: normalizePaginationMeta(undefined, {
+        page: fallbackPage,
+        pageSize: fallbackPageSize,
+      }),
+    };
+  }
+  const o = raw as Record<string, unknown>;
+  const dataIn = Array.isArray(o.data) ? o.data : [];
+  return {
+    data: dataIn
+      .map(normalizeLoanDto)
+      .filter((row): row is LoanDto => row !== null),
+    pagination: normalizePaginationMeta(o.pagination, {
+      page: fallbackPage,
+      pageSize: fallbackPageSize,
+    }),
+  };
+}
+
+export async function fetchLoans(q?: BankLoansListQuery): Promise<BankLoansListResponse> {
   const query = toQueryString({ ...(q ?? {}) });
-  return request<BankLoansListResponse>('/v1/bank/loans', { query });
+  const raw = await request<unknown>('/v1/bank/loans', { query });
+  return normalizeBankLoansListResponse(raw, {
+    page: q?.page,
+    pageSize: q?.pageSize,
+  });
+}
+
+/** Walk every page of the bank loan list (bounded) for portfolio analytics. */
+export async function fetchAllBankLoans(): Promise<LoanDto[]> {
+  const PAGE_SIZE = 100;
+  const MAX_PAGES = 100;
+  const first = await fetchLoans({ page: 1, pageSize: PAGE_SIZE });
+  const totalPages = Math.min(
+    MAX_PAGES,
+    Math.max(1, first?.pagination?.totalPages ?? 1),
+  );
+  const all: LoanDto[] = [...(first?.data ?? [])];
+  for (let p = 2; p <= totalPages; p += 1) {
+    const res = await fetchLoans({ page: p, pageSize: PAGE_SIZE });
+    all.push(...(res?.data ?? []));
+  }
+  return all;
 }
 
 export function fetchLoanDetail(id: string): Promise<LoanDetailDto> {
@@ -447,19 +613,29 @@ export function markRepaymentPaid(
 
 // ── Applications ────────────────────────────────────────────────────────────
 
-export function fetchApplications(
+export async function fetchApplications(
   q?: BankApplicationsListQuery,
 ): Promise<BankApplicationsListResponse> {
   const query = toQueryString({ ...(q ?? {}) });
-  return request<BankApplicationsListResponse>('/v1/bank/loan-applications', {
-    query,
+  const raw = await request<unknown>('/v1/bank/loan-applications', { query });
+  return normalizeBankApplicationsListResponse(raw, {
+    page: q?.page,
+    pageSize: q?.pageSize,
   });
 }
 
-export function fetchApplicationDetail(id: string): Promise<LoanApplicationDto> {
-  return request<LoanApplicationDto>(
+export async function fetchApplicationDetail(id: string): Promise<LoanApplicationDto> {
+  const raw = await request<unknown>(
     `/v1/bank/loan-applications/${encodeURIComponent(id)}`,
   );
+  const app = normalizeLoanApplicationDto(raw);
+  if (!app) {
+    throw new ApiError(500, {
+      code: 'INTERNAL',
+      message: 'The server returned an unexpected application payload.',
+    });
+  }
+  return app;
 }
 
 export function approveApplication(
