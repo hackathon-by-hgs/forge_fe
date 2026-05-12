@@ -496,9 +496,9 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
             >
               <Input
                 type="number"
-                min={50}
-                max={25000}
-                step={50}
+                min={1}
+                max={25}
+                step={4}
                 {...register('geofenceRadiusMeters')}
               />
             </FormField>
