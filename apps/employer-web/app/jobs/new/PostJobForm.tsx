@@ -49,7 +49,7 @@ const schema = z
     address: z.string().min(5, 'Add a recognisable address').max(200),
     startAt: z.string().min(1, 'Pick a start date and time'),
     audience: z.enum(['public', 'team_first']),
-    geofenceRadiusMeters: z.coerce.number().int().min(50).max(2000),
+    geofenceRadiusMeters: z.coerce.number().int().min(50).max(25_000),
     postNow: z.boolean(),
     requiredEquipment: z.string().optional(),
   })
@@ -109,6 +109,22 @@ const LOCATION_OPTIONS = [
 ];
 
 const STATE_OPTIONS = NIGERIAN_STATES.map((s) => ({ label: s, value: s }));
+
+/**
+ * Map Google's administrative_area_level_1 string to our preset list.
+ * Google often appends "State" ("Lagos State"); FCT is returned as
+ * "Federal Capital Territory" rather than "FCT". Anything we don't
+ * recognise returns '' so the dropdown stays blank rather than
+ * showing a value not in its options.
+ */
+function normalizeNigerianState(raw: string): string {
+  const stripped = raw.replace(/\s+state$/i, '').trim();
+  if (/federal\s+capital\s+territory|abuja/i.test(stripped)) return 'FCT (Abuja)';
+  const match = NIGERIAN_STATES.find(
+    (s) => s.toLowerCase() === stripped.toLowerCase(),
+  );
+  return match ?? '';
+}
 
 function matchTemplateLocation(neighborhood: string | undefined | null): string {
   if (!neighborhood) return DEFAULT_LOCATION_ID;
@@ -264,6 +280,30 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
 
   const handleAddressFromSearch = (formattedAddress: string) => {
     setValue('address', formattedAddress, { shouldValidate: true });
+  };
+
+  /**
+   * Fired when the map resolves an address (via Places search OR reverse-
+   * geocode after "Use my location"). Switches the dropdown to "Other" and
+   * fills State / City / Address from the Google response so the user
+   * doesn't retype what we already know.
+   */
+  const handleAddressResolved = (resolved: {
+    formattedAddress: string;
+    state?: string;
+    city?: string;
+  }) => {
+    setValue('locationId', OTHER_LOCATION_ID, { shouldValidate: true });
+    if (resolved.state) {
+      const normalized = normalizeNigerianState(resolved.state);
+      if (normalized) setValue('state', normalized, { shouldValidate: true });
+    }
+    if (resolved.city) {
+      setValue('city', resolved.city, { shouldValidate: true });
+    }
+    if (resolved.formattedAddress) {
+      setValue('address', resolved.formattedAddress, { shouldValidate: true });
+    }
   };
 
   return (
@@ -452,12 +492,12 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
             <FormField
               label="Geofence (m)"
               error={errors.geofenceRadiusMeters?.message ?? fieldErrors.geofenceRadiusMeters}
-              hint="50–2000m — workers must clock in within this radius."
+              hint="50m–25km — workers must be within this radius of the pin (also used for worker discovery)."
             >
               <Input
                 type="number"
                 min={50}
-                max={2000}
+                max={25000}
                 step={50}
                 {...register('geofenceRadiusMeters')}
               />
@@ -474,6 +514,7 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
             onChange={handlePinChange}
             radiusMeters={watchedRadius}
             onAddressSelect={handleAddressFromSearch}
+            onAddressResolved={handleAddressResolved}
             googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
             className="w-full"
           />

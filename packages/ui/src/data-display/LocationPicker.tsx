@@ -13,6 +13,22 @@ import { cn } from '../utils/cn';
 import { toast } from '../feedback/Toaster';
 import { FORGE_GOOGLE_MAPS_LOADER_ID, GOOGLE_MAP_LIBRARIES } from './_googleMaps';
 
+/**
+ * Address parts resolved by Google Maps (reverse geocode on geolocation,
+ * or address_components from a Places Autocomplete pick). Fields are
+ * best-effort — they're only present when Google returns them, which
+ * varies by region/coverage.
+ */
+export interface ResolvedAddress {
+  formattedAddress: string;
+  /** administrative_area_level_1 — e.g. "Lagos", "FCT (Abuja)". */
+  state?: string;
+  /** locality, falling back to administrative_area_level_2 — e.g. "Ikeja". */
+  city?: string;
+  /** ISO 3166-1 alpha-2 — e.g. "NG". */
+  countryCode?: string;
+}
+
 export interface LocationPickerProps {
   value: { lat: number; lng: number };
   onChange: (coords: { lat: number; lng: number }) => void;
@@ -22,11 +38,17 @@ export interface LocationPickerProps {
    */
   radiusMeters?: number;
   /**
-   * Fired when the user picks a place via the search box. The picker
-   * always updates `value` via `onChange`; this lets the host also
-   * write the resolved formatted address back into a form field.
+   * Legacy single-string callback. Fires for Places Autocomplete picks only,
+   * with just the formatted_address. Prefer `onAddressResolved` for richer
+   * parts. Kept for back-compat.
    */
   onAddressSelect?: (formattedAddress: string) => void;
+  /**
+   * Fires whenever the picker resolves an address via Places search OR
+   * geolocation reverse-geocode. The host can use this to switch its
+   * dropdown to "Other" and auto-fill state/city/address fields.
+   */
+  onAddressResolved?: (resolved: ResolvedAddress) => void;
   /** Google Maps API key. Falls back to a static notice if missing/invalid. */
   googleMapsApiKey?: string;
   /** Restrict Places Autocomplete to a country (ISO 3166-1 alpha-2). Default 'ng'. */
@@ -37,6 +59,47 @@ export interface LocationPickerProps {
 }
 
 const LAGOS_CENTER = { lat: 6.5244, lng: 3.3792 };
+
+function pickComponent(
+  components: google.maps.GeocoderAddressComponent[] | undefined,
+  type: string,
+): string | undefined {
+  return components?.find((c) => c.types.includes(type))?.long_name;
+}
+
+function extractAddressParts(
+  formatted: string | undefined,
+  components: google.maps.GeocoderAddressComponent[] | undefined,
+): ResolvedAddress {
+  const state = pickComponent(components, 'administrative_area_level_1');
+  const city =
+    pickComponent(components, 'locality') ??
+    pickComponent(components, 'administrative_area_level_2') ??
+    pickComponent(components, 'sublocality');
+  const countryCode = components?.find((c) => c.types.includes('country'))?.short_name;
+  return {
+    formattedAddress: formatted ?? '',
+    state,
+    city,
+    countryCode,
+  };
+}
+
+async function reverseGeocode(
+  lat: number,
+  lng: number,
+): Promise<ResolvedAddress | null> {
+  if (typeof google === 'undefined' || !google.maps?.Geocoder) return null;
+  const geocoder = new google.maps.Geocoder();
+  try {
+    const res = await geocoder.geocode({ location: { lat, lng } });
+    const first = res.results?.[0];
+    if (!first) return null;
+    return extractAddressParts(first.formatted_address, first.address_components);
+  } catch {
+    return null;
+  }
+}
 
 function isFiniteCoord(coord: { lat: number; lng: number }): boolean {
   return (
@@ -104,6 +167,7 @@ export function LocationPicker({
   onChange,
   radiusMeters,
   onAddressSelect,
+  onAddressResolved,
   googleMapsApiKey,
   countryCode = 'ng',
   zoom = 14,
@@ -181,7 +245,12 @@ export function LocationPicker({
     if (place.formatted_address && onAddressSelect) {
       onAddressSelect(place.formatted_address);
     }
-  }, [autocomplete, onAddressSelect, onChange]);
+    if (onAddressResolved) {
+      onAddressResolved(
+        extractAddressParts(place.formatted_address, place.address_components),
+      );
+    }
+  }, [autocomplete, onAddressResolved, onAddressSelect, onChange]);
 
   const handleUseMyLocation = useCallback(() => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -195,8 +264,20 @@ export function LocationPicker({
     setGeolocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        setGeolocating(false);
-        onChange({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        onChange({ lat, lng });
+        // Reverse-geocode in the background to fill state/city/address. The
+        // pin position has already been committed via onChange — the geocode
+        // failing only means the host won't auto-fill, never a hard error.
+        if (onAddressResolved) {
+          void reverseGeocode(lat, lng).then((resolved) => {
+            setGeolocating(false);
+            if (resolved) onAddressResolved(resolved);
+          });
+        } else {
+          setGeolocating(false);
+        }
       },
       (err) => {
         setGeolocating(false);
@@ -210,7 +291,7 @@ export function LocationPicker({
       },
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
     );
-  }, [onChange]);
+  }, [onAddressResolved, onChange]);
 
   if (!apiKey) {
     return <MissingApiKeyNotice className={className} />;
