@@ -219,7 +219,7 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
     const neighborhood =
       values.locationId === OTHER_LOCATION_ID
         ? (values.city ?? '').trim()
-        : preset?.name ?? null;
+        : preset?.name ?? '';
 
     mutate.mutate({
       title: values.title,
@@ -231,7 +231,7 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
         lat: values.lat,
         lng: values.lng,
         address: values.address,
-        neighborhood: neighborhood || null,
+        neighborhood: neighborhood || undefined,
       },
       geofenceRadiusMeters: values.geofenceRadiusMeters,
       audience: values.audience,
