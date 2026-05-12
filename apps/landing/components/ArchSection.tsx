@@ -11,7 +11,7 @@ interface ArchSectionProps {
 
 /**
  * ArchSection Component
- * Renders a dark (#0f0f0f) section with top concave arch cutouts.
+ * Renders a black (#000000) section with top concave arch cutouts.
  * Uses a unique SVG clipPath for the "swallow" effect.
  */
 const ArchSection: React.FC<ArchSectionProps> = ({
@@ -26,7 +26,7 @@ const ArchSection: React.FC<ArchSectionProps> = ({
     <section
       id={id}
       data-navbar-theme="dark"
-      className={`relative bg-[#0f0f0f] ${className}`}
+      className={`relative bg-[#000000] ${className}`}
       style={{ 
         minHeight,
         marginTop: '-80px',
