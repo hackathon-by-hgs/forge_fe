@@ -213,6 +213,10 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
     setValue('lng', coords.lng, { shouldValidate: true });
   };
 
+  const handleAddressFromSearch = (formattedAddress: string) => {
+    setValue('address', formattedAddress, { shouldValidate: true });
+  };
+
   return (
     <form onSubmit={onSubmit} className="space-y-6 pb-24">
       {insufficientFunds ? (
@@ -388,7 +392,9 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
             value={{ lat: watchedLat, lng: watchedLng }}
             onChange={handlePinChange}
             radiusMeters={watchedRadius}
-            className="aspect-[16/9] w-full"
+            onAddressSelect={handleAddressFromSearch}
+            googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
+            className="w-full"
           />
           <p className="flex items-center gap-1 text-xs text-neutral-500">
             <IconLocation className="!h-3 !w-3" />
