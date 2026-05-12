@@ -1,18 +1,17 @@
 import type { Metadata } from 'next';
-import { Plus_Jakarta_Sans } from 'next/font/google';
+import { Space_Grotesk } from 'next/font/google';
 import './globals.css';
 
-const plusJakarta = Plus_Jakarta_Sans({
+const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
   variable: '--font-sans',
   display: 'swap',
-  weight: ['400', '500', '600', '700', '800'],
 });
 
 export const metadata: Metadata = {
-  title: 'Forge — Powering the Informal Economy',
+  title: 'Forge - Powering the Informal Economy',
   description:
-    'Forge connects employers with reliable informal workers, automates payroll, and unlocks credit — all in one platform built for Nigeria\u2019s real economy.',
+    "Forge connects employers with reliable informal workers, automates payroll, and unlocks credit in one platform built for Nigeria's real economy.",
   keywords: [
     'informal economy',
     'workforce management',
@@ -22,18 +21,18 @@ export const metadata: Metadata = {
     'informal workers',
   ],
   openGraph: {
-    title: 'Forge — Powering the Informal Economy',
+    title: 'Forge - Powering the Informal Economy',
     description:
-      'Hire workers, manage payroll, and access credit. The all-in-one platform built for Nigeria\u2019s real economy.',
+      "Hire workers, manage payroll, and access credit. The all-in-one platform built for Nigeria's real economy.",
     type: 'website',
     locale: 'en_NG',
     siteName: 'Forge',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Forge — Powering the Informal Economy',
+    title: 'Forge - Powering the Informal Economy',
     description:
-      'Hire workers, manage payroll, and access credit. Built for Nigeria\u2019s real economy.',
+      "Hire workers, manage payroll, and access credit. Built for Nigeria's real economy.",
   },
 };
 
@@ -43,8 +42,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={plusJakarta.variable}>
-      <body className="font-sans">{children}</body>
+    <html lang="en" className={spaceGrotesk.variable}>
+      <body className="bg-black font-sans antialiased">{children}</body>
     </html>
   );
 }

@@ -48,10 +48,12 @@ export default function Marquee() {
   }, []);
 
   return (
-    <section 
-      ref={containerRef} 
+    <section
+      ref={containerRef}
       className="relative bg-black py-12 md:py-16 overflow-hidden border-y border-white/[0.08]"
     >
+      {/* SVG hairline-grid on dark */}
+      <div className="pointer-events-none absolute inset-0 bg-line-grid" />
       <div ref={marqueeRef} className="flex whitespace-nowrap will-change-transform">
         {[...WORDS, ...WORDS, ...WORDS].map((word, i) => (
           <span key={i} className="flex items-center shrink-0">

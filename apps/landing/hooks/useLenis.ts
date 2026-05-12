@@ -2,6 +2,10 @@
 
 import { useEffect, useRef } from 'react';
 import Lenis from 'lenis';
+import { gsap } from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
+
+gsap.registerPlugin(ScrollTrigger);
 
 /**
  * Initializes Lenis smooth-scroll on mount. Returns the instance ref
@@ -18,6 +22,9 @@ export function useLenis() {
     });
 
     lenisRef.current = lenis;
+
+    // Sync ScrollTrigger with Lenis
+    lenis.on('scroll', ScrollTrigger.update);
 
     function raf(time: number) {
       lenis.raf(time);

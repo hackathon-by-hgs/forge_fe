@@ -5,7 +5,6 @@ import {
   Header,
   Hero,
   TrustStrip,
-  Marquee,
   Stats,
   Features,
   SuccessStories,
@@ -17,46 +16,61 @@ import {
   Footer,
   NoiseOverlay,
   CustomCursor,
+  ArchSection,
 } from '@/components';
 
-/**
- * Forge Landing Page
- *
- * Design system replicates phenomenonstudio.com patterns:
- * — Pure black (#000) base, warm cream (#F5F5F0) for light sections
- * — Left-aligned massive typography (8vw hero)
- * — Hairline-bordered grids throughout
- * — Numbered service lists with hover-to-accent
- * — Clip-path portal reveal for dark→light transitions
- * — Infinite marquee text strip
- * — Large blockquote testimonials
- * — GSAP ScrollTrigger staggered entrances
- * — Lenis smooth momentum scrolling
- */
 export default function LandingPage() {
   useLenis();
 
   return (
-    <>
+    <div className="bg-black">
       <NoiseOverlay />
       <CustomCursor />
       <Header />
 
       <main>
-        <Hero />
-        <TrustStrip />
-        <Stats />
-        <Marquee />
-        <Features />
-        <SuccessStories />
-        <Challenges />
-        <Showcase />
-        <Testimonials />
-        <Industries />
-        <ContactForm />
+        {/* ── LIGHT ZONE 1 ── */}
+        <div data-navbar-theme="light" className="relative z-[1] bg-white">
+          <Hero />
+          <TrustStrip />
+          <Stats />
+        </div>
+
+        {/* ── DARK CARD 1 ── */}
+        <ArchSection id="features-arch" className="z-[2]">
+          <Features />
+        </ArchSection>
+
+        {/* ── LIGHT ZONE 2 ── */}
+        <div data-navbar-theme="light" className="relative z-[3] bg-white">
+          <SuccessStories />
+          <Challenges />
+        </div>
+
+        {/* ── DARK CARD 2 ── */}
+        <ArchSection id="showcase-arch" className="z-[4]">
+          <Showcase />
+        </ArchSection>
+
+        {/* ── LIGHT ZONE 3 ── */}
+        <div data-navbar-theme="light" className="relative z-[5] bg-white">
+          <Industries />
+        </div>
+
+        {/* ── DARK CARD 3 ── */}
+        <ArchSection id="testimonials-arch" className="z-[6]">
+          <Testimonials />
+        </ArchSection>
+
+        {/* ── DARK CARD 4 ── */}
+        <ArchSection id="contact-arch" className="z-[7]">
+          <ContactForm />
+        </ArchSection>
       </main>
 
-      <Footer />
-    </>
+      <div className="relative z-[8]">
+        <Footer />
+      </div>
+    </div>
   );
 }

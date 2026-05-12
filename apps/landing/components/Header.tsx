@@ -3,69 +3,89 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Magnetic } from './';
+import { useNavbarTheme } from '@/hooks/useNavbarTheme';
 
 const NAV_LINKS = [
-  { label: 'About', href: '#about' },
-  { label: 'Services', href: '#services' },
-  { label: 'Cases', href: '#cases' },
-  { label: 'Industries', href: '#industries' },
-  { label: 'Contact', href: '#contact' },
+  { label: 'SERVICES', href: '#services', hasChevron: true },
+  { label: 'INDUSTRIES', href: '#industries', hasChevron: true },
+  { label: 'CASES', href: '#cases' },
+  { label: 'COMPANY', href: '#company', hasChevron: true },
+  { label: 'INSIGHTS', href: '#insights' },
 ];
 
 export default function Header() {
-  const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40);
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+  const theme = useNavbarTheme();
 
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? 'hidden' : '';
     return () => { document.body.style.overflow = ''; };
   }, [mobileOpen]);
 
+  const navStyles = {
+    light: {
+      nav: 'bg-white border-b border-neutral-200 shadow-sm',
+      logo: 'text-black',
+      links: 'text-neutral-800 hover:text-black',
+      cta: 'bg-black text-white hover:bg-neutral-800',
+      hamburger: 'bg-black',
+    },
+    dark: {
+      nav: 'bg-transparent border-b border-white/10 backdrop-blur-[2px]',
+      logo: 'text-white',
+      links: 'text-white/80 hover:text-white',
+      cta: 'bg-white text-black hover:bg-neutral-100',
+      hamburger: 'bg-white',
+    }
+  };
+
+  const s = navStyles[theme];
+
   return (
     <>
       <header
         id="main-header"
-        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-          scrolled ? 'header-glass' : 'bg-transparent'
-        }`}
+        className={`fixed top-0 left-0 right-0 z-[100] transition-all duration-300 h-20 ${s.nav}`}
       >
-        <div className="section-container flex items-center justify-between h-20 md:h-24">
-          {/* Logo — left */}
-          <Link href="/" className="flex items-center gap-2.5" id="logo-link">
-            <svg viewBox="0 0 32 32" className="w-8 h-8" fill="none">
-              <rect width="32" height="32" rx="6" fill="#FF4D00" />
-              <path d="M8 11h16M8 16h10M8 21h14" stroke="#000" strokeWidth="2.5" strokeLinecap="round" />
-            </svg>
-            <span className="text-lg font-bold tracking-tight">Forge</span>
+        <div className="section-container flex items-center justify-between h-full">
+          {/* Logo — minimalist asterisk + name */}
+          <Link href="/" className="flex items-center gap-1.5 group" id="logo-link">
+            <span className="text-[#FF4D00] text-2xl font-bold transition-transform duration-500 group-hover:rotate-180">∗</span>
+            <span className={`text-xl font-bold tracking-tight transition-colors duration-300 ${s.logo}`}>forge</span>
           </Link>
 
-          {/* Desktop nav — center/right */}
+          {/* Desktop nav — center */}
           <nav className="hidden lg:flex items-center gap-10" id="desktop-nav">
             {NAV_LINKS.map((link) => (
               <a
-                key={link.href}
+                key={link.label}
                 href={link.href}
-                className="text-[13px] font-medium text-white/50 tracking-wide uppercase transition-colors duration-200 hover:text-white"
+                className={`group relative flex items-center gap-1 text-[11px] font-bold tracking-[0.2em] uppercase transition-colors duration-300 ${s.links}`}
               >
                 {link.label}
+                {link.hasChevron && (
+                  <svg className="w-2.5 h-2.5 opacity-40 transition-transform duration-300 group-hover:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                )}
+                <span className="absolute -bottom-1 left-0 w-0 h-[1.5px] bg-[#FF4D00] transition-all duration-300 group-hover:w-full" />
               </a>
             ))}
           </nav>
 
-          {/* Desktop CTA — right */}
+          {/* Desktop CTA — premium button */}
           <div className="hidden lg:flex items-center">
             <Magnetic>
-              <a href="#contact" className="btn-primary !py-3 !px-6 !text-[13px]">
-                Let&apos;s Talk
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg>
+              <a href="#contact" className={`group px-8 py-3.5 rounded-[14px] text-[11px] font-bold tracking-[0.15em] uppercase flex items-center gap-4 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] ${s.cta}`}>
+                GET IN TOUCH
+                <div className="relative w-4 h-4 overflow-hidden">
+                  <svg className="absolute inset-0 w-4 h-4 transition-transform duration-300 group-hover:translate-x-full group-hover:-translate-y-full" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                  <svg className="absolute inset-0 w-4 h-4 -translate-x-full translate-y-full transition-transform duration-300 group-hover:translate-x-0 group-hover:translate-y-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </div>
               </a>
             </Magnetic>
           </div>
@@ -77,49 +97,51 @@ export default function Header() {
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
           >
-            <span className={`block h-[1.5px] w-6 bg-white transition-all duration-300 origin-center ${mobileOpen ? 'rotate-45 translate-y-[3.5px]' : ''}`} />
-            <span className={`block h-[1.5px] w-6 bg-white transition-all duration-300 origin-center ${mobileOpen ? '-rotate-45 -translate-y-[3.5px]' : ''}`} />
+            <span className={`block h-[1.5px] w-6 transition-all duration-300 origin-center ${s.hamburger} ${mobileOpen ? 'rotate-45 translate-y-[3.5px]' : ''}`} />
+            <span className={`block h-[1.5px] w-6 transition-all duration-300 origin-center ${s.hamburger} ${mobileOpen ? '-rotate-45 -translate-y-[3.5px]' : ''}`} />
           </button>
         </div>
       </header>
 
-      {/* Mobile overlay */}
+      {/* Mobile overlay — high contrast */}
       <div
         id="mobile-menu"
-        className={`fixed inset-0 z-40 bg-black transition-all duration-500 lg:hidden ${
-          mobileOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        className={`fixed inset-0 z-40 bg-white transition-all duration-700 ease-[cubic-bezier(0.85,0,0.15,1)] lg:hidden ${
+          mobileOpen ? 'translate-y-0' : '-translate-y-full'
         }`}
       >
-        <nav className="flex flex-col justify-center h-full px-8">
+        <nav className="flex flex-col justify-center h-full px-10">
           {NAV_LINKS.map((link, i) => (
             <a
-              key={link.href}
+              key={link.label}
               href={link.href}
               onClick={() => setMobileOpen(false)}
-              className="text-4xl md:text-5xl font-bold text-white border-b border-white/[0.08] py-6 transition-all duration-300"
+              className="group flex items-center justify-between text-4xl md:text-6xl font-bold text-black border-b border-black/5 py-8 transition-all duration-500"
               style={{
-                transitionDelay: mobileOpen ? `${i * 60}ms` : '0ms',
+                transitionDelay: mobileOpen ? `${i * 100}ms` : '0ms',
                 opacity: mobileOpen ? 1 : 0,
-                transform: mobileOpen ? 'translateY(0)' : 'translateY(30px)',
+                transform: mobileOpen ? 'translateX(0)' : 'translateX(-40px)',
               }}
             >
-              {link.label}
+              <span className="group-hover:text-[#FF4D00] transition-colors">{link.label}</span>
+              <span className="text-xl text-black/20 font-medium">0{i + 1}</span>
             </a>
           ))}
           <a
             href="#contact"
             onClick={() => setMobileOpen(false)}
-            className="btn-primary mt-10 w-fit"
+            className="mt-12 text-2xl font-bold text-[#FF4D00] underline underline-offset-8"
             style={{
-              transitionDelay: mobileOpen ? `${NAV_LINKS.length * 60}ms` : '0ms',
+              transitionDelay: mobileOpen ? `${NAV_LINKS.length * 100}ms` : '0ms',
               opacity: mobileOpen ? 1 : 0,
-              transform: mobileOpen ? 'translateY(0)' : 'translateY(30px)',
             }}
           >
-            Let&apos;s Talk
+            GET IN TOUCH
           </a>
         </nav>
       </div>
     </>
   );
 }
+
+// okay i want you to update the scroll behavour of the application, 

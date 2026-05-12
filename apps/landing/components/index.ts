@@ -15,3 +15,4 @@ export { default as NoiseOverlay } from './NoiseOverlay';
 export { default as CustomCursor } from './CustomCursor';
 export { default as Magnetic } from './Magnetic';
 export { default as HeroVisual } from './HeroVisual';
+export { default as ArchSection } from './ArchSection';

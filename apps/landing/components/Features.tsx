@@ -10,48 +10,40 @@ const SERVICES = [
   {
     num: '01',
     title: 'Workforce Hiring',
-    desc: 'Post jobs and get matched with verified, pre-scored workers in your area within hours. GPS-verified attendance, skill-based matching, and reliability ratings ensure you hire with confidence every time.',
+    desc: 'Post jobs and get matched with verified, pre-scored workers in your area within hours. GPS-verified attendance and reliability ratings ensure quality.',
     tags: ['Job Matching', 'GPS Tracking', 'Skill Scoring'],
   },
   {
     num: '02',
     title: 'Automated Payroll',
-    desc: 'Digital payments processed automatically upon job completion — no cash envelopes, no disputes. Real-time transaction tracking, automated invoicing, and complete audit trails for every payment.',
+    desc: 'Digital payments processed automatically upon job completion — no cash envelopes, no disputes. Real-time transaction tracking and automated invoicing.',
     tags: ['Digital Payments', 'Invoicing', 'Audit Trail'],
   },
   {
     num: '03',
     title: 'Credit Intelligence',
-    desc: 'Every completed job and on-time payment builds a behavioral credit score. Workers earn their way to microloans, and banks get real data for smarter lending decisions.',
+    desc: 'Every completed job and on-time payment builds a behavioral credit score. Workers earn microloans, and banks get real data for smarter lending.',
     tags: ['Credit Scoring', 'Risk Analysis', 'Microloans'],
   },
   {
     num: '04',
     title: 'Bank Integration',
-    desc: 'Real-time portfolio monitoring with risk scoring, watchlists, and automated alerts. KYC/AML integration, full compliance reporting, and end-to-end loan lifecycle management.',
+    desc: 'Real-time portfolio monitoring with risk scoring, watchlists, and automated alerts. KYC/AML integration and full compliance reporting.',
     tags: ['Risk Radar', 'Compliance', 'Loan Management'],
-  },
-  {
-    num: '05',
-    title: 'Team Management',
-    desc: 'Build your saved team of reliable workers. Rate, review, and rehire your best performers. Multi-location workforce visibility and shift management across all your sites.',
-    tags: ['Worker Profiles', 'Ratings', 'Multi-site'],
   },
 ];
 
 export default function Features() {
   const sectionRef = useRef<HTMLElement>(null);
-  const lineRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const section = sectionRef.current;
     if (!section) return;
 
-    const items = section.querySelectorAll('.service-item');
+    const cards = section.querySelectorAll('.feature-card-wrapper');
 
     const ctx = gsap.context(() => {
-      // Fade in heading
-      gsap.from(section.querySelector('.services-heading'), {
+      gsap.from('.features-heading', {
         y: 40,
         opacity: 0,
         duration: 0.8,
@@ -59,33 +51,15 @@ export default function Features() {
         scrollTrigger: { trigger: section, start: 'top 80%' },
       });
 
-      // Stagger service items
-      gsap.from(items, {
-        y: 40,
+      gsap.from(cards, {
+        scale: 0.9,
         opacity: 0,
-        duration: 0.7,
-        stagger: 0.1,
-        ease: 'power3.out',
+        duration: 1,
+        stagger: 0.2,
+        ease: 'expo.out',
         scrollTrigger: { trigger: section, start: 'top 60%' },
       });
-
-      // Progress line animation
-      if (lineRef.current) {
-        gsap.fromTo(lineRef.current, 
-          { scaleY: 0 },
-          { 
-            scaleY: 1,
-            ease: 'none',
-            scrollTrigger: {
-              trigger: '.services-list',
-              start: 'top 60%',
-              end: 'bottom 60%',
-              scrub: true,
-            }
-          }
-        );
-      }
-    });
+    }, section);
 
     return () => ctx.revert();
   }, []);
@@ -94,63 +68,36 @@ export default function Features() {
     <section
       ref={sectionRef}
       id="services"
-      className="relative bg-black py-24 md:py-40"
+      className="relative py-24 md:py-40"
     >
-      <div className="section-container">
-        {/* Section heading — left-aligned, Phenomenon style */}
-        <div className="services-heading grid md:grid-cols-2 gap-8 md:gap-20 mb-16 md:mb-24">
-          <div>
-            <span className="eyebrow mb-6 block">Our Services</span>
-            <h2 className="text-display">
-              What we{' '}
-              <span className="text-forge-accent">deliver</span>
-            </h2>
-          </div>
-          <div className="flex items-end">
-            <p className="text-body-lg text-white/35 max-w-md">
-              A complete ecosystem of tools designed for every participant
-              in the informal economy — employers, workers, and financial institutions.
-            </p>
-          </div>
+      <div className="section-container relative z-10">
+        {/* Heading */}
+        <div className="features-heading mb-16 md:mb-24">
+          <span className="text-[11px] font-bold uppercase tracking-[0.3em] text-[#FF4D00] mb-6 block">Our Capabilities</span>
+          <h2 className="text-[clamp(2rem,5vw,4rem)] font-medium leading-[1.1] tracking-tight max-w-4xl text-white">
+            Redefining the <br />
+            <span className="text-white/30">informal economy.</span>
+          </h2>
         </div>
 
-        {/* Services list with progress line */}
-        <div className="services-list relative">
-          {/* Vertical Progress Line */}
-          <div className="absolute left-0 md:left-[35px] top-0 w-[2px] h-full bg-white/5 origin-top hidden md:block">
-            <div 
-              ref={lineRef}
-              className="absolute top-0 left-0 w-full h-full bg-forge-accent origin-top" 
-            />
-          </div>
-
-          <div className="divider" />
-          {SERVICES.map((service, _i) => (
-            <div
-              key={service.num}
-              className="service-item group"
-            >
-              <div className="grid md:grid-cols-[80px_1fr_1fr] gap-6 md:gap-12 py-10 md:py-14 transition-colors duration-500 hover:bg-white/[0.015] px-2 md:px-4 -mx-2 md:-mx-4">
-                {/* Number */}
-                <span className="text-sm font-medium text-white/20 pt-1 relative z-10">
-                  {service.num}
-                </span>
-
-                {/* Title */}
-                <h3 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white transition-colors duration-500 group-hover:text-forge-accent">
-                  {service.title}
-                </h3>
-
-                {/* Description + tags */}
-                <div>
-                  <p className="text-[15px] text-white/35 leading-relaxed mb-5">
+        {/* Feature Cards Grid */}
+        <div className="grid md:grid-cols-2 gap-6 md:gap-8">
+          {SERVICES.map((service) => (
+            <div key={service.num} className="feature-card-wrapper">
+              <div className="group h-full bg-white/[0.03] border border-white/5 rounded-3xl overflow-hidden transition-all duration-500 hover:bg-white/[0.06] hover:border-white/10">
+                <div className="p-10 md:p-14 w-full h-full flex flex-col items-start text-left">
+                  <span className="text-[#FF4D00] font-bold mb-8 text-sm tracking-widest">{service.num}</span>
+                  <h3 className="text-3xl md:text-4xl font-medium text-white mb-6 group-hover:translate-x-2 transition-transform duration-500">
+                    {service.title}
+                  </h3>
+                  <p className="text-white/40 text-lg leading-relaxed mb-10 max-w-sm">
                     {service.desc}
                   </p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 mt-auto">
                     {service.tags.map((tag) => (
                       <span
                         key={tag}
-                        className="text-[11px] font-medium tracking-wider uppercase px-3 py-1.5 rounded-full border border-white/[0.1] text-white/30 group-hover:border-forge-accent/20 group-hover:text-white/50 transition-colors duration-500"
+                        className="text-[10px] font-bold tracking-widest uppercase px-3 py-1.5 rounded-full border border-white/10 text-white/40"
                       >
                         {tag}
                       </span>
@@ -158,7 +105,6 @@ export default function Features() {
                   </div>
                 </div>
               </div>
-              <div className="divider" />
             </div>
           ))}
         </div>
