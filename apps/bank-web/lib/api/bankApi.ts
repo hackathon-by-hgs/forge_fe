@@ -235,10 +235,175 @@ function toQueryString(obj: Record<string, unknown>): string {
   return params.toString();
 }
 
+function numField(v: unknown, fallback: number): number {
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  if (typeof v === 'string' && v.trim() !== '') {
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return fallback;
+}
+
+const EMPTY_PORTFOLIO: BankPortfolioMetricsDto = {
+  activeCount: 0,
+  atRiskCount: 0,
+  disbursedTotalNaira: 0,
+  outstandingTotalNaira: 0,
+  repaymentRate: 0,
+  defaultRate: 0,
+};
+
+const LOAN_STATUS_SET = new Set<string>([
+  'draft',
+  'pending_review',
+  'approved',
+  'active',
+  'at_risk',
+  'repaid',
+  'defaulted',
+  'rejected',
+  'written_off',
+]);
+
+const RISK_LEVEL_SET = new Set<string>(['green', 'yellow', 'red']);
+
+function normalizeBorrowerSummary(raw: unknown): BorrowerSummaryDto {
+  if (!raw || typeof raw !== 'object') {
+    return {
+      id: 'unknown',
+      type: 'worker',
+      displayName: 'Unknown borrower',
+      score: 0,
+    };
+  }
+  const b = raw as Record<string, unknown>;
+  const id = typeof b.id === 'string' && b.id ? b.id : 'unknown';
+  const displayName =
+    typeof b.displayName === 'string' && b.displayName.trim().length > 0
+      ? b.displayName.trim()
+      : 'Unknown borrower';
+  const type: BorrowerType = b.type === 'business' ? 'business' : 'worker';
+  return {
+    id,
+    type,
+    displayName,
+    photoUrl:
+      typeof b.photoUrl === 'string'
+        ? b.photoUrl
+        : b.photoUrl === null
+          ? null
+          : undefined,
+    score: numField(b.score, 0),
+  };
+}
+
+function normalizeLoanDto(raw: unknown): LoanDto | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const l = raw as Record<string, unknown>;
+  if (typeof l.id !== 'string' || !l.id) return null;
+
+  const borrower = normalizeBorrowerSummary(l.borrower);
+  const statusRaw = l.status;
+  const riskRaw = l.riskLevel;
+  const borrowerType: BorrowerType = l.borrowerType === 'business' ? 'business' : 'worker';
+
+  return {
+    id: l.id,
+    bankId: typeof l.bankId === 'string' ? l.bankId : '',
+    borrowerType,
+    borrower,
+    principalNaira: numField(l.principalNaira, 0),
+    outstandingNaira: numField(l.outstandingNaira, 0),
+    apr: numField(l.apr, 0),
+    termMonths: typeof l.termMonths === 'number' ? l.termMonths : null,
+    repaymentPercentPerJob: numField(l.repaymentPercentPerJob, 0),
+    status:
+      typeof statusRaw === 'string' && LOAN_STATUS_SET.has(statusRaw)
+        ? (statusRaw as LoanStatusWire)
+        : 'pending_review',
+    riskLevel:
+      typeof riskRaw === 'string' && RISK_LEVEL_SET.has(riskRaw)
+        ? (riskRaw as LoanRiskLevelWire)
+        : 'green',
+    purpose: typeof l.purpose === 'string' ? l.purpose : null,
+    disbursedAt: typeof l.disbursedAt === 'string' ? l.disbursedAt : null,
+    expectedFullRepaymentAt:
+      typeof l.expectedFullRepaymentAt === 'string' ? l.expectedFullRepaymentAt : null,
+    nextPaymentDueAt: typeof l.nextPaymentDueAt === 'string' ? l.nextPaymentDueAt : null,
+    scoreAtApproval: typeof l.scoreAtApproval === 'number' ? l.scoreAtApproval : null,
+    predictedRepaymentRate:
+      typeof l.predictedRepaymentRate === 'number' ? l.predictedRepaymentRate : null,
+    rejectionReason: typeof l.rejectionReason === 'string' ? l.rejectionReason : null,
+    createdAt: typeof l.createdAt === 'string' ? l.createdAt : new Date(0).toISOString(),
+  };
+}
+
+function normalizeOpportunityBorrower(raw: unknown): OpportunityBorrowerDto | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.id !== 'string' || !o.id) return null;
+  const displayName =
+    typeof o.displayName === 'string' && o.displayName.trim().length > 0
+      ? o.displayName.trim()
+      : 'Unknown borrower';
+  const eligibility: OpportunityBorrowerDto['eligibility'] =
+    o.eligibility === 'eligible' || o.eligibility === 'pre_approved' ? o.eligibility : 'eligible';
+  return {
+    id: o.id,
+    displayName,
+    score: numField(o.score, 0),
+    eligibility,
+    maxAmountNaira: numField(o.maxAmountNaira, 0),
+  };
+}
+
+function normalizePortfolioMetrics(raw: unknown): BankPortfolioMetricsDto {
+  if (!raw || typeof raw !== 'object') return { ...EMPTY_PORTFOLIO };
+  const p = raw as Record<string, unknown>;
+  return {
+    activeCount: numField(p.activeCount, 0),
+    atRiskCount: numField(p.atRiskCount, 0),
+    disbursedTotalNaira: numField(p.disbursedTotalNaira, 0),
+    outstandingTotalNaira: numField(p.outstandingTotalNaira, 0),
+    repaymentRate: numField(p.repaymentRate, 0),
+    defaultRate: numField(p.defaultRate, 0),
+  };
+}
+
+/**
+ * Coerce `GET /v1/bank/risk-radar` JSON into a safe in-memory shape so the UI
+ * never throws on missing keys, wrong types, or partially deployed backends.
+ */
+export function normalizeRiskRadarResponse(raw: unknown): RiskRadarResponseDto {
+  if (!raw || typeof raw !== 'object') {
+    return {
+      critical: [],
+      watchlist: [],
+      portfolio: { ...EMPTY_PORTFOLIO },
+      opportunity: [],
+    };
+  }
+  const o = raw as Record<string, unknown>;
+
+  const criticalIn = Array.isArray(o.critical) ? o.critical : [];
+  const watchIn = Array.isArray(o.watchlist) ? o.watchlist : [];
+  const oppIn = Array.isArray(o.opportunity) ? o.opportunity : [];
+
+  return {
+    critical: criticalIn.map(normalizeLoanDto).filter((x): x is LoanDto => x !== null),
+    watchlist: watchIn.map(normalizeLoanDto).filter((x): x is LoanDto => x !== null),
+    portfolio: normalizePortfolioMetrics(o.portfolio),
+    opportunity: oppIn
+      .map(normalizeOpportunityBorrower)
+      .filter((x): x is OpportunityBorrowerDto => x !== null),
+  };
+}
+
 // ── Risk Radar ──────────────────────────────────────────────────────────────
 
-export function fetchRiskRadar(): Promise<RiskRadarResponseDto> {
-  return request<RiskRadarResponseDto>('/v1/bank/risk-radar');
+export async function fetchRiskRadar(): Promise<RiskRadarResponseDto> {
+  const raw = await request<unknown>('/v1/bank/risk-radar');
+  return normalizeRiskRadarResponse(raw);
 }
 
 // ── Loans ───────────────────────────────────────────────────────────────────
