@@ -1,11 +1,6 @@
 'use client';
 
-<<<<<<< HEAD
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-=======
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
->>>>>>> 3ae1a4ba2a23be8cf8b04bbcaa98daf26581c46f
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { browseWorkers, type WorkerSummaryDto } from '../../../lib/workersApi';
 import {
@@ -75,11 +70,7 @@ const STATUS_OPTIONS: { label: string; value: 'all' | TransactionStatus }[] = [
   { label: 'Reversed', value: 'reversed' },
 ];
 
-function TransactionsPageContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const txnFromUrl = searchParams.get('txn');
-
+export default function TransactionsPage() {
   const role = useAuth((s) => s.user?.role);
   const canSend = !isHiringManager(role);
 
@@ -103,12 +94,6 @@ function TransactionsPageContent() {
   useEffect(() => {
     setPage(1);
   }, [statusFilter, from, to, debouncedSearch, pageSize]);
-
-  useEffect(() => {
-    if (!txnFromUrl) return;
-    setSelectedId(txnFromUrl);
-    router.replace('/payments/transactions', { scroll: false });
-  }, [txnFromUrl, router]);
 
   const query: TransactionsListQuery = useMemo(
     () => ({
@@ -349,24 +334,6 @@ function TransactionsPageContent() {
   );
 }
 
-<<<<<<< HEAD
-export default function TransactionsPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="space-y-4 p-6">
-          <div className="h-9 max-w-lg animate-pulse rounded-lg bg-surface-container-high" />
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-24 animate-pulse rounded-xl bg-surface-container-high" />
-            ))}
-          </div>
-        </div>
-      }
-    >
-      <TransactionsPageContent />
-    </Suspense>
-=======
 function CounterpartyCell({ t }: { t: TransactionDto }) {
   const kind = classifyEmployerTxn(t);
   if (kind === 'job_payment') {
@@ -401,7 +368,6 @@ function CounterpartyCell({ t }: { t: TransactionDto }) {
       </span>
       <span className="text-sm text-neutral-700">{label}</span>
     </div>
->>>>>>> 3ae1a4ba2a23be8cf8b04bbcaa98daf26581c46f
   );
 }
 
