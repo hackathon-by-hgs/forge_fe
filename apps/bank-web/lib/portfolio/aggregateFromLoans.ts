@@ -64,7 +64,7 @@ export function derivePortfolioMetricsFromLoans(
   };
 }
 
-export interface WeekDisbursementRow {
+export interface WeekDisbursementRow extends Record<string, unknown> {
   week: string;
   disbursedNaira: number;
 }
@@ -103,7 +103,7 @@ export function weekOverWeekChangePct(weeks: readonly WeekDisbursementRow[]): nu
   return ((a - b) / b) * 100;
 }
 
-export interface NamedCount {
+export interface NamedCount extends Record<string, unknown> {
   name: string;
   value: number;
 }
@@ -124,7 +124,7 @@ export function buildBorrowerMix(loans: readonly LoanDto[] | null | undefined): 
   }));
 }
 
-export interface StatusBarRow {
+export interface StatusBarRow extends Record<string, unknown> {
   status: string;
   key: LoanStatusWire;
   count: number;
