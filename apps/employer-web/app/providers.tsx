@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../lib/auth';
 import { AUTH_LOGIN_PATH, isPublicAuthRoute, safeAuthReturnPath } from '../lib/publicRoutes';
+import { useForgeStream } from '@/lib/sse';
 
 function makeQueryClient() {
   return new QueryClient({
@@ -105,7 +106,12 @@ function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <StreamSubscriber />
+      {children}
+    </>
+  );
 }
 
 export function Providers({ children }: { children: ReactNode }) {
