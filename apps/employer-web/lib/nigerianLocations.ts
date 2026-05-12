@@ -139,3 +139,54 @@ export const DEFAULT_LOCATION_ID = 'lagos-apapa';
 
 export const DEFAULT_LOCATION: NigerianLocation =
   LOCATIONS_BY_ID[DEFAULT_LOCATION_ID] ?? NIGERIAN_LOCATIONS[0]!;
+
+/**
+ * Sentinel value for the "Other (type details)" option in location dropdowns.
+ * When selected, the form requires explicit state + city fields and uses the
+ * map for lat/lng instead of looking up a preset.
+ */
+export const OTHER_LOCATION_ID = 'other';
+
+/**
+ * 36 states + FCT (Abuja). Sorted alphabetically with Lagos / FCT promoted to
+ * the top since they're the most common in this product.
+ */
+export const NIGERIAN_STATES: readonly string[] = [
+  'Lagos',
+  'FCT (Abuja)',
+  'Abia',
+  'Adamawa',
+  'Akwa Ibom',
+  'Anambra',
+  'Bauchi',
+  'Bayelsa',
+  'Benue',
+  'Borno',
+  'Cross River',
+  'Delta',
+  'Ebonyi',
+  'Edo',
+  'Ekiti',
+  'Enugu',
+  'Gombe',
+  'Imo',
+  'Jigawa',
+  'Kaduna',
+  'Kano',
+  'Katsina',
+  'Kebbi',
+  'Kogi',
+  'Kwara',
+  'Nasarawa',
+  'Niger',
+  'Ogun',
+  'Ondo',
+  'Osun',
+  'Oyo',
+  'Plateau',
+  'Rivers',
+  'Sokoto',
+  'Taraba',
+  'Yobe',
+  'Zamfara',
+];

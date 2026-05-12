@@ -30,24 +30,47 @@ import {
   DEFAULT_LOCATION_ID,
   LOCATIONS_BY_ID,
   NIGERIAN_LOCATIONS,
+  NIGERIAN_STATES,
+  OTHER_LOCATION_ID,
 } from '../../../lib/nigerianLocations';
 
-const schema = z.object({
-  type: z.enum(['loader', 'driver', 'unloader', 'general']),
-  title: z.string().min(3, 'A clear title helps the right workers find this').max(120),
-  description: z.string().min(10, 'Describe the work, the site, and any safety').max(4000),
-  payNaira: z.coerce.number().int().min(1500, 'Minimum job pay is ₦1,500').max(200_000),
-  durationHours: z.coerce.number().int().min(1).max(24),
-  locationId: z.string().min(1, 'Pick a location'),
-  lat: z.coerce.number().min(-90).max(90),
-  lng: z.coerce.number().min(-180).max(180),
-  address: z.string().min(5, 'Add a recognisable address').max(200),
-  startAt: z.string().min(1, 'Pick a start date and time'),
-  audience: z.enum(['public', 'team_first']),
-  geofenceRadiusMeters: z.coerce.number().int().min(50).max(2000),
-  postNow: z.boolean(),
-  requiredEquipment: z.string().optional(),
-});
+const schema = z
+  .object({
+    type: z.enum(['loader', 'driver', 'unloader', 'general']),
+    title: z.string().min(3, 'A clear title helps the right workers find this').max(120),
+    description: z.string().min(10, 'Describe the work, the site, and any safety').max(4000),
+    payNaira: z.coerce.number().int().min(1500, 'Minimum job pay is ₦1,500').max(200_000),
+    durationHours: z.coerce.number().int().min(1).max(24),
+    locationId: z.string().min(1, 'Pick a location'),
+    state: z.string().max(64).optional().or(z.literal('')),
+    city: z.string().max(120).optional().or(z.literal('')),
+    lat: z.coerce.number().min(-90).max(90),
+    lng: z.coerce.number().min(-180).max(180),
+    address: z.string().min(5, 'Add a recognisable address').max(200),
+    startAt: z.string().min(1, 'Pick a start date and time'),
+    audience: z.enum(['public', 'team_first']),
+    geofenceRadiusMeters: z.coerce.number().int().min(50).max(2000),
+    postNow: z.boolean(),
+    requiredEquipment: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.locationId === OTHER_LOCATION_ID) {
+      if (!data.state || data.state.trim().length < 2) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Pick a state',
+          path: ['state'],
+        });
+      }
+      if (!data.city || data.city.trim().length < 2) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Enter a city or town',
+          path: ['city'],
+        });
+      }
+    }
+  });
 
 type FormValues = z.infer<typeof schema>;
 
@@ -65,6 +88,8 @@ const DEFAULTS: FormValues = {
   payNaira: 5000,
   durationHours: 4,
   locationId: DEFAULT_LOCATION_ID,
+  state: '',
+  city: '',
   lat: DEFAULT_LOCATION.lat,
   lng: DEFAULT_LOCATION.lng,
   address: '',
@@ -75,10 +100,15 @@ const DEFAULTS: FormValues = {
   requiredEquipment: '',
 };
 
-const LOCATION_OPTIONS = NIGERIAN_LOCATIONS.map((loc) => ({
-  label: `${loc.name} — ${loc.city}${loc.city !== loc.state ? `, ${loc.state}` : ''}`,
-  value: loc.id,
-}));
+const LOCATION_OPTIONS = [
+  { label: 'Other (type details below)', value: OTHER_LOCATION_ID },
+  ...NIGERIAN_LOCATIONS.map((loc) => ({
+    label: `${loc.name} — ${loc.city}${loc.city !== loc.state ? `, ${loc.state}` : ''}`,
+    value: loc.id,
+  })),
+];
+
+const STATE_OPTIONS = NIGERIAN_STATES.map((s) => ({ label: s, value: s }));
 
 function matchTemplateLocation(neighborhood: string | undefined | null): string {
   if (!neighborhood) return DEFAULT_LOCATION_ID;
@@ -126,6 +156,8 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
       payNaira: template.payNaira,
       durationHours: template.durationHours,
       locationId,
+      state: '',
+      city: '',
       lat: loc.lat,
       lng: loc.lng,
       address: template.location.address,
@@ -139,12 +171,15 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
 
   const watchedType = watch('type');
   const watchedLocationId = watch('locationId');
+  const watchedState = watch('state');
+  const watchedCity = watch('city');
   const watchedLat = watch('lat');
   const watchedLng = watch('lng');
   const watchedPay = watch('payNaira');
   const watchedStartAt = watch('startAt');
   const watchedRadius = watch('geofenceRadiusMeters');
-  const selectedLocation = LOCATIONS_BY_ID[watchedLocationId] ?? DEFAULT_LOCATION;
+  const isOtherLocation = watchedLocationId === OTHER_LOCATION_ID;
+  const selectedLocation = LOCATIONS_BY_ID[watchedLocationId];
 
   const startInPast =
     watchedStartAt && new Date(watchedStartAt).getTime() < Date.now() - 60_000;
@@ -172,12 +207,19 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
     setFieldErrors({});
     setServerError(null);
     setInsufficientFunds(null);
-    const loc = LOCATIONS_BY_ID[values.locationId] ?? DEFAULT_LOCATION;
     const equipment = (values.requiredEquipment ?? '')
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean)
       .slice(0, 20);
+
+    // For preset locations, send the preset's canonical name as neighborhood.
+    // For "Other", use the typed city as the human-readable label.
+    const preset = LOCATIONS_BY_ID[values.locationId];
+    const neighborhood =
+      values.locationId === OTHER_LOCATION_ID
+        ? (values.city ?? '').trim()
+        : preset?.name ?? null;
 
     mutate.mutate({
       title: values.title,
@@ -189,7 +231,7 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
         lat: values.lat,
         lng: values.lng,
         address: values.address,
-        neighborhood: loc.name,
+        neighborhood: neighborhood || null,
       },
       geofenceRadiusMeters: values.geofenceRadiusMeters,
       audience: values.audience,
@@ -201,10 +243,17 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
 
   const handleLocationChange = (id: string) => {
     setValue('locationId', id, { shouldValidate: true });
+    if (id === OTHER_LOCATION_ID) {
+      // Don't move the pin — user will pick via map/search/geolocation.
+      return;
+    }
     const loc = LOCATIONS_BY_ID[id];
     if (loc) {
       setValue('lat', loc.lat, { shouldValidate: true });
       setValue('lng', loc.lng, { shouldValidate: true });
+      // Clear typed state/city when switching back to a preset.
+      setValue('state', '', { shouldValidate: false });
+      setValue('city', '', { shouldValidate: false });
     }
   };
 
@@ -360,10 +409,42 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
               label="Address"
               required
               error={errors.address?.message ?? fieldErrors['location.address']}
+              hint={isOtherLocation ? 'Street + landmark — or pick on the map below.' : undefined}
             >
               <Input placeholder="14 Wharf Road, Apapa, Lagos" {...register('address')} />
             </FormField>
           </div>
+          {isOtherLocation ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <FormField
+                label="State"
+                required
+                error={errors.state?.message}
+              >
+                <Select
+                  options={STATE_OPTIONS}
+                  placeholder="Pick a state…"
+                  value={watchedState ?? ''}
+                  onChange={(e) =>
+                    setValue('state', e.target.value, { shouldValidate: true })
+                  }
+                />
+              </FormField>
+              <FormField
+                label="City or town"
+                required
+                error={errors.city?.message}
+              >
+                <Input
+                  placeholder="e.g., Sango Ota"
+                  value={watchedCity ?? ''}
+                  onChange={(e) =>
+                    setValue('city', e.target.value, { shouldValidate: true })
+                  }
+                />
+              </FormField>
+            </div>
+          ) : null}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <FormField label="Start at" required error={errors.startAt?.message}>
               <Input type="datetime-local" {...register('startAt')} />
@@ -398,9 +479,15 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
           />
           <p className="flex items-center gap-1 text-xs text-neutral-500">
             <IconLocation className="!h-3 !w-3" />
-            {selectedLocation.name}, {selectedLocation.state} ·{' '}
+            {isOtherLocation
+              ? `${(watchedCity ?? '').trim() || '—'}${watchedState ? `, ${watchedState}` : ''}`
+              : selectedLocation
+                ? `${selectedLocation.name}, ${selectedLocation.state}`
+                : '—'}
+            {' · '}
             <span className="font-mono text-[11px]">
-              {watchedLat.toFixed(5)}, {watchedLng.toFixed(5)}
+              {Number.isFinite(watchedLat) ? watchedLat.toFixed(5) : '?'},{' '}
+              {Number.isFinite(watchedLng) ? watchedLng.toFixed(5) : '?'}
             </span>
           </p>
         </CardBody>
