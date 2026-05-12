@@ -81,7 +81,7 @@ export default function Hero() {
           <Magnetic>
             <a
               href="#contact"
-              className="inline-flex items-center gap-4 rounded-xl bg-black px-10 py-5 text-[12px] font-bold uppercase tracking-widest text-white transition-all hover:scale-105 active:scale-95 shadow-xl"
+              className="inline-flex items-center gap-4 bg-black px-10 py-5 text-[12px] font-bold uppercase tracking-widest text-white transition-all hover:scale-105 active:scale-95 shadow-xl"
             >
               GET STARTED
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -92,7 +92,7 @@ export default function Hero() {
           <Magnetic>
             <a
               href="#cases"
-              className="inline-flex items-center gap-4 rounded-xl border border-black/10 bg-black/5 px-10 py-5 text-[12px] font-bold uppercase tracking-widest text-black transition-all hover:scale-105 hover:bg-black/10"
+              className="inline-flex items-center gap-4 border border-black/10 bg-black/5 px-10 py-5 text-[12px] font-bold uppercase tracking-widest text-black transition-all hover:scale-105 hover:bg-black/10"
             >
               VIEW CASES
             </a>

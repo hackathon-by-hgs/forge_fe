@@ -108,8 +108,8 @@ export default function Header() {
             <Magnetic>
               <a 
                 href="#contact" 
-                className={`group px-8 py-3.5 text-[11px] font-bold tracking-[0.15em] uppercase flex items-center gap-4 transition-all duration-500 hover:scale-[1.02] active:scale-[0.98] ${s.cta} ${
-                  isScrollingDown ? 'px-12 py-4 text-[13px] translate-y-2 shadow-xl' : ''
+                className={`group px-8 py-5 text-[11px] font-bold tracking-[0.15em] uppercase flex items-center gap-4 transition-all duration-500 hover:scale-[1.02] active:scale-[0.98] ${s.cta} ${
+                  isScrollingDown ? 'px-12 py-5.5 text-[13px] translate-y-2 shadow-xl' : ''
                 }`}
               >
                 GET IN TOUCH
