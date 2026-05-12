@@ -1,7 +1,12 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "globalDependencies": ["**/.env.*local"],
-  "globalEnv": ["NODE_ENV", "NEXT_PUBLIC_API_BASE_URL"],
+  "globalEnv": [
+    "NODE_ENV",
+    "NEXT_PUBLIC_API_BASE_URL",
+    "NEXT_PUBLIC_GOOGLE_MAPS_API_KEY",
+    "FORGE_API_PROXY_TARGET"
+  ],
   "pipeline": {
     "build": {
       "dependsOn": ["^build"],
