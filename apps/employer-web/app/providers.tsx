@@ -44,9 +44,14 @@ function AuthGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (isPublicAuthRoute(pathname)) return;
+    // Skip if already authenticated — re-booting on every navigation
+    // races with the BE's single-use refresh-token rotation and clears
+    // the session on rapid client-side redirects (e.g., /workers → /workers/active).
+    // Access-token re-validation already happens on 401 inside lib/api.ts.
+    if (user) return;
     void boot();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [pathname, user]);
 
   useEffect(() => {
     if (isPublicAuthRoute(pathname)) {
