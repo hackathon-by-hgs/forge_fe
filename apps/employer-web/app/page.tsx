@@ -81,7 +81,7 @@ export default function OverviewPage() {
               ))}
             </div>
           </div>
-        </div>
+        </div>  
       </>
     );
   }
@@ -189,7 +189,11 @@ export default function OverviewPage() {
             <CardBody>
               <MapPlaceholder
                 pins={pins}
+                googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
                 className="aspect-[16/9]"
+                onPinClick={(pin) => {
+                  router.push(`/jobs/${pin.jobId ?? pin.id}`);
+                }}
                 hint={
                   <span className="inline-flex items-center gap-1">
                     <IconLocation className="!h-3 !w-3" />

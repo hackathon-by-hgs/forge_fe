@@ -42,7 +42,7 @@ export default function MyTeamPage() {
     <>
       <PageHeader
         title="Workers"
-        description="Live view of every worker on the clock right now."
+        description="Workers you have hired or explicitly saved for faster hiring."
       />
       <div className="space-y-4 p-6">
         <div className="flex items-center justify-between">

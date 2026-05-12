@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Avatar,
@@ -60,6 +61,13 @@ import {
 type TeamMemberDto = components['schemas']['TeamMemberDto'];
 type PendingInvitationDto = components['schemas']['PendingInvitationDto'];
 
+type SettingsTab = 'profile' | 'team' | 'notifications' | 'squad' | 'billing';
+
+function isSettingsTab(raw: string | null, allowed: readonly SettingsTab[]): raw is SettingsTab {
+  if (!raw) return false;
+  return allowed.includes(raw as SettingsTab);
+}
+
 function walletIdLabel(walletId: SquadStatusDto['walletId']): string {
   if (walletId == null) return '—';
   if (typeof walletId === 'string') return walletId;
@@ -68,6 +76,7 @@ function walletIdLabel(walletId: SquadStatusDto['walletId']): string {
 
 export default function SettingsPage() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
   const user = useAuth((s) => s.user);
   const role = user?.role;
   const canBiz = canPatchBusinessSquadBilling(role);
@@ -75,7 +84,20 @@ export default function SettingsPage() {
   const canRole = canChangeTeamRoles(role);
   const hiringOnly = isHiringManager(role);
 
-  const defaultTab = hiringOnly ? 'team' : 'profile';
+  const hiringDefault = useMemo<SettingsTab>(() => (hiringOnly ? 'team' : 'profile'), [hiringOnly]);
+  const resolvedTab = useMemo(() => {
+    const allowed: readonly SettingsTab[] = hiringOnly
+      ? (['team', 'notifications'] satisfies readonly SettingsTab[])
+      : (['profile', 'team', 'notifications', 'squad', 'billing'] satisfies readonly SettingsTab[]);
+    const raw = searchParams.get('tab');
+    if (!isSettingsTab(raw, allowed)) return hiringDefault;
+    return raw;
+  }, [searchParams, hiringOnly, hiringDefault]);
+
+  const [activeTab, setActiveTab] = useState<SettingsTab>(resolvedTab);
+  useEffect(() => {
+    setActiveTab(resolvedTab);
+  }, [resolvedTab]);
 
   const businessQuery = useQuery({
     queryKey: ['settings', 'business'],
@@ -216,7 +238,7 @@ export default function SettingsPage() {
       <PageHeader title="Settings" description="Business profile, team, billing, and integrations." />
 
       <div className="p-6">
-        <Tabs defaultValue={defaultTab}>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as SettingsTab)}>
           <TabsList className="flex flex-wrap gap-1">
             {!hiringOnly ? <TabsTrigger value="profile">Business profile</TabsTrigger> : null}
             <TabsTrigger value="team">Team</TabsTrigger>

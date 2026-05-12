@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
   AlertBanner,
@@ -27,6 +28,7 @@ import {
 } from '../../../lib/workersApi';
 
 export default function WorkersActivePage() {
+  const router = useRouter();
   const activeQuery = useQuery({
     queryKey: ['employer', 'workers', 'active'],
     queryFn: fetchActiveAssignments,
@@ -36,17 +38,27 @@ export default function WorkersActivePage() {
 
   const assignments = activeQuery.data?.data ?? [];
 
-  const pins = assignments.map((a) => ({
-    id: a.job.id,
-    lat: a.job.lat,
-    lng: a.job.lng,
-    tone:
-      a.gpsVerification.overall === 'verified'
-        ? ('success' as const)
-        : a.gpsVerification.overall === 'flagged'
-          ? ('danger' as const)
-          : ('warning' as const),
-  }));
+  /** Use session id for pin `id` so two workers on the same job do not duplicate React / Maps keys. */
+  const pins = assignments
+    .filter(
+      (a) =>
+        a.sessionId &&
+        a.job?.id &&
+        Number.isFinite(a.job.lat) &&
+        Number.isFinite(a.job.lng),
+    )
+    .map((a) => ({
+      id: a.sessionId,
+      jobId: a.job.id,
+      lat: a.job.lat,
+      lng: a.job.lng,
+      tone:
+        a.gpsVerification.overall === 'verified'
+          ? ('success' as const)
+          : a.gpsVerification.overall === 'flagged'
+            ? ('danger' as const)
+            : ('warning' as const),
+    }));
 
   const columns: DataTableColumn<ActiveAssignmentDto>[] = [
     {
@@ -178,7 +190,14 @@ export default function WorkersActivePage() {
                 </span>
               </CardHeader>
               <CardBody>
-                <MapPlaceholder pins={pins} className="aspect-[16/6]" />
+                <MapPlaceholder
+                  pins={pins}
+                  googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
+                  className="aspect-[16/6]"
+                  onPinClick={(pin) => {
+                    router.push(`/jobs/${pin.jobId ?? pin.id}`);
+                  }}
+                />
               </CardBody>
             </Card>
 

@@ -409,6 +409,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
                     tone: 'accent',
                   },
                 ]}
+                googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
                 className="aspect-[16/8]"
               />
             </CardBody>

@@ -433,7 +433,7 @@ function InvoiceDrawer({
                     title="No invoicing email set"
                     description="Add an invoicing email in Settings → Billing to send invoices."
                     action={
-                      <Link href="/settings/billing">
+                      <Link href="/settings?tab=billing">
                         <Button size="sm" variant="secondary">
                           Open Billing
                         </Button>
