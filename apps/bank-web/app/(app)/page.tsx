@@ -27,13 +27,15 @@ import type {
 import { ApiError, NetworkError, toUserMessage } from '../../lib/api/errors';
 
 export default function RiskRadarPage() {
-  const { data, isPending, isError, error, refetch, isFetching } = useQuery({
+  const { data, isPending, isError, isSuccess, error, refetch, isFetching } = useQuery({
     queryKey: ['bank', 'risk-radar'],
     queryFn: fetchRiskRadar,
     staleTime: 30_000,
     refetchOnWindowFocus: true,
     retry: false,
   });
+
+  const isRefreshing = Boolean(data) && isFetching && !isPending;
 
   if (isPending) return <RiskRadarSkeleton />;
   if (isError) {
@@ -46,7 +48,13 @@ export default function RiskRadarPage() {
     );
   }
 
-  return <RiskRadarDashboard data={data} />;
+  if (isSuccess) {
+    return (
+      <RiskRadarDashboard data={data} isRefreshing={isRefreshing} />
+    );
+  }
+
+  return <RiskRadarSkeleton />;
 }
 
 function RiskRadarSkeleton() {
@@ -54,9 +62,12 @@ function RiskRadarSkeleton() {
     <>
       <PageHeader
         title="Risk Radar"
-        description="What needs attention, what's healthy, what's growing — at a glance."
+        description="Loading the latest portfolio snapshot from the server…"
         actions={<Skeleton className="h-10 w-44 rounded-lg" />}
       />
+      <p className="sr-only" role="status">
+        Loading risk radar data.
+      </p>
       <div className="space-y-6 p-6">
         <Skeleton className="h-48 w-full rounded-xl" />
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
@@ -115,9 +126,13 @@ function RiskRadarErrorState({
       />
       <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-6">
         <EmptyState
-          icon={<IconAlert className="!h-8 !w-8 text-danger-600" />}
-          title={isOffline ? 'Cannot reach the server' : 'Risk Radar failed to load'}
-          description={toUserMessage(error)}
+            icon={<IconAlert className="!h-8 !w-8 text-danger-600" />}
+            title={isOffline ? 'Cannot reach the server' : 'Risk Radar failed to load'}
+            description={
+              isOffline
+                ? 'Check your internet connection, then try again. If the problem continues, the Forge API may be unreachable.'
+                : toUserMessage(error)
+            }
         />
         <Button variant="secondary" loading={retrying} onClick={onRetry}>
           Retry
@@ -127,7 +142,13 @@ function RiskRadarErrorState({
   );
 }
 
-function RiskRadarDashboard({ data }: { data: RiskRadarResponseDto }) {
+function RiskRadarDashboard({
+  data,
+  isRefreshing,
+}: {
+  data: RiskRadarResponseDto;
+  isRefreshing: boolean;
+}) {
   const { portfolio, critical, watchlist, opportunity } = data;
 
   return (
@@ -145,6 +166,16 @@ function RiskRadarDashboard({ data }: { data: RiskRadarResponseDto }) {
           </Button>
         }
       />
+
+      {isRefreshing ? (
+        <p
+          className="mx-6 -mt-2 text-sm text-ink-muted"
+          role="status"
+          aria-live="polite"
+        >
+          Refreshing risk radar data from the server…
+        </p>
+      ) : null}
 
       <div className="space-y-6 p-6">
         {critical.length > 0 ? (
@@ -260,7 +291,17 @@ function CriticalLoanCard({ loan }: { loan: LoanDto }) {
             {loan.id}
           </p>
         </div>
-        <Badge tone="danger">RED</Badge>
+        <Badge
+          tone={
+            loan.riskLevel === 'red'
+              ? 'danger'
+              : loan.riskLevel === 'yellow'
+                ? 'warning'
+                : 'neutral'
+          }
+        >
+          {loan.riskLevel.toUpperCase()}
+        </Badge>
       </div>
       <div className="flex items-baseline justify-between text-xs text-ink-muted">
         <span>Outstanding</span>

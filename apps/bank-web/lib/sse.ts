@@ -209,6 +209,7 @@ function applyInvalidations(
     case 'loan.repayment_paid':
     case 'loan.risk_changed': {
       invalidate(['bank', 'risk-radar']);
+      invalidate(['bank', 'portfolio', 'loan-book']);
       invalidate(['bank', 'loans']);
       const loanId = typeof data.loanId === 'string' ? data.loanId : undefined;
       if (loanId) {
@@ -222,6 +223,7 @@ function applyInvalidations(
     case 'application.decided': {
       invalidate(['bank', 'applications']);
       invalidate(['bank', 'risk-radar']);
+      invalidate(['bank', 'portfolio', 'loan-book']);
       invalidate(['bank', 'loans']);
       const applicationId =
         typeof data.applicationId === 'string' ? data.applicationId : undefined;
