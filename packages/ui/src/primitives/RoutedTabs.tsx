@@ -9,6 +9,9 @@ export interface RoutedTab {
   label: string;
   href: string;
   badge?: ReactNode;
+  /** When true, the tab is only active on exact pathname match. Useful for an
+   * "All" parent tab that would otherwise prefix-match every child route. */
+  exact?: boolean;
 }
 
 export interface RoutedTabsProps {
@@ -31,8 +34,9 @@ export function RoutedTabs({ items, className }: RoutedTabsProps) {
       aria-label="Section tabs"
     >
       {items.map((item) => {
-        const active =
-          pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const active = item.exact
+          ? pathname === item.href
+          : pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (
           <Link
             key={item.href}

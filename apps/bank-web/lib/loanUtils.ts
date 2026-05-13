@@ -6,6 +6,40 @@ import type {
   RiskLevel,
   StatusTone,
 } from '@forge/types';
+import type {
+  DashboardRole,
+} from './api/types';
+import type {
+  RepaymentStatusWire,
+} from './api/bankApi';
+
+export const REPAYMENT_TONE: Record<RepaymentStatusWire, StatusTone> = {
+  paid: 'success',
+  missed: 'danger',
+  scheduled: 'neutral',
+};
+
+export const REPAYMENT_LABEL: Record<RepaymentStatusWire, string> = {
+  paid: 'Paid',
+  missed: 'Missed',
+  scheduled: 'Scheduled',
+};
+
+export function isCreditOfficer(role: DashboardRole | undefined | null): boolean {
+  return role === 'bank_credit_officer';
+}
+
+export function canDisburse(status: string): boolean {
+  return status === 'approved';
+}
+
+export function canMarkRepaymentPaid(status: string): boolean {
+  return status === 'scheduled' || status === 'missed';
+}
+
+export function canDecideApplication(status: string): boolean {
+  return status === 'pending';
+}
 
 export const STATUS_LABEL: Record<LoanStatus, string> = {
   draft: 'Draft',

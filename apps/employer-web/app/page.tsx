@@ -1,6 +1,8 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import {
   AreaChart,
@@ -30,27 +32,9 @@ import {
   formatShortDate,
 } from '@forge/ui/utils';
 import type { JobStatus } from '@forge/types';
-import { ActivityFeed } from '../components/ActivityFeed';
 import { JOB_STATUS_TONE } from '../lib/jobUtils';
 import { fetchEmployerOverview } from '../lib/employerOverview';
-import type { EmployerOverview } from '../lib/employerOverview.schema';
-import { parseJobStatus } from '../lib/employerOverview.schema';
-
-function pickMetric(
-  metrics: EmployerOverview['metrics'],
-  keys: string[],
-  fallbackIndex: number,
-): EmployerOverview['metrics'][number] | undefined {
-  for (const key of keys) {
-    const hit = metrics.find((m) => m.key === key);
-    if (hit) return hit;
-  }
-  const labelHit = metrics.find((m) =>
-    keys.some((k) => m.label?.toLowerCase().includes(k.replaceAll('_', ' '))),
-  );
-  if (labelHit) return labelHit;
-  return metrics[fallbackIndex];
-}
+import { ApiError } from '../lib/api';
 
 function mapPinTone(status: JobStatus) {
   const tone = JOB_STATUS_TONE[status];
@@ -60,12 +44,28 @@ function mapPinTone(status: JobStatus) {
   return 'accent' as const;
 }
 
+function attentionIcon(kind: 'applications_waiting' | 'starting_soon' | 'worker_late') {
+  if (kind === 'worker_late') return <IconAlert className="!h-3.5 !w-3.5" />;
+  if (kind === 'applications_waiting') return <IconUser className="!h-3.5 !w-3.5" />;
+  return <IconClock className="!h-3.5 !w-3.5" />;
+}
+
 export default function OverviewPage() {
+  const router = useRouter();
   const overviewQuery = useQuery({
     queryKey: ['employer', 'overview'],
     queryFn: fetchEmployerOverview,
     refetchInterval: 30_000,
+    retry: false,
   });
+
+  useEffect(() => {
+    const err = overviewQuery.error;
+    if (!err || !(err instanceof ApiError)) return;
+    if (err.status === 403 && err.code === 'NO_EMPLOYER_SCOPE') {
+      router.replace('/onboarding/business');
+    }
+  }, [overviewQuery.error, router]);
 
   if (overviewQuery.isLoading) {
     return (
@@ -80,12 +80,34 @@ export default function OverviewPage() {
               ))}
             </div>
           </div>
-        </div>
+        </div>  
       </>
     );
   }
 
   if (overviewQuery.isError) {
+    const err = overviewQuery.error;
+    if (err instanceof ApiError && err.status === 404) {
+      return (
+        <>
+          <PageHeader title="Overview" description="We couldn’t load your business dashboard." />
+          <div className="p-6">
+            <div className="rounded-lg border border-outline bg-surface p-4">
+              <p className="text-sm font-semibold text-neutral-900">We couldn’t find your business</p>
+              <p className="mt-1 text-xs text-neutral-600">
+                If you believe this is a mistake, contact support with your account email.
+              </p>
+              <a
+                href="mailto:support@forge.app?subject=Missing%20business%20dashboard"
+                className="mt-3 inline-flex h-9 items-center justify-center rounded-md border border-outline bg-surface px-3 text-sm font-medium text-neutral-900 hover:bg-surface-container-high"
+              >
+                Contact support
+              </a>
+            </div>
+          </div>
+        </>
+      );
+    }
     return (
       <>
         <PageHeader title="Overview" description="Mission control for jobs, workers, and money — right now." />
@@ -93,7 +115,7 @@ export default function OverviewPage() {
           <div className="rounded-lg border border-outline bg-surface p-4">
             <p className="text-sm font-semibold text-neutral-900">Couldn’t load overview</p>
             <p className="mt-1 text-xs text-neutral-600">
-              {overviewQuery.error instanceof Error ? overviewQuery.error.message : 'Unknown error'}
+              {err instanceof Error ? err.message : 'Unknown error'}
             </p>
             <Button className="mt-3" onClick={() => void overviewQuery.refetch()}>
               Retry
@@ -106,57 +128,25 @@ export default function OverviewPage() {
 
   const overview = overviewQuery.data;
   if (!overview) {
-    return (
-      <>
-        <PageHeader title="Overview" description="Loading your dashboard…" />
-        <div className="p-6">
-          <div className="h-40 animate-pulse rounded-xl bg-surface-container-high" />
-        </div>
-      </>
-    );
+    return null;
   }
 
-  const activeJobsMetric = pickMetric(overview.metrics, ['active_jobs', 'activeJobs'], 0);
-  const workingMetric = pickMetric(overview.metrics, ['workers_working', 'working_now', 'workingNow'], 1);
-  const spendMetric = pickMetric(overview.metrics, ['today_spend', 'todaySpend'], 2);
-  const pendingMetric = pickMetric(overview.metrics, ['pending_payments', 'pendingPayments'], 3);
+  const { metrics, liveJobs, attention, cashPosition, creditHealth, startingSoon } = overview;
 
-  const activeJobsValue = activeJobsMetric?.value ?? 0;
-  const workersWorking = workingMetric?.value ?? 0;
-  const todaySpend = spendMetric?.value ?? 0;
-  const pendingPayments = pendingMetric?.value ?? 0;
+  const pins = liveJobs.slice(0, 50).map((j) => ({
+    id: j.id,
+    lat: j.lat,
+    lng: j.lng,
+    tone: mapPinTone(j.status as JobStatus),
+  }));
 
-  const pins = overview.liveJobs.slice(0, 18).map((j) => {
-    const status = parseJobStatus(j.status);
-    return {
-      id: j.id,
-      lat: j.lat,
-      lng: j.lng,
-      tone: mapPinTone(status),
-    };
-  });
+  const spendTrend = cashPosition.spendTrend7d.map((p) => ({
+    day: p.day,
+    amount: p.amountNaira,
+  }));
 
-  const spendTrend =
-    overview.cashPosition?.spendTrend7d?.map((p, idx) => ({
-      day: p.day ?? p.date ?? `D${idx + 1}`,
-      amount: p.amount,
-    })) ?? [];
-
-  const events = (overview.recentActivity ?? []).slice(0, 6);
-
-  const attentionTotal = overview.attention.reduce((s, a) => s + a.count, 0);
-
-  const credit = overview.creditHealth;
-  const eligibilityText =
-    typeof credit?.eligibility === 'string'
-      ? credit.eligibility
-      : credit?.eligibility && typeof credit.eligibility === 'object'
-        ? credit.eligibility.summary ??
-          credit.eligibility.line ??
-          (credit.eligibility.amountNaira && credit.eligibility.aprPct
-            ? `Eligible for ${formatCurrency(credit.eligibility.amountNaira)} @ ${credit.eligibility.aprPct}% APR`
-            : undefined)
-        : undefined;
+  const attentionItems = attention.filter((a) => a.count > 0);
+  const attentionTotal = attentionItems.reduce((s, a) => s + a.count, 0);
 
   return (
     <>
@@ -198,7 +188,11 @@ export default function OverviewPage() {
             <CardBody>
               <MapPlaceholder
                 pins={pins}
+                googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
                 className="aspect-[16/9]"
+                onPinClick={(pin) => {
+                  router.push(`/jobs/${pin.jobId ?? pin.id}`);
+                }}
                 hint={
                   <span className="inline-flex items-center gap-1">
                     <IconLocation className="!h-3 !w-3" />
@@ -211,118 +205,85 @@ export default function OverviewPage() {
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
             <MetricTile
-              label={activeJobsMetric?.label ?? 'Active jobs'}
-              value={formatNumber(activeJobsValue)}
-              delta={
-                activeJobsMetric?.deltaPct !== undefined
-                  ? {
-                      pct: Math.abs(activeJobsMetric.deltaPct),
-                      direction: activeJobsMetric.deltaPct >= 0 ? 'up' : 'down',
-                      label: 'vs. yesterday',
-                    }
-                  : undefined
-              }
-              trend={activeJobsMetric?.trend}
+              label="Active jobs"
+              value={formatNumber(metrics.activeJobs.value)}
+              delta={{
+                pct: Math.abs(metrics.activeJobs.deltaPct),
+                direction: metrics.activeJobs.deltaPct >= 0 ? 'up' : 'down',
+                label: 'vs. prior period',
+              }}
+              trend={metrics.activeJobs.trend}
             />
             <MetricTile
-              label={workingMetric?.label ?? 'Working now'}
-              value={formatNumber(workersWorking)}
-              delta={
-                workingMetric?.deltaPct !== undefined
-                  ? {
-                      pct: Math.abs(workingMetric.deltaPct),
-                      direction: workingMetric.deltaPct >= 0 ? 'up' : 'down',
-                    }
-                  : undefined
-              }
-              trend={workingMetric?.trend}
+              label="Working now"
+              value={formatNumber(metrics.workersWorking.value)}
+              delta={{
+                pct: Math.abs(metrics.workersWorking.deltaPct),
+                direction: metrics.workersWorking.deltaPct >= 0 ? 'up' : 'down',
+              }}
+              trend={metrics.workersWorking.trend}
             />
             <MetricTile
-              label={spendMetric?.label ?? "Today's spend"}
-              value={formatCurrency(todaySpend, { compact: true })}
-              delta={
-                spendMetric?.deltaPct !== undefined
-                  ? {
-                      pct: Math.abs(spendMetric.deltaPct),
-                      direction: spendMetric.deltaPct >= 0 ? 'up' : 'down',
-                    }
-                  : undefined
-              }
-              trend={spendMetric?.trend}
+              label="Today's spend"
+              value={formatCurrency(metrics.todaySpendNaira.value, { compact: true })}
+              delta={{
+                pct: Math.abs(metrics.todaySpendNaira.deltaPct),
+                direction: metrics.todaySpendNaira.deltaPct >= 0 ? 'up' : 'down',
+              }}
+              trend={metrics.todaySpendNaira.trend}
             />
             <MetricTile
-              label={pendingMetric?.label ?? 'Pending payments'}
-              value={formatNumber(pendingPayments)}
-              delta={
-                pendingMetric?.deltaPct !== undefined
-                  ? {
-                      pct: Math.abs(pendingMetric.deltaPct),
-                      direction: pendingMetric.deltaPct >= 0 ? 'up' : 'down',
-                      label: 'good',
-                    }
-                  : undefined
-              }
-              trend={pendingMetric?.trend}
+              label="Pending payments"
+              value={formatNumber(metrics.pendingPayments.value)}
+              delta={{
+                pct: Math.abs(metrics.pendingPayments.deltaPct),
+                direction: metrics.pendingPayments.deltaPct >= 0 ? 'up' : 'down',
+                label: 'good',
+              }}
+              trend={metrics.pendingPayments.trend}
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Recent activity</CardTitle>
-              <Button variant="ghost" size="sm">
-                View all
-              </Button>
-            </CardHeader>
-            <CardBody>
-              <ActivityFeed events={events} />
-            </CardBody>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Needs your attention</CardTitle>
-              {attentionTotal > 0 ? <Badge tone="warning">{attentionTotal}</Badge> : null}
-            </CardHeader>
-            <CardBody>
-              {overview.attention.length === 0 ? (
-                <p className="text-sm text-neutral-600">You’re all caught up.</p>
-              ) : (
-                <ul className="-mx-1 space-y-1 text-sm">
-                  {overview.attention.map((item) => (
-                    <li key={`${item.kind}-${item.href}`}>
-                      <Link
-                        href={item.href}
-                        className="flex items-center gap-2 rounded-md px-1 py-1.5 hover:bg-neutral-50"
-                      >
-                        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-warning-50 text-warning-600">
-                          {item.kind.includes('late') ? (
-                            <IconAlert className="!h-3.5 !w-3.5" />
-                          ) : item.kind.includes('application') ? (
-                            <IconUser className="!h-3.5 !w-3.5" />
-                          ) : (
-                            <IconClock className="!h-3.5 !w-3.5" />
-                          )}
-                        </span>
-                        <span className="flex-1">
-                          {item.label ?? item.kind.replaceAll('_', ' ')} · {item.count}
-                        </span>
-                        <span className="text-xs text-neutral-400">Open</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </CardBody>
-          </Card>
-        </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Needs your attention</CardTitle>
+            {attentionTotal > 0 ? <Badge tone="warning">{attentionTotal}</Badge> : null}
+          </CardHeader>
+          <CardBody>
+            {attentionItems.length === 0 ? (
+              <p className="text-sm text-neutral-600">You’re all caught up.</p>
+            ) : (
+              <ul className="-mx-1 grid grid-cols-1 gap-1 text-sm md:grid-cols-2 lg:grid-cols-3">
+                {attentionItems.map((item) => (
+                  <li key={`${item.kind}-${item.href}`}>
+                    <Link
+                      href={item.href}
+                      className="flex items-center gap-2 rounded-md px-1 py-1.5 hover:bg-neutral-50"
+                    >
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-warning-50 text-warning-600">
+                        {attentionIcon(item.kind)}
+                      </span>
+                      <span className="flex-1">
+                        {item.kind === 'applications_waiting' && 'Applications waiting'}
+                        {item.kind === 'starting_soon' && 'Jobs starting soon'}
+                        {item.kind === 'worker_late' && 'Workers running late'}
+                        <span className="tabular-nums"> · {item.count}</span>
+                      </span>
+                      <span className="text-xs text-neutral-400">Open</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardBody>
+        </Card>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle>Cash position</CardTitle>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" disabled>
                 Top up wallet
               </Button>
             </CardHeader>
@@ -333,28 +294,24 @@ export default function OverviewPage() {
                   className="mt-1 text-3xl font-semibold text-neutral-900 tabular-nums"
                   data-numeric
                 >
-                  {formatCurrency(overview.cashPosition?.walletBalanceNaira ?? 0)}
+                  {formatCurrency(cashPosition.walletBalanceNaira)}
                 </p>
                 <div className="mt-2 flex items-center gap-3 text-xs">
                   <span className="text-neutral-500">
                     Projected weekly spend{' '}
                     <span className="font-medium text-neutral-900 tabular-nums" data-numeric>
-                      {formatCurrency(overview.cashPosition?.projectedWeeklySpendNaira ?? 0)}
+                      {formatCurrency(cashPosition.projectedWeeklySpendNaira)}
                     </span>
                   </span>
                 </div>
               </div>
-              {spendTrend.length > 0 ? (
-                <AreaChart
-                  data={spendTrend}
-                  xKey="day"
-                  yKey="amount"
-                  height={140}
-                  yFormatter={(v) => formatCurrency(v, { compact: true })}
-                />
-              ) : (
-                <p className="text-xs text-neutral-500">Spend trend will appear once data is available.</p>
-              )}
+              <AreaChart
+                data={spendTrend}
+                xKey="day"
+                yKey="amount"
+                height={140}
+                yFormatter={(v) => formatCurrency(v, { compact: true })}
+              />
             </CardBody>
           </Card>
 
@@ -368,40 +325,36 @@ export default function OverviewPage() {
               </Link>
             </CardHeader>
             <CardBody>
-              {credit ? (
-                <div className="flex items-center gap-6">
-                  <RadialProgress value={credit.score} label="Score" size={140} />
-                  <div className="min-w-0 flex-1 space-y-2 text-sm">
-                    <p className="font-medium text-neutral-900">Top factors</p>
-                    <ul className="space-y-1.5 text-xs text-neutral-600">
-                      {(credit.topFactors ?? []).map((f, idx) => (
-                        <li key={`${f.label}-${idx}`} className="flex items-center justify-between">
-                          <span>{f.label}</span>
-                          <span
-                            className={`font-medium tabular-nums ${
-                              (f.delta ?? f.points ?? 0) >= 0 ? 'text-success-600' : 'text-danger-600'
-                            }`}
-                            data-numeric
-                          >
-                            {(f.delta ?? f.points ?? 0) >= 0 ? '+' : ''}
-                            {f.delta ?? f.points ?? 0}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                    {eligibilityText ? (
-                      <Link
-                        href="/credit"
-                        className="inline-flex items-center gap-1 text-xs font-medium text-accent-600 hover:text-accent-700"
-                      >
-                        <IconCredit className="!h-3.5 !w-3.5" /> {eligibilityText}
-                      </Link>
-                    ) : null}
-                  </div>
+              <div className="flex items-center gap-6">
+                <RadialProgress value={creditHealth.score} label="Score" size={140} />
+                <div className="min-w-0 flex-1 space-y-2 text-sm">
+                  <p className="font-medium text-neutral-900">Top factors</p>
+                  <ul className="space-y-1.5 text-xs text-neutral-600">
+                    {creditHealth.topFactors.slice(0, 3).map((f, idx) => (
+                      <li key={`${f.label}-${idx}`} className="flex items-center justify-between">
+                        <span>{f.label}</span>
+                        <span
+                          className={`font-medium tabular-nums ${
+                            f.deltaPoints >= 0 ? 'text-success-600' : 'text-danger-600'
+                          }`}
+                          data-numeric
+                        >
+                          {f.deltaPoints >= 0 ? '+' : ''}
+                          {f.deltaPoints}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Link
+                    href="/credit"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-accent-600 hover:text-accent-700"
+                  >
+                    <IconCredit className="!h-3.5 !w-3.5" /> Eligible for{' '}
+                    {formatCurrency(creditHealth.eligibility.maxAmountNaira)} @{' '}
+                    {creditHealth.eligibility.aprPct}% APR
+                  </Link>
                 </div>
-              ) : (
-                <p className="text-sm text-neutral-600">Credit health will appear once scoring is enabled.</p>
-              )}
+              </div>
             </CardBody>
           </Card>
         </div>
@@ -416,11 +369,11 @@ export default function OverviewPage() {
             </Link>
           </CardHeader>
           <CardBody>
-            {overview.startingSoon.length === 0 ? (
+            {startingSoon.length === 0 ? (
               <p className="text-sm text-neutral-600">No upcoming starts in the next window.</p>
             ) : (
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-                {overview.startingSoon.slice(0, 4).map((j) => (
+                {startingSoon.slice(0, 4).map((j) => (
                   <Link
                     key={j.id}
                     href={`/jobs/${j.id}`}
@@ -429,7 +382,8 @@ export default function OverviewPage() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-neutral-900">{j.title}</p>
                       <p className="text-xs text-neutral-500">
-                        {j.neighborhood ?? j.location?.neighborhood ?? '—'} ·{' '}
+                        {/* `neighborhood` is mistyped as Record<string, never> in the OpenAPI spec; runtime is a string. */}
+                        {(typeof j.neighborhood === 'string' ? j.neighborhood : '—')} ·{' '}
                         {formatShortDate(j.scheduledStartAt)}
                       </p>
                     </div>

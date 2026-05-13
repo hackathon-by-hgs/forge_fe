@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../lib/auth';
+import { AUTH_LOGIN_PATH, isPublicAuthRoute, safeAuthReturnPath } from '../lib/publicRoutes';
 
 function makeQueryClient() {
   return new QueryClient({
@@ -35,22 +36,36 @@ function AuthGate({ children }: { children: ReactNode }) {
   const { booting, bootError, user, boot } = useAuth();
 
   useEffect(() => {
+    if (isPublicAuthRoute(pathname)) return;
     void boot();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
-    if (booting) return;
-    if (pathname === '/login') {
-      if (user) router.replace('/');
+    if (isPublicAuthRoute(pathname)) {
+      if (user && (pathname === AUTH_LOGIN_PATH || pathname === '/signup/business')) {
+        const next =
+          typeof window !== 'undefined'
+            ? safeAuthReturnPath(new URLSearchParams(window.location.search).get('next'))
+            : null;
+        router.replace(next ?? '/');
+      }
       return;
     }
-    if (!user) router.replace('/login');
-  }, [booting, pathname, router, user]);
+    if (!booting && !user && !bootError) {
+      const returnTo =
+        typeof window !== 'undefined'
+          ? `${window.location.pathname}${window.location.search}`
+          : pathname;
+      const next = safeAuthReturnPath(returnTo);
+      const dest = next
+        ? `${AUTH_LOGIN_PATH}?${new URLSearchParams({ next }).toString()}`
+        : AUTH_LOGIN_PATH;
+      router.replace(dest);
+    }
+  }, [bootError, booting, pathname, router, user]);
 
-  if (pathname === '/login') {
-    if (booting) return <BootSkeleton />;
-    if (user) return <BootSkeleton />;
+  if (isPublicAuthRoute(pathname)) {
     return <>{children}</>;
   }
 
@@ -76,6 +91,14 @@ function AuthGate({ children }: { children: ReactNode }) {
     );
   }
 
+  if (!user) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center px-6">
+        <p className="text-sm text-ink-muted">Redirecting to sign in…</p>
+      </div>
+    );
+  }
+
   return <>{children}</>;
 }
 
@@ -88,4 +111,3 @@ export function Providers({ children }: { children: ReactNode }) {
     </QueryClientProvider>
   );
 }
-

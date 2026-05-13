@@ -1,7 +1,10 @@
 'use client';
 
-import { format, subDays } from 'date-fns';
+import { format } from 'date-fns';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
+  AlertBanner,
   AreaChart,
   BarChart,
   Button,
@@ -14,54 +17,93 @@ import {
   LineChart,
   PageHeader,
   Select,
+  Skeleton,
 } from '@forge/ui';
 import { formatCurrency, formatNumber } from '@forge/ui/utils';
-import { MOCK_WORKERS } from '@forge/mock-data';
+import {
+  getCostByJobType,
+  getDemandHeatmap,
+  getLaborCostTrend,
+  getRoiByType,
+  getTimeToFill,
+  getWorkerUtilization,
+  type AnalyticsRange,
+} from '../../lib/analyticsApi';
 
-const HOURS = Array.from({ length: 12 }, (_, i) => `${i + 6}:00`);
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-function buildHeatmapData() {
-  const cells = [] as { x: string; y: string; value: number }[];
-  for (const day of DAYS) {
-    for (const hour of HOURS) {
-      const dayWeight = day === 'Sat' || day === 'Sun' ? 0.4 : 1;
-      const hourWeight = hour === '8:00' || hour === '14:00' ? 1.5 : 0.8;
-      cells.push({
-        x: hour,
-        y: day,
-        value: Math.round(Math.random() * 12 * dayWeight * hourWeight),
-      });
-    }
-  }
-  return cells;
-}
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
+const HOURS = Array.from({ length: 24 }, (_, h) => `${h.toString().padStart(2, '0')}:00`);
 
 export default function AnalyticsPage() {
-  const today = new Date();
-  const trend = Array.from({ length: 30 }, (_, i) => ({
-    date: format(subDays(today, 29 - i), 'd MMM'),
-    cost: Math.round(80_000 + Math.sin(i / 4) * 30_000 + i * 1500),
-  }));
+  const [range, setRange] = useState<AnalyticsRange>('30');
 
-  const byType = [
-    { name: 'Loaders', value: 4_200_000 },
-    { name: 'Drivers', value: 2_800_000 },
-    { name: 'Unloaders', value: 1_600_000 },
-    { name: 'General', value: 900_000 },
-  ];
+  const trendQuery = useQuery({
+    queryKey: ['employer', 'analytics', 'labor-cost-trend', range],
+    queryFn: () => getLaborCostTrend({ range }),
+    retry: false,
+  });
 
-  const utilization = [...MOCK_WORKERS]
-    .sort((a, b) => b.jobsCompleted - a.jobsCompleted)
-    .slice(0, 8)
-    .map((w) => ({ name: w.fullName.split(' ')[0] ?? '', jobs: w.jobsCompleted }));
+  const byTypeQuery = useQuery({
+    queryKey: ['employer', 'analytics', 'cost-by-job-type', range],
+    queryFn: () => getCostByJobType({}),
+    retry: false,
+  });
 
-  const timeToFill = Array.from({ length: 12 }, (_, i) => ({
-    week: `W${i + 1}`,
-    minutes: Math.round(8 + Math.sin(i / 2) * 3),
-  }));
+  const utilQuery = useQuery({
+    queryKey: ['employer', 'analytics', 'worker-utilization', range],
+    queryFn: () => getWorkerUtilization({}),
+    retry: false,
+  });
 
-  const heatmap = buildHeatmapData();
+  const fillQuery = useQuery({
+    queryKey: ['employer', 'analytics', 'time-to-fill', range],
+    queryFn: () => getTimeToFill({}),
+    retry: false,
+  });
+
+  const heatmapQuery = useQuery({
+    queryKey: ['employer', 'analytics', 'demand-heatmap', range],
+    queryFn: () => getDemandHeatmap({}),
+    retry: false,
+  });
+
+  const roiQuery = useQuery({
+    queryKey: ['employer', 'analytics', 'roi-by-type', range],
+    queryFn: () => getRoiByType({}),
+    retry: false,
+  });
+
+  const trendData =
+    trendQuery.data?.data.map((p) => ({
+      date: format(new Date(p.date), 'd MMM'),
+      cost: p.costNaira,
+    })) ?? [];
+
+  const byTypeData =
+    byTypeQuery.data?.data.map((p) => ({
+      name: p.label,
+      value: p.valueNaira,
+    })) ?? [];
+
+  const byTypeTotal = byTypeData.reduce((s, b) => s + b.value, 0);
+
+  const utilData =
+    utilQuery.data?.data.map((u) => ({
+      name: u.name.split(' ')[0] ?? u.name,
+      jobs: u.jobs,
+    })) ?? [];
+
+  const fillData =
+    fillQuery.data?.data.map((p) => ({
+      week: format(new Date(p.weekStartDate), 'd MMM'),
+      minutes: p.averageMinutes,
+    })) ?? [];
+
+  const heatmapData =
+    heatmapQuery.data?.data.map((c) => ({
+      x: HOURS[c.hour] ?? `${c.hour}:00`,
+      y: DAYS[c.dayOfWeek] ?? `D${c.dayOfWeek}`,
+      value: c.jobs,
+    })) ?? [];
 
   return (
     <>
@@ -69,19 +111,17 @@ export default function AnalyticsPage() {
         title="Analytics"
         description="Trends, demand, and cost-effectiveness across your hiring activity."
         actions={
-          <>
-            <Select
-              aria-label="Range"
-              options={[
-                { label: 'Last 7 days', value: '7' },
-                { label: 'Last 30 days', value: '30' },
-                { label: 'Last 90 days', value: '90' },
-              ]}
-              defaultValue="30"
-              className="w-44"
-            />
-            <Button variant="secondary">Export</Button>
-          </>
+          <Select
+            aria-label="Range"
+            options={[
+              { label: 'Last 7 days', value: '7' },
+              { label: 'Last 30 days', value: '30' },
+              { label: 'Last 90 days', value: '90' },
+            ]}
+            value={range}
+            onChange={(e) => setRange(e.target.value as AnalyticsRange)}
+            className="w-44"
+          />
         }
       />
 
@@ -89,16 +129,45 @@ export default function AnalyticsPage() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Labor cost trend</CardTitle>
-            <span className="text-xs text-neutral-500">Daily, last 30 days</span>
+            <span className="text-xs text-neutral-500">
+              Daily, last {range} days
+            </span>
           </CardHeader>
           <CardBody>
-            <AreaChart
-              data={trend}
-              xKey="date"
-              yKey="cost"
-              height={260}
-              yFormatter={(v) => formatCurrency(v, { compact: true })}
-            />
+            {trendQuery.isLoading ? (
+              <Skeleton className="h-[260px] w-full" />
+            ) : trendQuery.isError ? (
+              <AlertBanner
+                tone="danger"
+                title="Couldn’t load trend"
+                description={
+                  trendQuery.error instanceof Error
+                    ? trendQuery.error.message
+                    : 'Unknown'
+                }
+                action={
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => void trendQuery.refetch()}
+                  >
+                    Retry
+                  </Button>
+                }
+              />
+            ) : trendData.length === 0 ? (
+              <p className="py-10 text-center text-sm text-neutral-500">
+                No spend yet in this window.
+              </p>
+            ) : (
+              <AreaChart
+                data={trendData}
+                xKey="date"
+                yKey="cost"
+                height={260}
+                yFormatter={(v) => formatCurrency(v, { compact: true })}
+              />
+            )}
           </CardBody>
         </Card>
 
@@ -107,15 +176,30 @@ export default function AnalyticsPage() {
             <CardTitle>Cost by job type</CardTitle>
           </CardHeader>
           <CardBody>
-            <DonutChart
-              data={byType}
-              centerLabel="This month"
-              centerValue={formatCurrency(
-                byType.reduce((s, b) => s + b.value, 0),
-                { compact: true },
-              )}
-              formatter={(v) => formatCurrency(v, { compact: true })}
-            />
+            {byTypeQuery.isLoading ? (
+              <Skeleton className="h-[260px] w-full rounded-full" />
+            ) : byTypeQuery.isError ? (
+              <AlertBanner
+                tone="danger"
+                title="Couldn’t load breakdown"
+                description={
+                  byTypeQuery.error instanceof Error
+                    ? byTypeQuery.error.message
+                    : 'Unknown'
+                }
+              />
+            ) : byTypeData.length === 0 ? (
+              <p className="py-10 text-center text-sm text-neutral-500">
+                No completed-job spend in this window.
+              </p>
+            ) : (
+              <DonutChart
+                data={byTypeData}
+                centerLabel="This window"
+                centerValue={formatCurrency(byTypeTotal, { compact: true })}
+                formatter={(v) => formatCurrency(v, { compact: true })}
+              />
+            )}
           </CardBody>
         </Card>
 
@@ -125,13 +209,31 @@ export default function AnalyticsPage() {
             <span className="text-xs text-neutral-500">Top 8 by jobs hired</span>
           </CardHeader>
           <CardBody>
-            <BarChart
-              data={utilization}
-              xKey="name"
-              yKey="jobs"
-              height={260}
-              yFormatter={(v) => formatNumber(v)}
-            />
+            {utilQuery.isLoading ? (
+              <Skeleton className="h-[260px] w-full" />
+            ) : utilQuery.isError ? (
+              <AlertBanner
+                tone="danger"
+                title="Couldn’t load utilization"
+                description={
+                  utilQuery.error instanceof Error
+                    ? utilQuery.error.message
+                    : 'Unknown'
+                }
+              />
+            ) : utilData.length === 0 ? (
+              <p className="py-10 text-center text-sm text-neutral-500">
+                No workers hired in this window.
+              </p>
+            ) : (
+              <BarChart
+                data={utilData}
+                xKey="name"
+                yKey="jobs"
+                height={260}
+                yFormatter={(v) => formatNumber(v)}
+              />
+            )}
           </CardBody>
         </Card>
 
@@ -139,27 +241,65 @@ export default function AnalyticsPage() {
           <CardHeader>
             <CardTitle>Time to fill</CardTitle>
             <span className="text-xs text-neutral-500">
-              Minutes from post to acceptance, weekly
+              Minutes from post to first application, weekly
             </span>
           </CardHeader>
           <CardBody>
-            <LineChart
-              data={timeToFill}
-              xKey="week"
-              series={[{ key: 'minutes', label: 'Minutes' }]}
-              height={260}
-              yFormatter={(v) => `${v}m`}
-            />
+            {fillQuery.isLoading ? (
+              <Skeleton className="h-[260px] w-full" />
+            ) : fillQuery.isError ? (
+              <AlertBanner
+                tone="danger"
+                title="Couldn’t load time-to-fill"
+                description={
+                  fillQuery.error instanceof Error
+                    ? fillQuery.error.message
+                    : 'Unknown'
+                }
+              />
+            ) : fillData.length === 0 ? (
+              <p className="py-10 text-center text-sm text-neutral-500">
+                Not enough applied-to jobs in this window.
+              </p>
+            ) : (
+              <LineChart
+                data={fillData}
+                xKey="week"
+                series={[{ key: 'minutes', label: 'Minutes' }]}
+                height={260}
+                yFormatter={(v) => `${v}m`}
+              />
+            )}
           </CardBody>
         </Card>
 
         <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle>Demand heatmap</CardTitle>
-            <span className="text-xs text-neutral-500">Day of week × hour of day</span>
+            <span className="text-xs text-neutral-500">
+              Jobs posted by day-of-week × hour (UTC)
+            </span>
           </CardHeader>
           <CardBody>
-            <Heatmap data={heatmap} xLabels={HOURS} yLabels={DAYS} />
+            {heatmapQuery.isLoading ? (
+              <Skeleton className="h-32 w-full" />
+            ) : heatmapQuery.isError ? (
+              <AlertBanner
+                tone="danger"
+                title="Couldn’t load heatmap"
+                description={
+                  heatmapQuery.error instanceof Error
+                    ? heatmapQuery.error.message
+                    : 'Unknown'
+                }
+              />
+            ) : heatmapData.length === 0 ? (
+              <p className="py-10 text-center text-sm text-neutral-500">
+                No jobs posted in this window.
+              </p>
+            ) : (
+              <Heatmap data={heatmapData} xLabels={HOURS} yLabels={DAYS} />
+            )}
           </CardBody>
         </Card>
 
@@ -168,46 +308,65 @@ export default function AnalyticsPage() {
             <CardTitle>ROI by job type</CardTitle>
           </CardHeader>
           <CardBody className="overflow-x-auto p-0">
-            <table className="w-full text-sm">
-              <thead className="border-b border-outline bg-surface-container-high">
-                <tr>
-                  {['Type', 'Jobs', 'Avg cost', 'Avg fill time', 'Completion rate'].map(
-                    (h) => (
-                      <th
-                        key={h}
-                        className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wide text-neutral-500"
-                      >
-                        {h}
-                      </th>
-                    ),
-                  )}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-neutral-100">
-                {[
-                  { type: 'Loader', jobs: 87, avgCost: 5800, fill: 7, completion: 0.96 },
-                  { type: 'Driver', jobs: 41, avgCost: 9200, fill: 12, completion: 0.94 },
-                  { type: 'Unloader', jobs: 34, avgCost: 5300, fill: 9, completion: 0.97 },
-                  { type: 'General', jobs: 22, avgCost: 4100, fill: 14, completion: 0.92 },
-                ].map((r) => (
-                  <tr key={r.type}>
-                    <td className="px-4 py-2.5 font-medium text-neutral-900">{r.type}</td>
-                    <td className="px-4 py-2.5 tabular-nums" data-numeric>
-                      {r.jobs}
-                    </td>
-                    <td className="px-4 py-2.5 tabular-nums" data-numeric>
-                      {formatCurrency(r.avgCost)}
-                    </td>
-                    <td className="px-4 py-2.5 tabular-nums" data-numeric>
-                      {r.fill} min
-                    </td>
-                    <td className="px-4 py-2.5 tabular-nums" data-numeric>
-                      {(r.completion * 100).toFixed(0)}%
-                    </td>
+            {roiQuery.isLoading ? (
+              <div className="p-4">
+                <Skeleton className="h-24 w-full" />
+              </div>
+            ) : roiQuery.isError ? (
+              <div className="p-4">
+                <AlertBanner
+                  tone="danger"
+                  title="Couldn’t load ROI"
+                  description={
+                    roiQuery.error instanceof Error
+                      ? roiQuery.error.message
+                      : 'Unknown'
+                  }
+                />
+              </div>
+            ) : (roiQuery.data?.data ?? []).length === 0 ? (
+              <p className="py-10 text-center text-sm text-neutral-500">
+                No completed jobs in this window.
+              </p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="border-b border-outline bg-surface-container-high">
+                  <tr>
+                    {['Type', 'Jobs', 'Avg cost', 'Avg fill time', 'Completion rate'].map(
+                      (h) => (
+                        <th
+                          key={h}
+                          className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wide text-neutral-500"
+                        >
+                          {h}
+                        </th>
+                      ),
+                    )}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {(roiQuery.data?.data ?? []).map((r) => (
+                    <tr key={r.type}>
+                      <td className="px-4 py-2.5 font-medium text-neutral-900">
+                        {r.label}
+                      </td>
+                      <td className="px-4 py-2.5 tabular-nums" data-numeric>
+                        {r.jobs}
+                      </td>
+                      <td className="px-4 py-2.5 tabular-nums" data-numeric>
+                        {formatCurrency(r.avgCostNaira)}
+                      </td>
+                      <td className="px-4 py-2.5 tabular-nums" data-numeric>
+                        {r.avgFillTimeMinutes} min
+                      </td>
+                      <td className="px-4 py-2.5 tabular-nums" data-numeric>
+                        {(r.completionRate * 100).toFixed(0)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </CardBody>
         </Card>
       </div>

@@ -1,4 +1,8 @@
+'use client';
+
 import Link from 'next/link';
+import { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Button,
   Input,
@@ -7,13 +11,51 @@ import {
   Select,
 } from '@forge/ui';
 import { IconAdd, IconFilter, IconSearch } from '@forge/ui/icons';
-import { getActiveJobs, MOCK_JOBS } from '@forge/mock-data';
 import { jobsTabs } from '../../../lib/nav';
+import { listActiveJobs, listJobs, type JobTypeWire } from '../../../lib/jobsApi';
 import { ActiveJobsView } from './ActiveJobsView';
 
+const NEIGHBORHOODS = ['Apapa', 'Lekki', 'Ikeja', 'Mile 2'] as const;
+
 export default function JobsActivePage() {
-  const active = getActiveJobs();
-  const totalAll = MOCK_JOBS.length;
+  const [search, setSearch] = useState('');
+  const [type, setType] = useState<'all' | JobTypeWire>('all');
+  const [neighborhood, setNeighborhood] = useState<'all' | (typeof NEIGHBORHOODS)[number]>('all');
+
+  const activeQuery = useQuery({
+    queryKey: ['employer', 'jobs', 'active'],
+    queryFn: listActiveJobs,
+    refetchInterval: 30_000,
+    retry: false,
+  });
+
+  const totalQuery = useQuery({
+    queryKey: ['employer', 'jobs', 'count'],
+    queryFn: () => listJobs({ page: 1, pageSize: 1 }),
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+
+  const filtered = useMemo(() => {
+    const rows = activeQuery.data?.data ?? [];
+    return rows.filter((j) => {
+      if (type !== 'all' && j.type !== type) return false;
+      if (neighborhood !== 'all' && j.location.neighborhood !== neighborhood) return false;
+      if (search.trim()) {
+        const q = search.trim().toLowerCase();
+        return (
+          j.title.toLowerCase().includes(q) ||
+          j.id.toLowerCase().includes(q) ||
+          (j.location.neighborhood ?? '').toLowerCase().includes(q) ||
+          (j.assignedWorker?.fullName ?? '').toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [activeQuery.data, type, neighborhood, search]);
+
+  const activeCount = activeQuery.data?.data.length ?? 0;
+  const totalAll = totalQuery.data?.pagination.total ?? 0;
 
   return (
     <>
@@ -32,7 +74,7 @@ export default function JobsActivePage() {
           <RoutedTabs items={jobsTabs} />
           <p className="text-xs text-neutral-500">
             <span className="font-medium text-neutral-900 tabular-nums" data-numeric>
-              {active.length}
+              {activeCount}
             </span>{' '}
             active · {totalAll} total
           </p>
@@ -41,9 +83,11 @@ export default function JobsActivePage() {
         <div className="flex flex-wrap items-center gap-2">
           <Input
             type="search"
-            placeholder="Search by title, worker, or job ID…"
+            placeholder="Search by title, worker, location, or job ID…"
             leadingIcon={<IconSearch className="!h-4 !w-4" />}
             className="max-w-sm"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
           />
           <Select
             aria-label="Filter by job type"
@@ -55,26 +99,41 @@ export default function JobsActivePage() {
               { label: 'General', value: 'general' },
             ]}
             className="w-40"
-            defaultValue="all"
+            value={type}
+            onChange={(e) => setType(e.target.value as 'all' | JobTypeWire)}
           />
           <Select
             aria-label="Filter by location"
             options={[
               { label: 'All locations', value: 'all' },
-              { label: 'Apapa', value: 'Apapa' },
-              { label: 'Lekki', value: 'Lekki' },
-              { label: 'Ikeja', value: 'Ikeja' },
-              { label: 'Mile 2', value: 'Mile 2' },
+              ...NEIGHBORHOODS.map((n) => ({ label: n, value: n })),
             ]}
             className="w-44"
-            defaultValue="all"
+            value={neighborhood}
+            onChange={(e) =>
+              setNeighborhood(e.target.value as 'all' | (typeof NEIGHBORHOODS)[number])
+            }
           />
-          <Button variant="secondary" leadingIcon={<IconFilter className="!h-4 !w-4" />}>
-            More filters
-          </Button>
+          <Link
+            href={`/jobs?${new URLSearchParams({
+              ...(search ? { q: search } : {}),
+              ...(type !== 'all' ? { type } : {}),
+              ...(neighborhood !== 'all' ? { neighborhood } : {}),
+            }).toString()}`}
+          >
+            <Button variant="secondary" leadingIcon={<IconFilter className="!h-4 !w-4" />}>
+              All jobs
+            </Button>
+          </Link>
         </div>
 
-        <ActiveJobsView jobs={active} />
+        <ActiveJobsView
+          jobs={filtered}
+          isLoading={activeQuery.isLoading}
+          isError={activeQuery.isError}
+          error={activeQuery.error}
+          onRetry={() => void activeQuery.refetch()}
+        />
       </div>
     </>
   );

@@ -37,3 +37,6 @@ coverage
 
 # Vercel
 .vercel
+
+ *PROMPT.md
+ *REPLY.md

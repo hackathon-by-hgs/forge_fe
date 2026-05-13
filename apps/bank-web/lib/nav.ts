@@ -4,7 +4,6 @@ import {
   IconApplications,
   IconLoans,
   IconPortfolio,
-  IconBorrowers,
   IconSandbox,
   IconAttribution,
   IconReports,
@@ -23,12 +22,9 @@ export const bankNav: SidebarSection[] = [
       { label: 'Portfolio', href: '/portfolio', icon: IconPortfolio },
     ],
   },
-  {
-    label: 'People',
-    items: [
-      { label: 'Borrowers', href: '/borrowers/workers', icon: IconBorrowers },
-    ],
-  },
+  // Borrower profiles are reached via deep-links from Risk Radar opportunities,
+  // Loan detail, and Application detail. There is no list endpoint, so we don't
+  // surface a sidebar item.
   {
     label: 'Decision support',
     items: [

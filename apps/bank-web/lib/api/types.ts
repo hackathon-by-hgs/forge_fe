@@ -16,6 +16,8 @@ export type LoginResponse = Schemas['LoginResponseDto'];
 export type SessionUser = Schemas['SessionUserDto'];
 export type ForgotPasswordRequest = Schemas['ForgotPasswordDto'];
 export type ResetPasswordRequest = Schemas['ResetPasswordDto'];
+export type VerifyEmailRequest = Schemas['VerifyEmailDto'];
+export type AcceptInvitationRequest = Schemas['AcceptInvitationDto'];
 export type ApiErrorBody = Schemas['ErrorBodyDto'];
 export type ApiErrorResponse = Schemas['ErrorResponseDto'];
 

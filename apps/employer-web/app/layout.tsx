@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import { type ReactNode } from 'react';
 import { ThemeProvider, ThemeScript } from '@forge/ui';
-import { AppShell } from '../components/AppShell';
+import { AppChrome } from '../components/AppChrome';
 import { Providers } from './providers';
 import './globals.css';
 
@@ -36,7 +36,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="font-sans antialiased">
         <ThemeProvider>
           <Providers>
-            <AppShell>{children}</AppShell>
+            <AppChrome>{children}</AppChrome>
           </Providers>
         </ThemeProvider>
       </body>
