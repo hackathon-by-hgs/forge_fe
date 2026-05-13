@@ -45,12 +45,17 @@ export interface WorkSessionJobSummary {
   payNaira: number;
   durationHours: number;
   scheduledStartAt: string;
-  location: {
-    address: string;
+  /**
+   * BE may omit `location` (or send it as null) on the work-session payload
+   * — the canonical location lives on the parent Job. Treat as optional so
+   * every access requires `?.` and we never crash on partial responses.
+   */
+  location?: {
+    address?: string | null;
     neighborhood?: string | null;
     lat?: number | null;
     lng?: number | null;
-  };
+  } | null;
 }
 
 export interface ClockEventInfo {

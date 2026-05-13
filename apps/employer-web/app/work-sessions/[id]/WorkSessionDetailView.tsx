@@ -491,10 +491,12 @@ export function WorkSessionDetailView({ sessionId }: { sessionId: string }) {
             </CardHeader>
             <CardBody className="space-y-2 text-sm">
               <p className="font-medium text-ink">{session.job.title}</p>
-              <p className="inline-flex items-center gap-1 text-xs text-ink-muted">
-                <IconLocation className="!h-3 !w-3" />
-                {session.job.location.neighborhood ?? session.job.location.address}
-              </p>
+              {session.job.location?.neighborhood || session.job.location?.address ? (
+                <p className="inline-flex items-center gap-1 text-xs text-ink-muted">
+                  <IconLocation className="!h-3 !w-3" />
+                  {session.job.location?.neighborhood ?? session.job.location?.address}
+                </p>
+              ) : null}
               <p className="text-xs text-ink-muted">
                 Scheduled {formatAbsoluteDate(session.job.scheduledStartAt)} ·{' '}
                 {session.job.durationHours}h
