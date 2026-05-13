@@ -15,6 +15,7 @@ import {
   IconCheck,
   IconCredit,
   IconNaira,
+  IconShield,
   IconUser,
 } from '@forge/ui/icons';
 import { formatRelativeTime } from '@forge/ui/utils';
@@ -32,6 +33,7 @@ const ICON: Record<NotificationKind, React.ReactNode> = {
   job_completed: <IconCheck className="!h-3.5 !w-3.5" />,
   payment_processed: <IconNaira className="!h-3.5 !w-3.5" />,
   credit_update: <IconCredit className="!h-3.5 !w-3.5" />,
+  payout_review: <IconShield className="!h-3.5 !w-3.5" />,
 };
 
 const TONE: Record<NotificationKind, string> = {
@@ -40,6 +42,7 @@ const TONE: Record<NotificationKind, string> = {
   job_completed: 'bg-success-50 text-success-600',
   payment_processed: 'bg-accent-50 text-accent-600',
   credit_update: 'bg-secondary-50 text-secondary-600',
+  payout_review: 'bg-warning-50 text-warning-600',
 };
 
 type NotificationsListResponseDto = components['schemas']['NotificationsListResponseDto'];
@@ -201,11 +204,20 @@ export function NotificationsPopover() {
             ? items.map((n: AppNotification) => {
                 const row = (
                   <>
-                    <span
-                      className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${TONE[n.kind]}`}
-                    >
-                      {ICON[n.kind]}
-                    </span>
+                    {n.imageUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={n.imageUrl}
+                        alt=""
+                        className="mt-0.5 h-7 w-7 shrink-0 rounded-md object-cover"
+                      />
+                    ) : (
+                      <span
+                        className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${TONE[n.kind]}`}
+                      >
+                        {ICON[n.kind]}
+                      </span>
+                    )}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-2">
                         <p className="text-sm font-medium text-ink">{n.title}</p>

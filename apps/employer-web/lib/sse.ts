@@ -33,6 +33,8 @@ const EMPLOYER_EVENT_NAMES = [
   'score.recomputed',
   'job.lifecycle_changed',
   'worker.clock_event',
+  'session.pending_review',
+  'session.review_resolved',
 ] as const;
 
 const SSE_LOG_PREFIX = '[forge-sse]';
@@ -368,6 +370,24 @@ function applyInvalidations(
       invalidate(['employer', 'overview']);
       invalidate(['employer', 'active-map']);
       invalidate(['employer', 'workers', 'active']);
+      invalidate(['employer', 'transactions']);
+      break;
+    case 'session.pending_review':
+      // §11.7: a clock-out has entered the 2h employer review window. The
+      // review-queue list, overview tile, and notification bell all need to
+      // reflect the new pending item.
+      invalidate(['employer', 'review-queue']);
+      invalidate(['employer', 'overview']);
+      invalidate(['notifications']);
+      break;
+    case 'session.review_resolved':
+      // §11.7: confirm / dispute / auto-release. Refresh the queue, the
+      // session detail, and the payments-transactions surface (a successful
+      // confirm or auto-release creates a transaction; a dispute zeroes
+      // pay_amount_pending and opens a dispute row).
+      invalidate(['employer', 'review-queue']);
+      invalidate(['employer', 'overview']);
+      invalidate(['notifications']);
       invalidate(['employer', 'transactions']);
       break;
     default:

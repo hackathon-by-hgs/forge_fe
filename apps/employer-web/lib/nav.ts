@@ -7,6 +7,7 @@ import {
   IconAnalytics,
   IconCredit,
   IconSettings,
+  IconShield,
 } from '@forge/ui/icons';
 
 export const employerNav: SidebarSection[] = [
@@ -18,6 +19,7 @@ export const employerNav: SidebarSection[] = [
     items: [
       { label: 'Jobs', href: '/jobs', icon: IconBriefcase },
       { label: 'Workers', href: '/workers', icon: IconWorkers },
+      { label: 'Review queue', href: '/work-sessions', icon: IconShield },
       { label: 'Payments', href: '/payments', icon: IconPayments },
     ],
   },
