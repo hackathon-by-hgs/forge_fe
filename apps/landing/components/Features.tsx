@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
+import { useGSAP } from '@gsap/react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -65,15 +66,14 @@ export default function Features() {
   const sectionRef = useRef<HTMLElement>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
-  useEffect(() => {
-    const section = sectionRef.current;
-    if (!section) return;
+  useGSAP(
+    () => {
+      const section = sectionRef.current;
+      if (!section) return;
 
-    const ctx = gsap.context(() => {
       gsap.from('.features-heading', {
-        y: 40,
-        // opacity: 0,
-        duration: 1,
+        y: 28,
+        duration: 0.7,
         ease: 'power4.out',
         scrollTrigger: { 
           trigger: section, 
@@ -82,30 +82,149 @@ export default function Features() {
         },
       });
 
-      gsap.from('.feature-card', {
-        y: 60,
-        opacity: 0,
-        duration: 1.2,
-        stagger: 0.1,
-        ease: 'expo.out',
-        scrollTrigger: { 
-          trigger: section, 
-          start: 'top 90%',
-          toggleActions: 'play none none none'
-        },
-      });
-    }, section);
+      const cards = gsap.utils.toArray<HTMLElement>('.feature-card');
 
+      cards.forEach((card, index) => {
+        const direction = index % 2 === 0 ? -1 : 1;
+        const icon = card.querySelector('.feature-card-icon');
+        const meta = card.querySelector('.feature-card-meta');
+        const title = card.querySelector('.feature-card-title');
+        const copy = card.querySelector('.feature-card-copy');
+        const backgroundNumber = card.querySelector('.feature-card-num');
+        const tags = card.querySelectorAll('.feature-card-tag');
+
+        const tl = gsap.timeline({
+          defaults: { ease: 'power3.out' },
+          scrollTrigger: {
+            trigger: card,
+            start: 'top 85%',
+            toggleActions: 'play none none none',
+            once: true,
+          },
+        });
+
+        tl.fromTo(
+          card,
+          {
+            autoAlpha: 0,
+            y: 64,
+            x: direction * 20,
+            scale: 0.97,
+            clipPath: 'inset(0 0 14% 0)',
+          },
+          {
+            autoAlpha: 1,
+            y: 0,
+            x: 0,
+            scale: 1,
+            clipPath: 'inset(0 0 0% 0)',
+            duration: 0.7,
+            ease: 'expo.out',
+          },
+        );
+
+        if (backgroundNumber) {
+          tl.fromTo(
+            backgroundNumber,
+            {
+              autoAlpha: 0,
+              x: direction * 24,
+              y: 16,
+              scale: 0.95,
+            },
+            {
+              autoAlpha: 1,
+              x: 0,
+              y: 0,
+              scale: 1,
+              duration: 0.55,
+            },
+            '-=0.48',
+          );
+        }
+
+        if (icon) {
+          tl.fromTo(
+            icon,
+            {
+              autoAlpha: 0,
+              y: 18,
+              scale: 0.88,
+              rotate: direction * -6,
+            },
+            {
+              autoAlpha: 1,
+              y: 0,
+              scale: 1,
+              rotate: 0,
+              duration: 0.45,
+            },
+            '-=0.46',
+          );
+        }
+
+        if (meta) {
+          tl.fromTo(
+            meta,
+            { autoAlpha: 0, x: 12 },
+            { autoAlpha: 1, x: 0, duration: 0.35 },
+            '-=0.36',
+          );
+        }
+
+        if (title) {
+          tl.fromTo(
+            title,
+            {
+              autoAlpha: 0,
+              y: 20,
+              clipPath: 'inset(0 0 100% 0)',
+            },
+            {
+              autoAlpha: 1,
+              y: 0,
+              clipPath: 'inset(0 0 0% 0)',
+              duration: 0.5,
+            },
+            '-=0.3',
+          );
+        }
+
+        if (copy) {
+          tl.fromTo(
+            copy,
+            { autoAlpha: 0, y: 16 },
+            { autoAlpha: 1, y: 0, duration: 0.42 },
+            '-=0.24',
+          );
+        }
+
+        if (tags.length) {
+          tl.fromTo(
+            tags,
+            { autoAlpha: 0, y: 12 },
+            {
+              autoAlpha: 1,
+              y: 0,
+              duration: 0.3,
+              stagger: 0.04,
+            },
+            '-=0.16',
+          );
+        }
+      });
+    },
+    { scope: sectionRef },
+  );
+
+  useGSAP(() => {
     const handleMouseMove = (e: MouseEvent) => {
       const { clientX, clientY } = e;
       setMousePos({ x: clientX, y: clientY });
     };
 
     window.addEventListener('mousemove', handleMouseMove);
-    return () => {
-      ctx.revert();
-      window.removeEventListener('mousemove', handleMouseMove);
-    };
+    return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
   return (
@@ -128,12 +247,11 @@ export default function Features() {
 
         {/* Bento Grid */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-5 md:gap-6">
-          {SERVICES.map((service, i) => (
+          {SERVICES.map((service) => (
             <FeatureCard 
               key={service.num} 
               service={service} 
               mousePos={mousePos}
-              index={i}
             />
           ))}
         </div>
@@ -142,10 +260,9 @@ export default function Features() {
   );
 }
 
-function FeatureCard({ service, mousePos, index }: { 
+function FeatureCard({ service, mousePos }: { 
   service: typeof SERVICES[0], 
-  mousePos: { x: number, y: number },
-  index: number
+  mousePos: { x: number, y: number }
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -165,7 +282,7 @@ function FeatureCard({ service, mousePos, index }: {
   return (
     <div 
       ref={cardRef}
-      className={`feature-card group relative overflow-hidden border border-white/10 bg-[#0A0A0A] p-10 md:p-14 transition-all duration-700 hover:border-white/30 ${service.span}`}
+      className={`feature-card group relative overflow-hidden border border-white/10 bg-[#0A0A0A] p-10 md:p-14 transition-all duration-700 hover:border-white/30 opacity-100 ${service.span}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -176,23 +293,23 @@ function FeatureCard({ service, mousePos, index }: {
       />
 
       {/* Background Number */}
-      <span className="absolute -bottom-10 -right-6 text-[15rem] font-black leading-none text-white/[0.03] select-none pointer-events-none group-hover:text-[#FF4D00]/[0.05] transition-colors duration-700">
+      <span className="feature-card-num absolute -bottom-10 -right-6 text-[15rem] font-black leading-none text-white/[0.03] select-none pointer-events-none group-hover:text-[#FF4D00]/[0.05] transition-colors duration-700">
         {service.num}
       </span>
 
       <div className="relative z-10 h-full flex flex-col">
         <div className="flex items-start justify-between mb-12">
-          <div className={`p-4 bg-white/[0.05] border border-white/10 text-white transition-all duration-500 group-hover:scale-110 group-hover:bg-[#511d073d] group-hover:border-[#FF4D00] shadow-2xl`}>
+          <div className={`feature-card-icon p-4 bg-white/[0.05] border border-white/10 text-white transition-all duration-500 group-hover:scale-110 group-hover:bg-[#511d073d] group-hover:border-[#FF4D00] shadow-2xl`}>
             {service.icon}
           </div>
-          <span className="text-[10px] font-black tracking-[0.3em] text-white/30 uppercase">Module {service.num}</span>
+          <span className="feature-card-meta text-[10px] font-black tracking-[0.3em] text-white/30 uppercase">Module {service.num}</span>
         </div>
 
-        <h3 className="text-3xl md:text-5xl font-medium text-white mb-6 tracking-tight leading-none group-hover:translate-x-2 transition-transform duration-500">
+        <h3 className="feature-card-title text-3xl md:text-5xl font-medium text-white mb-6 tracking-tight leading-none group-hover:translate-x-2 transition-transform duration-500">
           {service.title}
         </h3>
         
-        <p className="text-white/50 text-lg leading-relaxed mb-10 max-w-md font-light">
+        <p className="feature-card-copy text-white/50 text-lg leading-relaxed mb-10 max-w-md font-light">
           {service.desc}
         </p>
 
@@ -200,7 +317,7 @@ function FeatureCard({ service, mousePos, index }: {
           {service.tags.map((tag) => (
             <span
               key={tag}
-              className="text-[10px] font-bold tracking-widest uppercase px-4 py-2 bg-white/[0.05] border border-white/10 text-white/50 group-hover:text-white/70 group-hover:border-white/20 transition-colors"
+              className="feature-card-tag text-[10px] font-bold tracking-widest uppercase px-4 py-2 bg-white/[0.05] border border-white/10 text-white/50 group-hover:text-white/70 group-hover:border-white/20 transition-colors"
             >
               {tag}
             </span>

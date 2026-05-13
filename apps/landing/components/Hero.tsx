@@ -58,7 +58,7 @@ export default function Hero() {
     <section
       ref={sectionRef}
       id="hero"
-      className="relative flex flex-col justify-center bg-white pt-32 pb-24 text-black md:pb-40"
+      className="relative flex flex-col justify-center bg-white pt-32 pb-24 text-black"
     >
       <div className="section-container relative z-10 w-full">
         {/* Top: Headline & CTAs */}
