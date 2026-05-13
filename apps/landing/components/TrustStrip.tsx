@@ -1,8 +1,6 @@
 'use client';
 
-import { useScrollReveal } from '@/hooks';
-
-const PARTNERS = [
+export const PARTNERS = [
   'First Bank',
   'GTBank',
   'Paystack',
@@ -12,13 +10,13 @@ const PARTNERS = [
 ];
 
 export default function TrustStrip() {
-  const ref = useScrollReveal({ children: true, stagger: 0.06, y: 20 });
+  // Reveal disabled for debugging
+  // const ref = useScrollReveal({ children: true, stagger: 0.06, y: 20 });
 
   return (
-    <section id="trust" className="relative bg-white border-y border-neutral-100">
+    <section id="trust" className="relative w-full bg-white border-y border-neutral-100 py-4">
       <div className="section-container">
         <div
-          ref={ref}
           className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6"
         >
           {PARTNERS.map((name, i) => (
@@ -28,7 +26,7 @@ export default function TrustStrip() {
                 i % 2 === 0 ? 'border-r' : ''
               } md:border-r lg:border-r last:border-r-0`}
             >
-              <span className="text-[12px] font-bold tracking-[0.2em] uppercase text-black/20 group-hover:text-black/60 transition-colors duration-300 cursor-default select-none">
+              <span className="text-[13px] font-black tracking-[0.25em] uppercase text-black/50 group-hover:text-black transition-colors duration-300 cursor-default select-none">
                 {name}
               </span>
             </div>

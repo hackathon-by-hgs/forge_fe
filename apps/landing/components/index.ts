@@ -1,5 +1,5 @@
-export { default as Header } from './Header';
 export { default as Hero } from './Hero';
+export { default as Header } from './Header';
 export { default as TrustStrip } from './TrustStrip';
 export { default as Marquee } from './Marquee';
 export { default as Stats } from './Stats';
@@ -16,3 +16,4 @@ export { default as CustomCursor } from './CustomCursor';
 export { default as Magnetic } from './Magnetic';
 export { default as HeroVisual } from './HeroVisual';
 export { default as ArchSection } from './ArchSection';
+export { default as Odometer } from './Odometer';

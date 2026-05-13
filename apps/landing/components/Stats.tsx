@@ -1,25 +1,20 @@
 'use client';
 
-import { useCounter } from '@/hooks';
 import { useScrollReveal } from '@/hooks';
+import Odometer from './Odometer';
 
-interface StatItemProps {
+export interface StatItemProps {
   end: number;
   suffix: string;
   label: string;
   decimals?: number;
 }
 
-function StatItem({ end, suffix, label, decimals = 0 }: StatItemProps) {
-  const { ref, value } = useCounter({ end, duration: 2200, decimals });
-
+export function StatItem({ end, suffix, label, decimals = 0 }: StatItemProps) {
   return (
     <div className="flex flex-col p-10 md:p-16">
-      <span
-        ref={ref as React.RefObject<HTMLSpanElement>}
-        className="mb-4 text-6xl font-medium tracking-tighter text-black md:text-8xl lg:text-9xl"
-      >
-        {value}
+      <span className="mb-4 text-6xl font-medium tracking-tighter text-black md:text-8xl lg:text-9xl">
+        <Odometer value={end} decimals={decimals} />
         <span className="text-[#FF4D00]">{suffix}</span>
       </span>
       <span className="text-[11px] uppercase tracking-[0.2em] font-bold text-black/30">
@@ -29,7 +24,7 @@ function StatItem({ end, suffix, label, decimals = 0 }: StatItemProps) {
   );
 }
 
-const STATS: StatItemProps[] = [
+export const STATS: StatItemProps[] = [
   { end: 50,  suffix: 'K+',  label: 'Workers Connected' },
   { end: 120, suffix: 'K+',  label: 'Jobs Completed' },
   { end: 2.5, suffix: 'B',   label: 'Naira Processed', decimals: 1 },

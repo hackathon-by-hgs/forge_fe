@@ -4,8 +4,6 @@ import { useLenis } from '@/hooks';
 import {
   Header,
   Hero,
-  TrustStrip,
-  Stats,
   Features,
   SuccessStories,
   Challenges,
@@ -29,30 +27,22 @@ export default function LandingPage() {
       <Header />
 
       <main>
-        {/* Step 1: Hero + TrustStrip + Stats (white, sticky) */}
-        <section data-navbar-theme="light" className="sticky top-0 z-[10] bg-white min-h-screen">
+        {/* Step 1: Hero (details pinned internally via GSAP) */}
+        <section data-navbar-theme="light" className="relative z-[10] bg-white min-h-full">
           <Hero />
         </section>
 
-        <section data-navbar-theme="light" className="sticky top-0 z-[11] bg-white min-h-[50vh] flex items-center">
-          <TrustStrip />
-        </section>
-
-        <section data-navbar-theme="light" className="sticky top-0 z-[12] bg-white min-h-screen">
-          <Stats />
-        </section>
-
         {/* Step 2: Features (dark, slides over) */}
-        <ArchSection id="features" className="z-[13]">
+        <ArchSection id="features" className="sticky top-0 z-[13]">
           <Features />
         </ArchSection>
 
-        {/* Step 3: SuccessStories + Challenges (white, sticky) */}
-        <section data-navbar-theme="light" className="sticky top-0 z-[14] bg-white min-h-screen">
+        {/* Step 3: Case Studies + Challenges split into sticky parts */}
+        <section data-navbar-theme="light" className="sticky top-0 z-[14] bg-white">
           <SuccessStories />
         </section>
 
-        <section data-navbar-theme="light" className="sticky top-0 z-[15] bg-white min-h-screen">
+        <section data-navbar-theme="light" className="sticky top-0 z-[15] bg-white">
           <Challenges />
         </section>
 
@@ -62,7 +52,7 @@ export default function LandingPage() {
         </ArchSection>
 
         {/* Step 5: Industries (white, sticky) */}
-        <section data-navbar-theme="light" className="sticky top-0 z-[17] bg-white min-h-screen">
+        <section data-navbar-theme="light" className="sticky top-0 z-[17] bg-white">
           <Industries />
         </section>
 
@@ -78,7 +68,7 @@ export default function LandingPage() {
       </main>
 
       {/* Footer (sticky) */}
-      <footer className="sticky top-0 z-[20] bg-white min-h-[40vh]" data-navbar-theme="light">
+      <footer className="sticky top-0 z-[20] bg-white" data-navbar-theme="light">
         <Footer />
       </footer>
     </div>

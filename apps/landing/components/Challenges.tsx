@@ -33,7 +33,7 @@ export default function Challenges() {
   return (
     <section
       id="about"
-      className="relative min-h-screen bg-white py-24 text-black md:py-40"
+      className="relative bg-white py-24 text-black md:py-40"
     >
       <div className="section-container relative z-10">
         <div className="mb-16 md:mb-24">
