@@ -497,10 +497,19 @@ export function WorkSessionDetailView({ sessionId }: { sessionId: string }) {
                   {session.job.location?.neighborhood ?? session.job.location?.address}
                 </p>
               ) : null}
-              <p className="text-xs text-ink-muted">
-                Scheduled {formatAbsoluteDate(session.job.scheduledStartAt)} ·{' '}
-                {session.job.durationHours}h
-              </p>
+              {session.job.scheduledStartAt || session.job.durationHours != null ? (
+                <p className="text-xs text-ink-muted">
+                  {session.job.scheduledStartAt ? (
+                    <>Scheduled {formatAbsoluteDate(session.job.scheduledStartAt)}</>
+                  ) : null}
+                  {session.job.scheduledStartAt && session.job.durationHours != null
+                    ? ' · '
+                    : ''}
+                  {session.job.durationHours != null ? (
+                    <>{session.job.durationHours}h</>
+                  ) : null}
+                </p>
+              ) : null}
               <Link href={`/jobs/${session.jobId}`}>
                 <Button variant="secondary" className="mt-1 w-full" size="sm">
                   Open job

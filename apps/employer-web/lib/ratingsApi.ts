@@ -108,10 +108,17 @@ export interface SubmitRatingResponse {
 
 /**
  * Stable key per (session, employer). Retrying a rating submit (e.g. after a
- * transient 502) must collapse to one BE-side row.
+ * transient 502) must collapse to one BE-side row. The BE validator only
+ * accepts `[a-zA-Z0-9-]{8,128}`, so we hyphen-encode separators in the IDs
+ * (which carry `_` natively, e.g. `ses_xxx` / `emp_xxx`) — the encoding is
+ * deterministic so the same inputs still produce the same key on every retry.
  */
+function sanitizeForIdempotencyKey(s: string): string {
+  return s.replace(/[^a-zA-Z0-9-]/g, '-');
+}
+
 export function ratingIdempotencyKey(sessionId: string, employerId: string): string {
-  return `rating:${sessionId}:${employerId}`;
+  return `rating-${sanitizeForIdempotencyKey(sessionId)}-${sanitizeForIdempotencyKey(employerId)}`;
 }
 
 // ── Calls ──────────────────────────────────────────────────────────────────

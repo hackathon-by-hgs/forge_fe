@@ -41,10 +41,15 @@ export interface WorkSessionWorker {
 export interface WorkSessionJobSummary {
   id: string;
   title: string;
-  type: JobTypeWire;
-  payNaira: number;
-  durationHours: number;
-  scheduledStartAt: string;
+  type?: JobTypeWire | null;
+  payNaira?: number | null;
+  /**
+   * BE doesn't currently hydrate scheduledStartAt / durationHours on the
+   * session payload — the canonical values live on the parent Job. Treat
+   * both as optional so the render layer can hide the schedule line.
+   */
+  durationHours?: number | null;
+  scheduledStartAt?: string | null;
   /**
    * BE may omit `location` (or send it as null) on the work-session payload
    * — the canonical location lives on the parent Job. Treat as optional so
@@ -130,16 +135,26 @@ export interface DisputeResponse {
 
 /**
  * Idempotency keys are stable across retries — re-clicking Confirm or hitting
- * a 502 retry must collapse to a single server-side action. Per spec:
- *   confirm:{session_id}:{employer_id}
- *   dispute:{session_id}:{employer_id}
+ * a 502 retry must collapse to a single server-side action.
+ *
+ * The brief proposed `confirm:{session_id}:{employer_id}` and
+ * `dispute:{session_id}:{employer_id}`, but the BE header validator only
+ * accepts `[a-zA-Z0-9-]{8,128}` — colons and underscores both bounce. Session
+ * and employer IDs use the `ses_…` / `emp_…` prefix convention, so even
+ * relaxing `:` alone wouldn't fix it. We hyphen-encode all separators here so
+ * the resulting key is always regex-valid AND still deterministic per
+ * (session, employer): the same inputs produce the same key on every retry.
  */
+function sanitizeForIdempotencyKey(s: string): string {
+  return s.replace(/[^a-zA-Z0-9-]/g, '-');
+}
+
 export function confirmIdempotencyKey(sessionId: string, employerId: string): string {
-  return `confirm:${sessionId}:${employerId}`;
+  return `confirm-${sanitizeForIdempotencyKey(sessionId)}-${sanitizeForIdempotencyKey(employerId)}`;
 }
 
 export function disputeIdempotencyKey(sessionId: string, employerId: string): string {
-  return `dispute:${sessionId}:${employerId}`;
+  return `dispute-${sanitizeForIdempotencyKey(sessionId)}-${sanitizeForIdempotencyKey(employerId)}`;
 }
 
 export const DISPUTE_REASONS: ReadonlyArray<{ value: DisputeReason; label: string }> = [
@@ -161,41 +176,115 @@ export const VERIFICATION_STATE_LABEL: Record<VerificationState, string> = {
   disputed: 'Disputed',
 };
 
+// ── Normalization ──────────────────────────────────────────────────────────
+
+/**
+ * Coerce a raw BE worker object into our `WorkSessionWorker` shape. The BE
+ * has historically used both `fullName` (employer-jobs payloads) and `name`
+ * (§27 pending-ratings inbox) for the same field — fall back gracefully so
+ * neither breaks the dashboard. Treats null/undefined name as "Worker".
+ */
+function normalizeWorker(raw: unknown): WorkSessionWorker {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const pickString = (...keys: string[]): string | null => {
+    for (const k of keys) {
+      const v = r[k];
+      if (typeof v === 'string' && v.trim().length > 0) return v;
+    }
+    return null;
+  };
+  return {
+    id: pickString('id') ?? 'unknown',
+    fullName: pickString('fullName', 'name', 'full_name') ?? 'Worker',
+    photoUrl: pickString('photoUrl', 'photo_url'),
+    primarySkill:
+      (pickString('primarySkill', 'primary_skill') as JobTypeWire | null) ?? null,
+  };
+}
+
+function normalizeJobSummary(raw: unknown): WorkSessionJobSummary {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const locRaw = r.location;
+  const loc = (locRaw && typeof locRaw === 'object'
+    ? (locRaw as Record<string, unknown>)
+    : null);
+  return {
+    id: typeof r.id === 'string' ? r.id : '',
+    title: typeof r.title === 'string' ? r.title : 'Untitled job',
+    type: (typeof r.type === 'string' ? r.type : null) as JobTypeWire | null,
+    payNaira: typeof r.payNaira === 'number' ? r.payNaira : null,
+    durationHours: typeof r.durationHours === 'number' ? r.durationHours : null,
+    scheduledStartAt:
+      typeof r.scheduledStartAt === 'string' ? r.scheduledStartAt : null,
+    location: loc
+      ? {
+          address: typeof loc.address === 'string' ? loc.address : null,
+          neighborhood:
+            typeof loc.neighborhood === 'string' ? loc.neighborhood : null,
+          lat: typeof loc.lat === 'number' ? loc.lat : null,
+          lng: typeof loc.lng === 'number' ? loc.lng : null,
+        }
+      : null,
+  };
+}
+
+function normalizeWorkSession(raw: unknown): WorkSessionDto {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  // Pass through every BE-supplied scalar verbatim (status, timestamps,
+  // amounts, transactionId, etc.) and only re-shape the two nested objects
+  // that have proven to drift between BE payloads.
+  return {
+    ...(r as unknown as WorkSessionDto),
+    worker: normalizeWorker(r.worker),
+    job: normalizeJobSummary(r.job),
+  };
+}
+
 // ── Calls ──────────────────────────────────────────────────────────────────
 
-export function listReviewQueue(): Promise<WorkSessionsListResponse> {
-  return api.get<WorkSessionsListResponse>(
+export async function listReviewQueue(): Promise<WorkSessionsListResponse> {
+  const raw = await api.get<WorkSessionsListResponse>(
     '/v1/employer/work-sessions?state=auto_review',
   );
+  return {
+    ...raw,
+    data: Array.isArray(raw?.data) ? raw.data.map(normalizeWorkSession) : [],
+  };
 }
 
-export function getWorkSession(id: string): Promise<WorkSessionDto> {
-  return api.get<WorkSessionDto>(
+export async function getWorkSession(id: string): Promise<WorkSessionDto> {
+  const raw = await api.get<WorkSessionDto>(
     `/v1/employer/work-sessions/${encodeURIComponent(id)}`,
   );
+  return normalizeWorkSession(raw);
 }
 
-export function confirmWorkSession(
+export async function confirmWorkSession(
   id: string,
   employerId: string,
 ): Promise<WorkSessionDto> {
-  return api.post<WorkSessionDto>(
+  const raw = await api.post<WorkSessionDto>(
     `/v1/employer/work-sessions/${encodeURIComponent(id)}/confirm`,
     undefined,
     { idempotencyKey: confirmIdempotencyKey(id, employerId) },
   );
+  return normalizeWorkSession(raw);
 }
 
-export function disputeWorkSession(
+export async function disputeWorkSession(
   id: string,
   employerId: string,
   input: DisputeInput,
 ): Promise<DisputeResponse> {
-  return api.post<DisputeResponse, DisputeInput>(
+  const raw = await api.post<DisputeResponse, DisputeInput>(
     `/v1/employer/work-sessions/${encodeURIComponent(id)}/dispute`,
     input,
     { idempotencyKey: disputeIdempotencyKey(id, employerId) },
   );
+  return {
+    ...raw,
+    session: normalizeWorkSession(raw?.session),
+  };
 }
 
 /**
