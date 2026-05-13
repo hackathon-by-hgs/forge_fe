@@ -73,7 +73,7 @@ export default function Features() {
 
       gsap.from('.features-heading', {
         y: 28,
-        duration: 0.7,
+        duration: 0.9,
         ease: 'power4.out',
         scrollTrigger: { 
           trigger: section, 
@@ -118,7 +118,7 @@ export default function Features() {
             x: 0,
             scale: 1,
             clipPath: 'inset(0 0 0% 0)',
-            duration: 0.7,
+            duration: 1.2,
             ease: 'expo.out',
           },
         );
@@ -137,7 +137,7 @@ export default function Features() {
               x: 0,
               y: 0,
               scale: 1,
-              duration: 0.55,
+              duration: 0.95,
             },
             '-=0.48',
           );
@@ -157,7 +157,7 @@ export default function Features() {
               y: 0,
               scale: 1,
               rotate: 0,
-              duration: 0.45,
+              duration: 0.65,
             },
             '-=0.46',
           );
@@ -167,7 +167,7 @@ export default function Features() {
           tl.fromTo(
             meta,
             { autoAlpha: 0, x: 12 },
-            { autoAlpha: 1, x: 0, duration: 0.35 },
+            { autoAlpha: 1, x: 0, duration: 0.55 },
             '-=0.36',
           );
         }
@@ -184,7 +184,7 @@ export default function Features() {
               autoAlpha: 1,
               y: 0,
               clipPath: 'inset(0 0 0% 0)',
-              duration: 0.5,
+              duration: 0.75,
             },
             '-=0.3',
           );
@@ -194,7 +194,7 @@ export default function Features() {
           tl.fromTo(
             copy,
             { autoAlpha: 0, y: 16 },
-            { autoAlpha: 1, y: 0, duration: 0.42 },
+            { autoAlpha: 1, y: 0, duration: 0.62 },
             '-=0.24',
           );
         }
@@ -206,8 +206,8 @@ export default function Features() {
             {
               autoAlpha: 1,
               y: 0,
-              duration: 0.3,
-              stagger: 0.04,
+              duration: 0.45,
+              stagger: 0.08,
             },
             '-=0.16',
           );
