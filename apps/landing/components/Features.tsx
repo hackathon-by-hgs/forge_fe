@@ -72,7 +72,7 @@ export default function Features() {
     const ctx = gsap.context(() => {
       gsap.from('.features-heading', {
         y: 40,
-        opacity: 0,
+        // opacity: 0,
         duration: 1,
         ease: 'power4.out',
         scrollTrigger: { 
@@ -165,7 +165,7 @@ function FeatureCard({ service, mousePos, index }: {
   return (
     <div 
       ref={cardRef}
-      className={`feature-card group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-[#0A0A0A] p-10 md:p-14 transition-all duration-700 hover:border-white/30 ${service.span}`}
+      className={`feature-card group relative overflow-hidden border border-white/10 bg-[#0A0A0A] p-10 md:p-14 transition-all duration-700 hover:border-white/30 ${service.span}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -182,7 +182,7 @@ function FeatureCard({ service, mousePos, index }: {
 
       <div className="relative z-10 h-full flex flex-col">
         <div className="flex items-start justify-between mb-12">
-          <div className={`p-4 rounded-2xl bg-white/[0.05] border border-white/10 text-white transition-all duration-500 group-hover:scale-110 group-hover:bg-[#FF4D00] group-hover:text-black group-hover:border-[#FF4D00] shadow-2xl`}>
+          <div className={`p-4 rounded-2xl bg-white/[0.05] border border-white/10 text-white transition-all duration-500 group-hover:scale-110 group-hover:bg-[#511d073d] group-hover:border-[#FF4D00] shadow-2xl`}>
             {service.icon}
           </div>
           <span className="text-[10px] font-black tracking-[0.3em] text-white/30 uppercase">Module {service.num}</span>
