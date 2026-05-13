@@ -319,9 +319,172 @@ function applySideEffects(
       });
       return;
     }
+    case 'session.pending_review': {
+      const workerId = typeof data.workerId === 'string' ? data.workerId : null;
+      const jobId = typeof data.jobId === 'string' ? data.jobId : null;
+      const sessionId = typeof data.sessionId === 'string' ? data.sessionId : null;
+      const amount =
+        typeof data.payAmountPendingNaira === 'number' ? data.payAmountPendingNaira : null;
+      const workerName = workerId ? lookupWorkerName(qc, workerId, jobId) : null;
+      const label = workerName ?? 'A worker';
+      toast({
+        tone: 'warning',
+        title: `${label} clocked out — review needed`,
+        description:
+          amount != null
+            ? `${formatCurrency(amount)} on hold for the next 2 hours. Open the review queue to confirm or dispute.`
+            : 'Open the review queue to confirm or dispute the payout.',
+        durationMs: 8000,
+      });
+      // Sidebar / overview tile counters refresh via invalidation; the SSE
+      // payload itself is enough to populate the review-queue cache if the
+      // dedicated list endpoint hasn't shipped yet.
+      if (sessionId) {
+        applyOptimisticReviewQueueInsert(qc, {
+          sessionId,
+          jobId,
+          workerId,
+          amount,
+          at: typeof p.ts === 'string' ? p.ts : new Date().toISOString(),
+          holdReleaseAt:
+            typeof data.holdReleaseAt === 'string' ? data.holdReleaseAt : null,
+          proofPhotoUrl:
+            typeof data.proofPhotoUrl === 'string' ? data.proofPhotoUrl : null,
+        });
+      }
+      return;
+    }
+    case 'session.review_resolved': {
+      const outcome = typeof data.outcome === 'string' ? data.outcome : null;
+      const sessionId = typeof data.sessionId === 'string' ? data.sessionId : null;
+      const cachedSession = sessionId
+        ? qc.getQueryData<{ worker?: { fullName?: string } }>([
+            'employer',
+            'review-queue',
+            'detail',
+            sessionId,
+          ])
+        : null;
+      const workerLabel = cachedSession?.worker?.fullName ?? 'A worker';
+      if (outcome === 'employer_confirmed') {
+        toast({
+          tone: 'success',
+          title: `Confirmed payout for ${workerLabel}`,
+          description: 'Funds are on the way to the worker.',
+        });
+      } else if (outcome === 'disputed') {
+        toast({
+          tone: 'info',
+          title: `Dispute opened against ${workerLabel}'s clock-out`,
+          description: 'Funds stay in your wallet pending ops resolution.',
+        });
+      } else if (outcome === 'auto_released') {
+        // The 2-hour window expired without action — call it out, since the
+        // employer almost certainly didn't intend this path.
+        toast({
+          tone: 'warning',
+          title: `${workerLabel}'s payout auto-released`,
+          description: 'The 2-hour review window expired without a decision.',
+          durationMs: 10000,
+        });
+      }
+      return;
+    }
+    case 'job.lifecycle_changed': {
+      const status = typeof data.status === 'string' ? data.status : null;
+      if (status !== 'completed') return;
+      const jobId = typeof data.jobId === 'string' ? data.jobId : null;
+      const cachedJob = jobId
+        ? qc.getQueryData<JobDto>(['employer', 'jobs', 'detail', jobId])
+        : null;
+      const title = cachedJob?.title ?? 'A job';
+      toast({
+        tone: 'success',
+        title: `${title} is complete`,
+        description: 'All sessions have settled.',
+      });
+      return;
+    }
+    case 'score.recomputed': {
+      toast({
+        tone: 'info',
+        title: 'Your business score updated',
+        description: 'Open Credit & Loans to see the new breakdown.',
+      });
+      return;
+    }
     default:
       return;
   }
+}
+
+function lookupWorkerName(
+  qc: QueryClient,
+  workerId: string,
+  jobId: string | null,
+): string | null {
+  // Try the job-detail cache first (assignedWorker hydrated), then the
+  // standalone worker-detail cache. Both are best-effort — falling back to
+  // a generic label is acceptable for a hint toast.
+  if (jobId) {
+    const job = qc.getQueryData<JobDto>(['employer', 'jobs', 'detail', jobId]);
+    if (job?.assignedWorker?.id === workerId && job.assignedWorker.fullName) {
+      return job.assignedWorker.fullName;
+    }
+  }
+  const worker = qc.getQueryData<{ fullName?: string }>([
+    'employer',
+    'workers',
+    'detail',
+    workerId,
+  ]);
+  return worker?.fullName ?? null;
+}
+
+interface OptimisticReviewQueueInsert {
+  sessionId: string;
+  jobId: string | null;
+  workerId: string | null;
+  amount: number | null;
+  at: string;
+  holdReleaseAt: string | null;
+  proofPhotoUrl: string | null;
+}
+
+/**
+ * Prepend a minimal placeholder row to the review-queue cache so the badge
+ * count / list updates instantly. The subsequent invalidation will refetch
+ * the canonical payload and replace this entry. Skips if the cache is empty
+ * (user hasn't visited the queue yet — nothing to optimistically update).
+ */
+function applyOptimisticReviewQueueInsert(
+  qc: QueryClient,
+  next: OptimisticReviewQueueInsert,
+): void {
+  const key = ['employer', 'review-queue'] as const;
+  const current = qc.getQueryData<{ data?: Array<Record<string, unknown>> }>([...key]);
+  if (!current || !Array.isArray(current.data)) return;
+  if (current.data.some((row) => (row as { id?: string }).id === next.sessionId)) return;
+  qc.setQueryData([...key], {
+    ...current,
+    data: [
+      {
+        id: next.sessionId,
+        jobId: next.jobId ?? '',
+        workerId: next.workerId ?? '',
+        verificationState: 'auto_review',
+        payAmountPendingNaira: next.amount ?? 0,
+        payAmountDisbursedNaira: 0,
+        holdReleaseAt: next.holdReleaseAt ?? next.at,
+        clockInAt: next.at,
+        clockOutAt: next.at,
+        proofPhotoUrl: next.proofPhotoUrl,
+        worker: { id: next.workerId ?? '', fullName: 'Awaiting refresh…' },
+        job: { id: next.jobId ?? '', title: 'Awaiting refresh…' },
+      },
+      ...current.data,
+    ],
+  });
 }
 
 function pruneStaleClockOuts(queue: PendingClockOut[]): void {

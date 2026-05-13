@@ -6,7 +6,8 @@ export type NotificationKind =
   | 'job_completed'
   | 'payment_processed'
   | 'credit_update'
-  | 'payout_review';
+  | 'payout_review'
+  | 'rate_your_worker';
 
 export type DashboardNotificationDto = components['schemas']['NotificationDto'];
 
@@ -39,6 +40,8 @@ function mapKind(kind: string): NotificationKind {
       return 'credit_update';
     case 'clock_out_pending_review':
       return 'payout_review';
+    case 'rate_your_worker':
+      return 'rate_your_worker';
     case 'system':
     default:
       return 'application';

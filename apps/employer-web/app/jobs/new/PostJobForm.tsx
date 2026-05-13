@@ -1,11 +1,11 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import {
   AlertBanner,
@@ -25,6 +25,9 @@ import { formatCurrency } from '@forge/ui/utils';
 import { IconBriefcase, IconClock, IconLocation } from '@forge/ui/icons';
 import { createJob, type CreateJobInput, type JobTemplate } from '../../../lib/jobsApi';
 import { ApiError } from '../../../lib/api';
+import { toastApiError, toastSuccess } from '../../../lib/toast';
+import { getPendingRatings, type PendingRatingItem } from '../../../lib/ratingsApi';
+import { RatingDialog } from '../../../components/RatingDialog';
 import {
   DEFAULT_LOCATION,
   DEFAULT_LOCATION_ID,
@@ -139,6 +142,13 @@ function matchTemplateLocation(neighborhood: string | undefined | null): string 
   return partial?.id ?? DEFAULT_LOCATION_ID;
 }
 
+function genIdempotencyKey(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `job-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export function PostJobForm({ template }: { template?: JobTemplate | null }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -150,6 +160,16 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
     requiredNaira: number;
     shortfallNaira: number;
   } | null>(null);
+
+  // §27 PENDING_RATINGS_BLOCK_POSTING gate state. The idempotency key is
+  // pinned per form session so retrying after clearing the backlog keeps
+  // the same dedup key — a fresh UUID would let two posts slip through.
+  const [idempotencyKey, setIdempotencyKey] = useState<string>(genIdempotencyKey);
+  const [pendingBlock, setPendingBlock] = useState<{
+    sessionIds: string[];
+    message: string;
+  } | null>(null);
+  const [lastPayload, setLastPayload] = useState<CreateJobInput | null>(null);
 
   const {
     register,
@@ -203,28 +223,76 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
     watchedStartAt && new Date(watchedStartAt).getTime() < Date.now() - 60_000;
 
   const mutate = useMutation({
-    mutationFn: (input: CreateJobInput) => createJob(input),
+    mutationFn: (input: CreateJobInput) =>
+      createJob(input, { idempotencyKey }),
     onSuccess: (job) => {
       void queryClient.invalidateQueries({ queryKey: ['employer', 'jobs'] });
       void queryClient.invalidateQueries({ queryKey: ['employer', 'overview'] });
+      toastSuccess(
+        job.status === 'draft' ? 'Draft saved' : 'Job posted',
+        {
+          description:
+            job.status === 'draft'
+              ? `“${job.title}” is in your drafts.`
+              : `“${job.title}” is now live — workers can apply.`,
+        },
+      );
+      // Mint a fresh key for any *next* post the user might do without
+      // navigating away (defensive — the redirect below normally happens
+      // first, but a slow router can race).
+      setIdempotencyKey(genIdempotencyKey());
       router.push(`/jobs/${job.id}`);
     },
     onError: (err) => {
+      const block = pendingRatingsBlockFromApi(err);
+      if (block) {
+        // Per brief: stash the payload so we can retry verbatim once the
+        // backlog clears. The same Idempotency-Key is reused so the BE
+        // dedupes any concurrent attempts.
+        setPendingBlock(block);
+        toastApiError(err, 'Rate your recent workers to post a new job');
+        return;
+      }
       const funds = insufficientFundsFromApi(err);
       if (funds) {
         setInsufficientFunds(funds);
+        // Inline banner already explains the shortfall; surface a parallel
+        // toast so the user notices even if they scroll away.
+        toastApiError(err, 'Not enough wallet balance');
         return;
       }
       const fe = fieldErrorsFromApi(err);
-      if (fe) setFieldErrors(fe);
+      if (fe) {
+        setFieldErrors(fe);
+        toastApiError(err, 'Please fix the highlighted fields');
+        return;
+      }
       setServerError(humanError(err));
+      toastApiError(err, 'Couldn’t post the job');
     },
   });
+
+  // Hydrate the modal's session details: only fetch the inbox once the BE
+  // has flagged this employer as blocked, and only filter to the ids it
+  // returned (the inbox may be a superset if more sessions are unrated).
+  const pendingRatingsQuery = useQuery({
+    queryKey: ['employer', 'pending-ratings'],
+    queryFn: getPendingRatings,
+    enabled: pendingBlock !== null,
+    retry: false,
+  });
+
+  const blockedSessions = useMemo<PendingRatingItem[]>(() => {
+    if (!pendingBlock || !pendingRatingsQuery.data) return [];
+    const wanted = new Set(pendingBlock.sessionIds);
+    return pendingRatingsQuery.data.items.filter((it) => wanted.has(it.sessionId));
+  }, [pendingBlock, pendingRatingsQuery.data]);
 
   const onSubmit = handleSubmit((values) => {
     setFieldErrors({});
     setServerError(null);
     setInsufficientFunds(null);
+    setPendingBlock(null);
     const equipment = (values.requiredEquipment ?? '')
       .split(',')
       .map((s) => s.trim())
@@ -239,7 +307,7 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
         ? (values.city ?? '').trim()
         : preset?.name ?? '';
 
-    mutate.mutate({
+    const payload: CreateJobInput = {
       title: values.title,
       description: values.description,
       type: values.type,
@@ -256,7 +324,9 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
       scheduledStartAt: new Date(values.startAt).toISOString(),
       requiredEquipment: equipment.length ? equipment : undefined,
       postNow: values.postNow,
-    });
+    };
+    setLastPayload(payload);
+    mutate.mutate(payload);
   });
 
   const handleLocationChange = (id: string) => {
@@ -628,6 +698,26 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
           </div>
         </div>
       </div>
+
+      <RatingDialog
+        open={pendingBlock !== null}
+        sessions={blockedSessions}
+        dismissible
+        title="Rate your last workers"
+        description={
+          pendingBlock?.message ??
+          'Forge needs your ratings before you can post a new job.'
+        }
+        onAllRated={() => {
+          // Backlog cleared. Retry the exact same payload with the SAME
+          // idempotency key — keeps the BE-side dedup intact.
+          setPendingBlock(null);
+          if (lastPayload) {
+            mutate.mutate(lastPayload);
+          }
+        }}
+        onDismiss={() => setPendingBlock(null)}
+      />
     </form>
   );
 }
@@ -636,6 +726,19 @@ function humanError(err: unknown): string {
   if (err instanceof ApiError) return err.message;
   if (err instanceof Error) return err.message;
   return 'Something went wrong';
+}
+
+function pendingRatingsBlockFromApi(
+  err: unknown,
+): { sessionIds: string[]; message: string } | null {
+  if (!(err instanceof ApiError) || err.code !== 'PENDING_RATINGS_BLOCK_POSTING') {
+    return null;
+  }
+  const ids = err.details?.pending_session_ids;
+  const sessionIds = Array.isArray(ids)
+    ? ids.filter((s): s is string => typeof s === 'string')
+    : [];
+  return { sessionIds, message: err.message };
 }
 
 function fieldErrorsFromApi(err: unknown): Record<string, string> | null {

@@ -282,9 +282,15 @@ export function getJobProof(id: string): Promise<JobProofResponse> {
   );
 }
 
-export function createJob(input: CreateJobInput): Promise<JobDto> {
+export function createJob(
+  input: CreateJobInput,
+  options?: { idempotencyKey?: string },
+): Promise<JobDto> {
   return api.post<JobDto, CreateJobInput>('/v1/employer/jobs', input, {
-    idempotencyKey: genUuid(),
+    // Caller supplies a stable key when it needs the BE to dedupe a retry —
+    // §27 rating gate retries the same POST with the same key after clearing
+    // the unrated backlog, so a fresh UUID would defeat dedup.
+    idempotencyKey: options?.idempotencyKey ?? genUuid(),
   });
 }
 

@@ -16,6 +16,7 @@ import {
   IconCredit,
   IconNaira,
   IconShield,
+  IconStar,
   IconUser,
 } from '@forge/ui/icons';
 import { formatRelativeTime } from '@forge/ui/utils';
@@ -34,6 +35,7 @@ const ICON: Record<NotificationKind, React.ReactNode> = {
   payment_processed: <IconNaira className="!h-3.5 !w-3.5" />,
   credit_update: <IconCredit className="!h-3.5 !w-3.5" />,
   payout_review: <IconShield className="!h-3.5 !w-3.5" />,
+  rate_your_worker: <IconStar className="!h-3.5 !w-3.5" />,
 };
 
 const TONE: Record<NotificationKind, string> = {
@@ -43,6 +45,7 @@ const TONE: Record<NotificationKind, string> = {
   payment_processed: 'bg-accent-50 text-accent-600',
   credit_update: 'bg-secondary-50 text-secondary-600',
   payout_review: 'bg-warning-50 text-warning-600',
+  rate_your_worker: 'bg-warning-50 text-warning-600',
 };
 
 type NotificationsListResponseDto = components['schemas']['NotificationsListResponseDto'];

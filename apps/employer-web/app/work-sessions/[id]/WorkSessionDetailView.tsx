@@ -25,7 +25,6 @@ import {
   Select,
   Skeleton,
   Textarea,
-  toast,
 } from '@forge/ui';
 import {
   IconAlert,
@@ -34,6 +33,7 @@ import {
   IconClock,
   IconLocation,
   IconShield,
+  IconStar,
 } from '@forge/ui/icons';
 import {
   formatAbsoluteDate,
@@ -42,6 +42,9 @@ import {
 } from '@forge/ui/utils';
 import { ApiError } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
+import { toastApiError, toastInfo, toastSuccess } from '../../../lib/toast';
+import { getPendingRatings, type PendingRatingItem } from '../../../lib/ratingsApi';
+import { RatingDialog } from '../../../components/RatingDialog';
 import {
   canActOnSession,
   confirmWorkSession,
@@ -73,6 +76,25 @@ export function WorkSessionDetailView({ sessionId }: { sessionId: string }) {
   const [actionError, setActionError] = useState<string | null>(null);
   const [showDisputeDialog, setShowDisputeDialog] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showRatingDialog, setShowRatingDialog] = useState(false);
+
+  // The "Rate this worker" CTA only renders when this session shows up in
+  // the pending-ratings inbox — that's the canonical "unrated" signal per
+  // brief. Fetched lazily once the session has settled, so we don't hit
+  // the endpoint for every in-progress session view.
+  const pendingRatingsQuery = useQuery({
+    queryKey: ['employer', 'pending-ratings'],
+    queryFn: getPendingRatings,
+    enabled: Boolean(session && isSettled(session)),
+    retry: false,
+  });
+  const isUnrated = Boolean(
+    session &&
+      pendingRatingsQuery.data?.items.some((it) => it.sessionId === session.id),
+  );
+  const pendingRatingForThisSession: PendingRatingItem | null =
+    pendingRatingsQuery.data?.items.find((it) => it.sessionId === session?.id) ??
+    null;
 
   const invalidateAll = () => {
     void queryClient.invalidateQueries({ queryKey: ['employer', 'review-queue'] });
@@ -101,10 +123,8 @@ export function WorkSessionDetailView({ sessionId }: { sessionId: string }) {
     onSuccess: (updated) => {
       queryClient.setQueryData(detailKey, updated);
       invalidateAll();
-      toast({
-        tone: 'success',
-        title: 'Payment released',
-        description: `${updated.worker.fullName}'s payout is on the way.`,
+      toastSuccess('Payment released', {
+        description: `${updated.worker.fullName}’s payout is on the way.`,
       });
     },
     onError: (err) => {
@@ -115,16 +135,22 @@ export function WorkSessionDetailView({ sessionId }: { sessionId: string }) {
           setActionError(
             'This session was already resolved. The page has been refreshed.',
           );
+          toastApiError(err, 'Already resolved');
         },
         onNotFound: () => {
           setActionError('This session no longer exists.');
+          toastApiError(err, 'Session no longer exists');
         },
         onProviderDown: () => {
           setActionError(
             'Squad is temporarily unavailable. Tap Confirm again to retry — your action is idempotent.',
           );
+          toastApiError(err, 'Squad is temporarily unavailable');
         },
-        onGeneric: (message) => setActionError(message),
+        onGeneric: (message) => {
+          setActionError(message);
+          toastApiError(err, 'Couldn’t release payment');
+        },
       });
     },
     onSettled: () => {
@@ -154,9 +180,7 @@ export function WorkSessionDetailView({ sessionId }: { sessionId: string }) {
     onSuccess: (resp) => {
       queryClient.setQueryData(detailKey, resp.session);
       invalidateAll();
-      toast({
-        tone: 'info',
-        title: 'Dispute opened',
+      toastInfo('Dispute opened', {
         description: 'Funds remain in your wallet pending ops review.',
       });
       setShowDisputeDialog(false);
@@ -168,11 +192,16 @@ export function WorkSessionDetailView({ sessionId }: { sessionId: string }) {
           setActionError(
             'This session was already resolved. The page has been refreshed.',
           );
+          toastApiError(err, 'Already resolved');
         },
         onNotFound: () => {
           setActionError('This session no longer exists.');
+          toastApiError(err, 'Session no longer exists');
         },
-        onGeneric: (message) => setActionError(message),
+        onGeneric: (message) => {
+          setActionError(message);
+          toastApiError(err, 'Couldn’t open the dispute');
+        },
       });
     },
   });
@@ -256,7 +285,16 @@ export function WorkSessionDetailView({ sessionId }: { sessionId: string }) {
         ]}
         actions={
           <>
-            {settled ? null : (
+            {settled ? (
+              isUnrated && pendingRatingForThisSession ? (
+                <Button
+                  leadingIcon={<IconStar className="!h-4 !w-4" />}
+                  onClick={() => setShowRatingDialog(true)}
+                >
+                  Rate this worker
+                </Button>
+              ) : null
+            ) : (
               <>
                 <Button
                   variant="ghost"
@@ -506,6 +544,20 @@ export function WorkSessionDetailView({ sessionId }: { sessionId: string }) {
         loading={disputeMutation.isPending}
         onCancel={() => setShowDisputeDialog(false)}
         onSubmit={(input) => disputeMutation.mutate(input)}
+      />
+
+      <RatingDialog
+        open={showRatingDialog}
+        sessions={pendingRatingForThisSession ? [pendingRatingForThisSession] : []}
+        dismissible
+        title="Rate this worker"
+        description="Your rating helps other employers find reliable workers."
+        onAllRated={() => {
+          setShowRatingDialog(false);
+          // The query invalidation inside RatingDialog refetches the inbox,
+          // which then makes `isUnrated` flip to false and hides the CTA.
+        }}
+        onDismiss={() => setShowRatingDialog(false)}
       />
 
       {cronTicking ? <CronRefetcher onTick={() => void detailQuery.refetch()} /> : null}
