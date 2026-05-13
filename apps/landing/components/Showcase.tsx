@@ -71,7 +71,7 @@ export default function Showcase() {
       id="showcase"
       className="relative overflow-hidden"
     >
-      <div className="relative z-10 flex min-h-screen flex-col justify-center py-20">
+      <div className="relative z-10 flex min-h-screen flex-col justify-center py-20 bg-black">
         {/* Heading */}
         <div className="section-container mb-12">
           <div className="grid gap-8 md:grid-cols-2 md:gap-20">

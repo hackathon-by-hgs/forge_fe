@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Space_Grotesk } from 'next/font/google';
+import Script from 'next/script';
 import './globals.css';
 
 const spaceGrotesk = Space_Grotesk({
@@ -43,7 +44,20 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={spaceGrotesk.variable}>
-      <body className="bg-black font-sans antialiased">{children}</body>
+      <body className="bg-black font-sans antialiased">
+        <Script id="scroll-restoration-reset" strategy="beforeInteractive">
+          {`
+            if ('scrollRestoration' in window.history) {
+              window.history.scrollRestoration = 'manual';
+            }
+
+            window.addEventListener('load', function () {
+              window.scrollTo(0, 0);
+            });
+          `}
+        </Script>
+        {children}
+      </body>
     </html>
   );
 }

@@ -9,7 +9,7 @@ import {
   Features,
   SuccessStories,
   Challenges,
-  // Showcase,
+  Showcase,
   Testimonials,
   Industries,
   ContactForm,
@@ -18,6 +18,7 @@ import {
   CustomCursor,
   ArchSection,
 } from '@/components';
+import BottomArch from '@/components/BottomArch';
 
 export default function LandingPage() {
   useLenis();
@@ -61,6 +62,8 @@ export default function LandingPage() {
         {/* Step 3: Features (dark, slides over) */}
         <ArchSection id="features" className="z-[13]">
           <Features />
+          <BottomArch color='#000000' />
+
         </ArchSection>
 
         {/* Step 4: Case Studies + Challenges split into sticky parts */}
@@ -73,9 +76,9 @@ export default function LandingPage() {
         </section>
 
         {/* Step 5: Showcase (dark, slides over) */}
-        {/* <ArchSection id="showcase" className="sticky top-0 z-[16]">
+        <ArchSection id="showcase" className="sticky top-0 z-[16]">
           <Showcase />
-        </ArchSection> */}
+        </ArchSection>
 
         {/* Step 6: Industries (white, sticky) */}
         <section data-navbar-theme="light" className="sticky top-0 z-[17] bg-white">
