@@ -17,10 +17,19 @@ interface SseErrorEvent extends Event {
 }
 
 const BANK_EVENT_NAMES = [
+  // Phase 4 legacy names — kept while the BE still emits them in parallel.
   'loan.disbursed',
   'loan.repayment_paid',
   'loan.risk_changed',
   'application.decided',
+  // Part C names from the underwriting+attribution brief. The BE emits both
+  // old and new for now; subscribing to both means we get refresh signals
+  // even after the legacy names are retired.
+  'loan.lifecycle_changed',
+  'loan_application.lifecycle_changed',
+  'loan_repayment.updated',
+  'risk-radar.refreshed',
+  'analytics.refreshed',
 ] as const;
 
 const SSE_LOG_PREFIX = '[forge-sse]';
@@ -205,6 +214,7 @@ function applyInvalidations(
 ): void {
   const data = p.data && typeof p.data === 'object' ? p.data : ({} as Record<string, unknown>);
   switch (p.event) {
+    // ── Legacy Phase 4 events (still emitted alongside the new names) ────
     case 'loan.disbursed':
     case 'loan.repayment_paid':
     case 'loan.risk_changed': {
@@ -230,6 +240,56 @@ function applyInvalidations(
       if (applicationId) {
         invalidate(['bank', 'applications', applicationId]);
       }
+      break;
+    }
+    // ── Part C names from the underwriting+attribution brief ─────────────
+    case 'loan.lifecycle_changed': {
+      // Any loan status / risk-level flip. Refresh list, detail, and the
+      // risk-radar tile so the dashboard reflects the new state.
+      invalidate(['bank', 'loans']);
+      invalidate(['bank', 'risk-radar']);
+      invalidate(['bank', 'portfolio', 'loan-book']);
+      const loanId = typeof data.loanId === 'string' ? data.loanId : undefined;
+      if (loanId) {
+        invalidate(['bank', 'loans', loanId]);
+        // The bank-web detail-page query key is `['bank', 'loans', id]`
+        // (see the loans/[id] page). Some callers also use a 'detail' tag.
+        invalidate(['bank', 'loans', 'detail', loanId]);
+      }
+      break;
+    }
+    case 'loan_application.lifecycle_changed': {
+      invalidate(['bank', 'applications']);
+      const applicationId =
+        typeof data.applicationId === 'string' ? data.applicationId : undefined;
+      if (applicationId) {
+        invalidate(['bank', 'applications', applicationId]);
+        invalidate(['bank', 'applications', 'detail', applicationId]);
+      }
+      break;
+    }
+    case 'loan_repayment.updated': {
+      // A repayment row changed — refresh the parent loan's detail and the
+      // portfolio-level rollup (outstanding moves, risk may flip).
+      invalidate(['bank', 'risk-radar']);
+      invalidate(['bank', 'portfolio', 'loan-book']);
+      const loanId = typeof data.loanId === 'string' ? data.loanId : undefined;
+      if (loanId) {
+        invalidate(['bank', 'loans', loanId]);
+        invalidate(['bank', 'loans', 'detail', loanId]);
+      }
+      break;
+    }
+    case 'risk-radar.refreshed': {
+      // Nightly aggregate ran. Invalidate the radar; React Query refetches
+      // active queries on the visible page.
+      invalidate(['bank', 'risk-radar']);
+      break;
+    }
+    case 'analytics.refreshed': {
+      // Performance Attribution page reads `['bank','analytics',…]`.
+      // Broad prefix invalidates period / attribution / cohorts / vintage.
+      invalidate(['bank', 'analytics']);
       break;
     }
     default:
