@@ -14,7 +14,7 @@ export function StatItem({ end, suffix, label, decimals = 0 }: StatItemProps) {
   return (
     <div className="flex flex-col p-10 md:p-16">
       <span className="mb-4 text-6xl font-medium tracking-tighter text-black md:text-8xl lg:text-9xl">
-        <Odometer value={end} decimals={decimals} />
+        <Odometer value={end} decimals={decimals} className="font-inherit" />
         <span className="text-[#FF4D00]">{suffix}</span>
       </span>
       <span className="text-[11px] uppercase tracking-[0.2em] font-bold text-black/30">
