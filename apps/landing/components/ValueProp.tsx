@@ -6,26 +6,26 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const PILLARS = [
-  {
-    tag: '01',
-    title: 'Verified Workforce',
-    description: 'Access a pool of pre-vetted, high-performance labor with historical reliability data.',
-    color: '#FF4D00'
-  },
-  {
-    tag: '02',
-    title: 'Automated Payroll',
-    description: 'Seamless digital payments and attendance tracking tailored for Nigerian business operations.',
-    color: '#000000'
-  },
-  {
-    tag: '03',
-    title: 'Predictive Credit',
-    description: 'Transform work history into financial power with our performance-based credit scoring.',
-    color: '#FF4D00'
-  }
-];
+// const PILLARS = [
+//   {
+//     tag: '01',
+//     title: 'Verified Workforce',
+//     description: 'Access a pool of pre-vetted, high-performance labor with historical reliability data.',
+//     color: '#FF4D00'
+//   },
+//   {
+//     tag: '02',
+//     title: 'Automated Payroll',
+//     description: 'Seamless digital payments and attendance tracking tailored for Nigerian business operations.',
+//     color: '#000000'
+//   },
+//   {
+//     tag: '03',
+//     title: 'Predictive Credit',
+//     description: 'Transform work history into financial power with our performance-based credit scoring.',
+//     color: '#FF4D00'
+//   }
+// ];
 
 export default function ValueProp() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -91,11 +91,11 @@ export default function ValueProp() {
         className="sticky top-0 h-screen w-full bg-[#F9F9F9] overflow-hidden shadow-[30px_0_100px_rgba(0,0,0,0.1)] border-r border-black/5"
       >
         {/* Subtle background text */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none overflow-hidden w-full whitespace-nowrap opacity-[0.2] text-center">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none overflow-hidden w-full whitespace-nowrap opacity-[0.2] text-center mt-20">
           <span className="text-[18vw] font-black uppercase tracking-tighter text-black">ECOSYSTEM</span>
         </div>
 
-        <div className="section-container relative z-10 flex h-full flex-col justify-center py-24">
+        <div className="section-container relative z-10 h-fit py-24">
           <div className="mb-24 max-w-4xl">
             <span className="text-[11px] font-bold uppercase tracking-[0.4em] text-[#FF4D00] mb-8 block">THE FORGE EDGE</span>
             <h2 className="value-title text-[clamp(2rem,6vw,4.5rem)] font-medium leading-[1.05] tracking-tight text-black">
@@ -104,7 +104,7 @@ export default function ValueProp() {
             </h2>
           </div>
 
-          <div ref={cardsRef} className="grid gap-8 md:grid-cols-3 md:gap-12">
+          {/* <div ref={cardsRef} className="grid gap-8 md:grid-cols-3 md:gap-12">
             {PILLARS.map((pillar) => (
               <div 
                 key={pillar.tag} 
@@ -132,7 +132,7 @@ export default function ValueProp() {
                 </div>
               </div>
             ))}
-          </div>
+          </div> */}
         </div>
       </div>
     </section>
