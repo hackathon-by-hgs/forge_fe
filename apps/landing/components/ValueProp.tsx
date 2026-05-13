@@ -88,7 +88,7 @@ export default function ValueProp() {
       {/* Sticky Container */}
       <div 
         ref={stickyContentRef}
-        className="sticky top-0 h-screen w-full bg-[#F9F9F9] overflow-hidden shadow-[30px_0_100px_rgba(0,0,0,0.1)] border-r border-black/5"
+        className="sticky top-0 h-screen w-full bg-[#f9f9f98b] overflow-hidden shadow-[30px_0_100px_rgba(0,0,0,0.1)] border-r border-black/5"
       >
         {/* Subtle background text */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none select-none overflow-hidden w-full whitespace-nowrap opacity-[0.2] text-center mt-20">

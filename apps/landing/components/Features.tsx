@@ -182,7 +182,7 @@ function FeatureCard({ service, mousePos, index }: {
 
       <div className="relative z-10 h-full flex flex-col">
         <div className="flex items-start justify-between mb-12">
-          <div className={`p-4 rounded-2xl bg-white/[0.05] border border-white/10 text-white transition-all duration-500 group-hover:scale-110 group-hover:bg-[#511d073d] group-hover:border-[#FF4D00] shadow-2xl`}>
+          <div className={`p-4 bg-white/[0.05] border border-white/10 text-white transition-all duration-500 group-hover:scale-110 group-hover:bg-[#511d073d] group-hover:border-[#FF4D00] shadow-2xl`}>
             {service.icon}
           </div>
           <span className="text-[10px] font-black tracking-[0.3em] text-white/30 uppercase">Module {service.num}</span>
@@ -200,7 +200,7 @@ function FeatureCard({ service, mousePos, index }: {
           {service.tags.map((tag) => (
             <span
               key={tag}
-              className="text-[10px] font-bold tracking-widest uppercase px-4 py-2 rounded-full bg-white/[0.05] border border-white/10 text-white/50 group-hover:text-white/70 group-hover:border-white/20 transition-colors"
+              className="text-[10px] font-bold tracking-widest uppercase px-4 py-2 bg-white/[0.05] border border-white/10 text-white/50 group-hover:text-white/70 group-hover:border-white/20 transition-colors"
             >
               {tag}
             </span>

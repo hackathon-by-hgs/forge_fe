@@ -60,16 +60,6 @@ export default function Hero() {
       id="hero"
       className="relative flex flex-col justify-center bg-white pt-32 pb-24 text-black md:pb-40"
     >
-              <div className="absolute inset-0">
-          <img 
-            src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=2070&auto=format&fit=crop" 
-            alt="Forge Infrastructure"
-            className="h-full w-full object-cover opacity-[0.12] grayscale contrast-125"
-          />
-          {/* Decorative mesh/grid overlay */}
-          <div className="absolute inset-0 bg-[radial-gradient(#000000_1px,transparent_1px)] [background-size:40px_40px] opacity-[0.05]" />
-          <div className="absolute inset-0 bg-gradient-to-b from-white via-transparent to-white" />
-        </div>
       <div className="section-container relative z-10 w-full">
         {/* Top: Headline & CTAs */}
         <div className="mb-24 md:mb-32">
