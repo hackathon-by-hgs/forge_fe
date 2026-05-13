@@ -30,7 +30,6 @@ gsap.registerPlugin(ScrollTrigger);
 export default function ValueProp() {
   const sectionRef = useRef<HTMLElement>(null);
   const stickyContentRef = useRef<HTMLDivElement>(null);
-  const cardsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const ctx = gsap.context(() => {

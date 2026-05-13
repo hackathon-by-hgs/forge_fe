@@ -18,7 +18,6 @@ const ArchSection: React.FC<ArchSectionProps> = ({
   children,
   className = '',
   id,
-  minHeight = '100vh',
 }) => {
   const clipId = useId().replace(/:/g, '');
 

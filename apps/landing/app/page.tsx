@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useLenis } from '@/hooks';
 import {
   Header,
@@ -8,7 +9,7 @@ import {
   Features,
   SuccessStories,
   Challenges,
-  Showcase,
+  // Showcase,
   Testimonials,
   Industries,
   ContactForm,
@@ -40,10 +41,13 @@ export default function LandingPage() {
         >
           <div className="pointer-events-none absolute inset-0">
             <div className="sticky top-0 h-screen overflow-hidden">
-              <img
+              <Image
                 src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=2070&auto=format&fit=crop"
                 alt="Forge Infrastructure"
-                className="h-full w-full scale-105 object-cover object-center opacity-[0.4] contrast-[1.15] saturate-[0.9]"
+                fill
+                priority
+                sizes="100vw"
+                className="scale-105 object-cover object-center opacity-[0.4] contrast-[1.15] saturate-[0.9]"
               />
               {/* Decorative mesh/grid overlay */}
               {/* <div className="absolute inset-0 bg-[radial-gradient(#000000_1px,transparent_1px)] [background-size:40px_40px] opacity-[0.08]" />
