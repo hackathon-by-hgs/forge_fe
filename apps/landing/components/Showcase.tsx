@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -119,67 +119,106 @@ function ShowcaseCard({
   item: (typeof SHOWCASES)[number];
   index: number;
 }) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [isHovered, setIsHovered] = useState(false);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    setMousePos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+  };
+
   return (
-    <div className="group cursor-pointer">
-      <div className="overflow-hidden rounded-3xl border border-white/[0.06] bg-white/[0.02] transition-all duration-500 hover:border-white/[0.12] hover:bg-white/[0.04]">
+    <div 
+      ref={cardRef}
+      className="group cursor-pointer relative"
+      onMouseMove={handleMouseMove}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div className="overflow-hidden rounded-[2.5rem] border border-white/[0.06] bg-[#0A0A0A] transition-all duration-700 hover:border-white/[0.15] hover:shadow-[0_40px_80px_-20px_rgba(0,0,0,0.5)]">
         {/* Preview */}
         <div 
-          className="h-[300px] md:h-[400px] relative flex items-center justify-center p-8 overflow-hidden"
-          style={{ backgroundColor: item.accentColor }}
+          className="h-[350px] md:h-[450px] relative flex items-center justify-center p-8 overflow-hidden transition-colors duration-700"
+          style={{ backgroundColor: isHovered ? item.accentColor.replace('0.10', '0.15').replace('0.12', '0.18') : item.accentColor }}
         >
-           <div className="absolute inset-0 bg-dot-grid opacity-20" />
+          {/* Spotlight */}
+          <div 
+            className="absolute inset-0 pointer-events-none transition-opacity duration-500" 
+            style={{
+              opacity: isHovered ? 1 : 0,
+              background: `radial-gradient(600px circle at ${mousePos.x}px ${mousePos.y}px, rgba(255, 77, 0, 0.05), transparent 40%)`,
+            }} 
+          />
+
+           <div className="absolute inset-0 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:32px_32px] opacity-[0.03]" />
+           
            {/* Mock UI frame */}
-          <div className="relative w-full max-w-md">
-            <div className="rounded-2xl border border-white/10 bg-black p-6 shadow-2xl transition-transform duration-700 group-hover:-translate-y-4">
+          <div className="relative w-full max-w-lg perspective-[1000px]">
+            <div className="rounded-2xl border border-white/10 bg-[#050505] p-6 shadow-[0_30px_60px_-12px_rgba(0,0,0,0.5)] transition-all duration-700 group-hover:-translate-y-8 group-hover:rotate-x-2 group-hover:scale-[1.02]">
               <div className="mb-6 flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-red-500/40" />
-                <div className="h-2 w-2 rounded-full bg-yellow-500/40" />
-                <div className="h-2 w-2 rounded-full bg-green-500/40" />
-                <span className="ml-4 text-[10px] font-bold uppercase tracking-widest text-white/10">
-                  {item.title} — FORGE SYSTEM
-                </span>
+                <div className="flex gap-1.5">
+                  <div className="h-2 w-2 rounded-full bg-white/10" />
+                  <div className="h-2 w-2 rounded-full bg-white/10" />
+                  <div className="h-2 w-2 rounded-full bg-white/10" />
+                </div>
+                <div className="ml-4 h-4 w-32 rounded-full bg-white/[0.03]" />
               </div>
-              <div className="grid grid-cols-4 gap-4">
-                <div className="col-span-3 h-10 rounded-lg bg-white/[0.05]" />
-                <div className="h-10 rounded-lg bg-white/[0.05]" />
-                <div className="col-span-2 h-32 rounded-lg bg-white/[0.03]" />
-                <div className="col-span-2 h-32 rounded-lg bg-white/[0.03]" />
+              
+              <div className="space-y-4">
+                <div className="h-8 w-full rounded-lg bg-white/[0.05] flex items-center px-3">
+                   <div className="h-2 w-1/3 rounded-full bg-white/10" />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="h-32 rounded-xl bg-[#FF4D00]/[0.02] border border-[#FF4D00]/5 p-4">
+                    <div className="h-2 w-1/2 rounded-full bg-[#FF4D00]/20 mb-2" />
+                    <div className="h-8 w-3/4 rounded-lg bg-[#FF4D00]/10" />
+                  </div>
+                  <div className="h-32 rounded-xl bg-white/[0.02] border border-white/5 p-4">
+                    <div className="h-2 w-1/2 rounded-full bg-white/10 mb-2" />
+                    <div className="h-8 w-3/4 rounded-lg bg-white/5" />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Info */}
-        <div className="p-8 md:p-12">
-          <div className="mb-6 flex items-start justify-between">
-            <div>
-              <h3 className="mb-3 text-2xl font-bold text-white transition-colors duration-300 group-hover:text-[#FF4D00] md:text-3xl">
+        <div className="p-10 md:p-14">
+          <div className="mb-8 flex items-start justify-between">
+            <div className="max-w-md">
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-[10px] font-black tracking-[0.2em] text-[#FF4D00] uppercase">FORGE SYSTEM</span>
+                <div className="h-[1px] w-8 bg-white/10" />
+              </div>
+              <h3 className="mb-4 text-3xl font-medium text-white transition-colors duration-500 group-hover:text-[#FF4D00] md:text-5xl tracking-tight leading-none">
                 {item.title}
               </h3>
-              <p className="line-clamp-2 text-lg text-white/30">{item.desc}</p>
+              <p className="text-xl text-white/40 font-light leading-relaxed">{item.desc}</p>
             </div>
-            <span className="mt-2 text-xs font-bold text-white/20 tracking-widest">
-              {item.year}
-            </span>
           </div>
+          
           <div className="flex items-center justify-between">
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               {item.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="rounded-full border border-white/[0.08] px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white/20"
+                  className="rounded-full border border-white/[0.05] bg-white/[0.02] px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white/30"
                 >
                   {tag}
                 </span>
               ))}
             </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/10 transition-all duration-500 group-hover:border-[#FF4D00] group-hover:bg-[#FF4D00]">
+            
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border border-white/5 bg-white/[0.02] transition-all duration-500 group-hover:border-[#FF4D00] group-hover:bg-[#FF4D00] group-hover:scale-110 shadow-xl">
               <svg
-                className="h-5 w-5 text-white/30 transition-all duration-500 group-hover:text-black group-hover:translate-x-0.5"
+                className="h-6 w-6 text-white/40 transition-all duration-500 group-hover:text-black group-hover:translate-x-0.5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
-                strokeWidth={3}
+                strokeWidth={2.5}
               >
                 <path
                   strokeLinecap="round"

@@ -60,6 +60,16 @@ export default function Hero() {
       id="hero"
       className="relative flex flex-col justify-center bg-white pt-32 pb-24 text-black md:pb-40"
     >
+              <div className="absolute inset-0">
+          <img 
+            src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?q=80&w=2070&auto=format&fit=crop" 
+            alt="Forge Infrastructure"
+            className="h-full w-full object-cover opacity-[0.12] grayscale contrast-125"
+          />
+          {/* Decorative mesh/grid overlay */}
+          <div className="absolute inset-0 bg-[radial-gradient(#000000_1px,transparent_1px)] [background-size:40px_40px] opacity-[0.05]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-white via-transparent to-white" />
+        </div>
       <div className="section-container relative z-10 w-full">
         {/* Top: Headline & CTAs */}
         <div className="mb-24 md:mb-32">
@@ -103,11 +113,11 @@ export default function Hero() {
         {/* Bottom Details Section */}
         <div className="grid items-start gap-12 md:grid-cols-2 md:gap-24 min-h-[60vh]">
           {/* Left: Showreel box */}
-          <div className="hero-demo-box group relative aspect-[16/9] overflow-hidden rounded-2xl bg-neutral-100 shadow-2xl lg:sticky lg:top-28">
+          <div className="hero-demo-box group relative aspect-[16/9] overflow-hidden bg-neutral-100 shadow-2xl lg:sticky lg:top-28">
             <div className="absolute inset-0 bg-dot-grid opacity-20" />
             <div className="flex h-full w-full items-center justify-center">
               <div className="relative z-20 text-center">
-                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-black text-white transition-transform group-hover:scale-110 mx-auto shadow-lg">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-black text-white transition-transform group-hover:scale-110 mx-auto">
                   <svg className="ml-1 h-6 w-6 fill-current" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
                   </svg>

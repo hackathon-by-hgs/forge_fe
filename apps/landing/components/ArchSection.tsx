@@ -26,7 +26,7 @@ const ArchSection: React.FC<ArchSectionProps> = ({
     <section
       id={id}
       data-navbar-theme="dark"
-      className={`relative bg-[#000000] ${className}`}
+      className={`relative ${className}`}
       style={{ 
         minHeight,
         marginTop: '-80px',
@@ -34,26 +34,34 @@ const ArchSection: React.FC<ArchSectionProps> = ({
         WebkitClipPath: `url(#${clipId})`,
       } as React.CSSProperties}
     >
-      <svg width="0" height="0" className="absolute">
-        <defs>
-          <clipPath id={clipId} clipPathUnits="objectBoundingBox">
-            <path
-              transform="scale(0.001, 0.001666)"
-              d="M 0,70
-                 Q 0,0 70,0
-                 L 330,0
-                 Q 390,0 420,40
-                 Q 450,80 500,80
-                 Q 550,80 580,40
-                 Q 610,0 670,0
-                 L 930,0
-                 Q 1000,0 1000,70
-                 L 1000,600
-                 L 0,600
-                 Z"
-            />
-          </clipPath>
-        </defs>
+      <svg
+        width="100%"
+        height="130"
+        viewBox="0 0 1000 130"
+        preserveAspectRatio="none"
+        xmlns="http://www.w3.org/2000/svg"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          display: 'block',
+        }}
+      >
+        <path
+          d="
+            M 0,0
+            L 340,0
+            C 380,0 400,0 430,38
+            L 500,130
+            L 570,38
+            C 600,0 620,0 660,0
+            L 1000,0
+            L 1000,130
+            L 0,130
+            Z
+          "
+          fill="#000000"
+        />
       </svg>
       
       <div className="pt-20">

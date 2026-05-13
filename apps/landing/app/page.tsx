@@ -39,7 +39,7 @@ export default function LandingPage() {
         </section>
 
         {/* Step 3: Features (dark, slides over) */}
-        <ArchSection id="features" className="sticky top-0 z-[13]">
+        <ArchSection id="features" className="z-[13]">
           <Features />
         </ArchSection>
 
@@ -53,9 +53,9 @@ export default function LandingPage() {
         </section>
 
         {/* Step 5: Showcase (dark, slides over) */}
-        <ArchSection id="showcase" className="z-[16]">
+        {/* <ArchSection id="showcase" className="sticky top-0 z-[16]">
           <Showcase />
-        </ArchSection>
+        </ArchSection> */}
 
         {/* Step 6: Industries (white, sticky) */}
         <section data-navbar-theme="light" className="sticky top-0 z-[17] bg-white">
@@ -63,14 +63,14 @@ export default function LandingPage() {
         </section>
 
         {/* Step 7: Testimonials (dark, slides over) */}
-        <ArchSection id="testimonials" className="z-[18]">
+        <ArchSection id="testimonials" className="sticky top-0 z-[18]">
           <Testimonials />
         </ArchSection>
 
         {/* Step 8: Contact (dark, slides over preceding dark) */}
-        <ArchSection id="contact" className="z-[19]">
+        <section id="contact" data-navbar-theme="light" className="sticky top-0 z-[17] bg-white">
           <ContactForm />
-        </ArchSection>
+        </section>
       </main>
 
       {/* Footer (sticky) */}

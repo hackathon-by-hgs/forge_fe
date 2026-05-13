@@ -61,7 +61,7 @@ export default function Testimonials() {
     <section
       ref={sectionRef}
       id="testimonials"
-      className="relative py-24 md:py-40"
+      className="relative py-24 md:py-40 bg-black"
     >
       <div className="section-container relative z-10">
         <div className="test-heading mb-6">
