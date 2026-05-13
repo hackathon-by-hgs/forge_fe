@@ -28,12 +28,12 @@ export default function Hero() {
 
       tl.from(
         '.hero-title span',
-        { 
-          opacity: 0, 
-          y: 60, 
+        {
+          opacity: 0,
+          y: 60,
           stagger: 0.1,
-          duration: 1, 
-          ease: 'expo.out' 
+          duration: 1,
+          ease: 'expo.out'
         },
         '-=0.6',
       );
@@ -106,7 +106,7 @@ export default function Hero() {
           <div className="hero-demo-box group relative aspect-[16/9] overflow-hidden rounded-2xl bg-neutral-100 shadow-2xl lg:sticky lg:top-28">
             <div className="absolute inset-0 bg-dot-grid opacity-20" />
             <div className="flex h-full w-full items-center justify-center">
-               <div className="relative z-20 text-center">
+              <div className="relative z-20 text-center">
                 <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-black text-white transition-transform group-hover:scale-110 mx-auto shadow-lg">
                   <svg className="ml-1 h-6 w-6 fill-current" viewBox="0 0 24 24">
                     <path d="M8 5v14l11-7z" />
@@ -121,47 +121,50 @@ export default function Hero() {
 
           {/* Right: Details */}
           <div className="flex flex-col gap-6">
-            <div className="hero-detail-card rounded-2xl border border-black/10 bg-neutral-50 p-8 md:p-10">
-              <span className="mb-6 block text-[11px] font-bold uppercase tracking-[0.3em] text-[#FF4D00]">
-                Why Forge
-              </span>
-              <div className="max-w-xl">
-                <p className="max-w-xl text-xl font-light leading-relaxed text-black/70 md:text-2xl">
-                  Forge empowers Nigerian businesses with verified on-demand labor while providing workers with embedded financial services and credit scores based on their real performance.
-                </p>
-              </div>
+            {/* item 1 */}
+            <div className="hero-detail-card inset-0 flex flex-col justify-center mb-32">
+              <h2 className="text-2xl md:text-4xl font-medium leading-[1.2] tracking-tight text-black">
+                Empowering <span className="text-black/30">Nigeria&apos;s workforce</span> with verified identity and <span className="font-bold underline decoration-[#FF4D00] decoration-4 underline-offset-8">real-time credit.</span>
+              </h2>
+              <p className="mt-8 max-w-xl text-base text-black/40 leading-relaxed font-light">
+                Forge leverages real performance data to unlock financial opportunities for millions of workers while streamlining operations for businesses.
+              </p>
             </div>
 
-            <div className="hero-detail-card rounded-2xl border border-black/10 bg-white p-8 md:p-10">
-              <span className="mb-8 block text-[11px] font-bold uppercase tracking-[0.3em] text-[#FF4D00]">
-                Trusted by Industry Leaders
-              </span>
-              <div className="grid grid-cols-2 gap-4">
-                {PARTNERS.map((name) => (
-                  <div
-                    key={name}
-                    className="border border-black/5 bg-neutral-50/70 px-4 py-6 text-center"
-                  >
-                    <span className="text-[11px] font-black uppercase tracking-widest text-black/40">
-                      {name}
-                    </span>
-                  </div>
-                ))}
+            {/* item 2 */}
+            <div className="hero-detail-card inset-0 flex flex-col justify-center mb-32">
+              <span className="text-[11px] font-bold uppercase tracking-[0.4em] text-[#FF4D00] mb-10 block">Strategic Partners</span>
+
+              <div className="relative w-full overflow-hidden before:absolute before:left-0 before:top-0 before:z-10 before:h-full before:w-16 before:bg-gradient-to-r before:from-white before:to-transparent after:absolute after:right-0 after:top-0 after:z-10 after:h-full after:w-16 after:bg-gradient-to-l after:from-white after:to-transparent">
+                <div className="flex animate-marquee whitespace-nowrap py-4">
+                  {[...PARTNERS, ...PARTNERS].map((name, i) => (
+                    <div key={i} className="mx-10 flex items-center gap-3">
+                      <span className="text-[#FF4D00]">∗</span>
+                      <span className="text-xl font-black uppercase tracking-[0.2em] text-black hover:text-black/80 transition-colors duration-500 cursor-default">
+                        {name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
+
+              <p className="mt-10 text-[13px] font-medium text-black/30 max-w-sm">
+                Connecting Nigeria&apos;s leading institutions with a verified, high-performance talent pool.
+              </p>
             </div>
 
-            <div className="hero-detail-card rounded-2xl border border-black/10 bg-white p-8 md:p-10">
-              <span className="mb-8 block text-[11px] font-bold uppercase tracking-[0.3em] text-[#FF4D00]">
-                Our Impact in Numbers
-              </span>
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+            <div className="hero-detail-card inset-0 flex flex-col justify-center">
+              <span className="text-[11px] font-bold uppercase tracking-[0.4em] text-[#FF4D00] mb-10 block">Proven Scale & Impact</span>
+
+              <div className="grid grid-cols-2 gap-x-8 gap-y-12">
                 {STATS.map((stat) => (
-                  <div key={stat.label} className="flex flex-col border-l border-black/5 pl-6">
-                    <span className="mb-1 text-4xl font-medium tracking-tighter">
+                  <div key={stat.label} className="group relative">
+                    <div className="absolute -left-4 top-0 h-full w-[1px] bg-black/5 transition-colors group-hover:bg-[#FF4D00]/30" />
+                    <span className="block text-3xl md:text-5xl font-medium tracking-tighter mb-2 transition-transform group-hover:translate-x-1">
                       <Odometer value={stat.end} decimals={stat.decimals} />
-                      <span className="text-[#FF4D00]">{stat.suffix}</span>
+                      <span className="text-[#FF4D00] font-bold">{stat.suffix}</span>
                     </span>
-                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-black/30">
+                    <span className="text-[10px] uppercase font-black text-black/20 tracking-[0.25em] block group-hover:text-black/40 transition-colors">
                       {stat.label}
                     </span>
                   </div>

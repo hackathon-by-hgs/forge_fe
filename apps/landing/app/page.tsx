@@ -4,6 +4,7 @@ import { useLenis } from '@/hooks';
 import {
   Header,
   Hero,
+  ValueProp,
   Features,
   SuccessStories,
   Challenges,
@@ -32,12 +33,17 @@ export default function LandingPage() {
           <Hero />
         </section>
 
-        {/* Step 2: Features (dark, slides over) */}
+        {/* Step 2: Value Prop (light, sticky) */}
+        <section data-navbar-theme="light" className="sticky top-0 z-[11] bg-white">
+          <ValueProp />
+        </section>
+
+        {/* Step 3: Features (dark, slides over) */}
         <ArchSection id="features" className="sticky top-0 z-[13]">
           <Features />
         </ArchSection>
 
-        {/* Step 3: Case Studies + Challenges split into sticky parts */}
+        {/* Step 4: Case Studies + Challenges split into sticky parts */}
         <section data-navbar-theme="light" className="sticky top-0 z-[14] bg-white">
           <SuccessStories />
         </section>
@@ -46,22 +52,22 @@ export default function LandingPage() {
           <Challenges />
         </section>
 
-        {/* Step 4: Showcase (dark, slides over) */}
+        {/* Step 5: Showcase (dark, slides over) */}
         <ArchSection id="showcase" className="z-[16]">
           <Showcase />
         </ArchSection>
 
-        {/* Step 5: Industries (white, sticky) */}
+        {/* Step 6: Industries (white, sticky) */}
         <section data-navbar-theme="light" className="sticky top-0 z-[17] bg-white">
           <Industries />
         </section>
 
-        {/* Step 6: Testimonials (dark, slides over) */}
+        {/* Step 7: Testimonials (dark, slides over) */}
         <ArchSection id="testimonials" className="z-[18]">
           <Testimonials />
         </ArchSection>
 
-        {/* Step 7: Contact (dark, slides over preceding dark) */}
+        {/* Step 8: Contact (dark, slides over preceding dark) */}
         <ArchSection id="contact" className="z-[19]">
           <ContactForm />
         </ArchSection>

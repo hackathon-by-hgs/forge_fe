@@ -17,3 +17,4 @@ export { default as Magnetic } from './Magnetic';
 export { default as HeroVisual } from './HeroVisual';
 export { default as ArchSection } from './ArchSection';
 export { default as Odometer } from './Odometer';
+export { default as ValueProp } from './ValueProp';
