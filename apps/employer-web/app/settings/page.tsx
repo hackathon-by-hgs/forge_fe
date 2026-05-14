@@ -23,6 +23,8 @@ import {
 } from '@forge/ui';
 import { IconAdd } from '@forge/ui/icons';
 import type { components } from '@forge/types/api';
+import { NubanFundingBlock } from '../../components/NubanFundingBlock';
+import { ReputationPanel } from '../../components/ReputationPanel';
 import { useAuth } from '../../lib/auth';
 import {
   canChangeTeamRoles,
@@ -60,7 +62,7 @@ import {
 type TeamMemberDto = components['schemas']['TeamMemberDto'];
 type PendingInvitationDto = components['schemas']['PendingInvitationDto'];
 
-type SettingsTab = 'profile' | 'team' | 'notifications' | 'squad' | 'billing';
+type SettingsTab = 'profile' | 'reputation' | 'team' | 'notifications' | 'squad' | 'billing';
 
 function isSettingsTab(raw: string | null, allowed: readonly SettingsTab[]): raw is SettingsTab {
   if (!raw) return false;
@@ -87,7 +89,7 @@ export default function SettingsPage() {
   const resolvedTab = useMemo(() => {
     const allowed: readonly SettingsTab[] = hiringOnly
       ? (['team', 'notifications'] satisfies readonly SettingsTab[])
-      : (['profile', 'team', 'notifications', 'squad', 'billing'] satisfies readonly SettingsTab[]);
+      : (['profile', 'reputation', 'team', 'notifications', 'squad', 'billing'] satisfies readonly SettingsTab[]);
     const raw = searchParams.get('tab');
     if (!isSettingsTab(raw, allowed)) return hiringDefault;
     return raw;
@@ -240,6 +242,7 @@ export default function SettingsPage() {
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as SettingsTab)}>
           <TabsList className="flex flex-wrap gap-1">
             {!hiringOnly ? <TabsTrigger value="profile">Business profile</TabsTrigger> : null}
+            {!hiringOnly ? <TabsTrigger value="reputation">Reputation</TabsTrigger> : null}
             <TabsTrigger value="team">Team</TabsTrigger>
             <TabsTrigger value="notifications">Notifications</TabsTrigger>
             {!hiringOnly ? <TabsTrigger value="squad">Squad account</TabsTrigger> : null}
@@ -377,6 +380,12 @@ export default function SettingsPage() {
             </TabsContent>
           ) : null}
 
+          {!hiringOnly ? (
+            <TabsContent value="reputation" className="mt-6">
+              <ReputationPanel />
+            </TabsContent>
+          ) : null}
+
           <TabsContent value="team" className="mt-6">
             <Card>
               <CardHeader>
@@ -488,6 +497,7 @@ export default function SettingsPage() {
                       <p className="text-xs text-neutral-500">
                         Payouts paused: {squadQuery.data.payoutsPaused ? 'Yes' : 'No'}
                       </p>
+                      <NubanFundingBlock virtualAccount={squadQuery.data.virtualAccount} />
                       <Button
                         variant="secondary"
                         disabled={!canBiz || disconnect.isPending}

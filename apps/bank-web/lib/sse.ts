@@ -1,39 +1,386 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { EventSourcePolyfill, type EventListenerOrEventListenerObject } from 'event-source-polyfill';
+import { toast } from '@forge/ui';
+import { formatCurrency } from '@forge/ui/utils';
 import { getApiBaseUrl } from './api/client';
 import { getAccessToken } from './auth/tokenStore';
 
-type UseForgeSseArgs = {
-  enabled?: boolean;
-  onEvent?: (evt: MessageEvent<string>) => void;
-};
+interface StreamEnvelope {
+  event: string;
+  ts: string;
+  data: Record<string, unknown>;
+}
+
+interface SseErrorEvent extends Event {
+  status?: number;
+}
+
+const BANK_EVENT_NAMES = [
+  // Phase 4 legacy names — kept while the BE still emits them in parallel.
+  'loan.disbursed',
+  'loan.repayment_paid',
+  'loan.risk_changed',
+  'application.decided',
+  // Part C names from the underwriting+attribution brief. The BE emits both
+  // old and new for now; subscribing to both means we get refresh signals
+  // even after the legacy names are retired.
+  'loan.lifecycle_changed',
+  'loan_application.lifecycle_changed',
+  'loan_repayment.updated',
+  'risk-radar.refreshed',
+  'analytics.refreshed',
+  // §11 withdrawal fan-out — fires when a borrower with an active loan at
+  // this bank completes/fails/reverses a withdrawal. Bank-scoped (BE only
+  // emits to banks holding the loan), so no extra filtering needed here.
+  'borrower.transaction_updated',
+  // NOTE: `withdrawal.terminal` is a *broadcast* event the BE emits for
+  // admin/ops visibility. We deliberately do NOT subscribe to it — the
+  // polyfill only fires `addEventListener(name)` for names we list, so
+  // omitting it from this array is the filter. Don't add it.
+] as const;
+
+const SSE_LOG_PREFIX = '[forge-sse]';
+
+function devWarn(message: string, err: unknown): void {
+  if (process.env.NODE_ENV !== 'production') {
+    // eslint-disable-next-line no-console
+    console.warn(`${SSE_LOG_PREFIX} ${message}`, err);
+  }
+}
+
+const noop = (): void => {};
 
 /**
- * F0 scaffold only (FRONTEND_INTEGRATION.md §7).
+ * Subscribes to `/v1/stream` once per tab and routes events to React Query
+ * invalidations. Per FE_PHASE4_CLOSEOUT.md §4, SSE payloads are *hints* — the
+ * BE remains the source of truth and we always refetch the affected queries.
  *
- * SSE is a Phase 4 deliverable. Native `EventSource` cannot send `Authorization`;
- * this uses `?token=` until the BE documents a supported fallback or we migrate
- * to `fetch-event-source` with Bearer headers. No exponential backoff yet.
+ * Hardened so no error path can surface as Next.js's "Application error"
+ * overlay or as an unhandled-rejection on `window`:
+ *
+ *   - All side-effecting work runs inside `useEffect`. Synchronous throws
+ *     can't reach render.
+ *   - Every external call is individually try/caught: getAccessToken,
+ *     getApiBaseUrl, `new EventSourcePolyfill`, addEventListener loop,
+ *     JSON.parse, and every queryClient.invalidateQueries (via
+ *     `safeInvalidate`, which catches both sync throws and promise
+ *     rejections so neither can become an unhandled rejection).
+ *   - Listener callbacks have their own outer try/catch — a throw from a
+ *     listener used to be fatal because the polyfill propagates it as an
+ *     internal error and marks the stream dead.
+ *   - 401/403 on the underlying request closes the connection instead of
+ *     letting the polyfill auto-reconnect forever with a dead bearer
+ *     (which would 401-storm the BE).
+ *   - `safeClose()` is idempotent and swallows errors, so cleanup can run
+ *     from anywhere (cleanup return, listener wiring catch, 401 handler)
+ *     without risk of double-close.
+ *   - All event objects accessed via optional chaining — defensive against
+ *     the polyfill or browser ever delivering a null `evt`.
+ *   - Payload shape validated after JSON.parse — non-string `event` fields
+ *     are silently dropped rather than crashing the switch.
+ *   - All warnings gated on `NODE_ENV !== 'production'` so prod stays quiet.
  */
-export function useForgeSse({ enabled, onEvent }: UseForgeSseArgs) {
-  const onEventRef = useRef(onEvent);
-  onEventRef.current = onEvent;
+export function useForgeStream(enabled: boolean): void {
+  const qc = useQueryClient();
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || typeof window === 'undefined') return;
 
-    const token = getAccessToken();
+    let token: string | null;
+    try {
+      token = getAccessToken();
+    } catch (err) {
+      devWarn('getAccessToken threw:', err);
+      return;
+    }
     if (!token) return;
 
-    const url = `${getApiBaseUrl()}/v1/stream?token=${encodeURIComponent(token)}`;
-    const es = new EventSource(url);
+    let base: string;
+    try {
+      base = getApiBaseUrl();
+    } catch (err) {
+      devWarn('getApiBaseUrl threw:', err);
+      return;
+    }
 
-    const handle = (evt: MessageEvent<string>) => onEventRef.current?.(evt);
-    es.onmessage = handle;
+    let es: EventSourcePolyfill;
+    try {
+      es = new EventSourcePolyfill(`${base}/v1/stream`, {
+        headers: { Authorization: `Bearer ${token}` },
+        heartbeatTimeout: 60_000,
+      });
+    } catch (err) {
+      devWarn('Failed to open EventSource:', err);
+      return;
+    }
+
+    let closed = false;
+    const safeClose = (): void => {
+      if (closed) return;
+      closed = true;
+      try {
+        es.close();
+      } catch {
+        // closing twice or after an internal error is harmless
+      }
+    };
+
+    const safeInvalidate = (queryKey: readonly unknown[]): void => {
+      try {
+        const result = qc.invalidateQueries({ queryKey: [...queryKey] });
+        // React Query swallows refetch errors internally, but attach a catch
+        // defensively in case a future version surfaces them as unhandled
+        // promise rejections (which would fire window.onunhandledrejection).
+        if (result && typeof (result as Promise<unknown>).catch === 'function') {
+          (result as Promise<unknown>).catch(noop);
+        }
+      } catch (err) {
+        devWarn('invalidateQueries threw:', err);
+      }
+    };
+
+    const dispatch = (raw: unknown): void => {
+      if (closed) return;
+      if (typeof raw !== 'string') return;
+      let payload: StreamEnvelope;
+      try {
+        payload = JSON.parse(raw) as StreamEnvelope;
+      } catch {
+        return;
+      }
+      // Shape-validate before trusting the cast.
+      if (
+        !payload ||
+        typeof payload !== 'object' ||
+        typeof payload.event !== 'string'
+      ) {
+        return;
+      }
+      if (payload.event === 'heartbeat') return;
+      try {
+        applySideEffects(qc, payload);
+      } catch (err) {
+        devWarn(`applySideEffects(${payload.event}) threw:`, err);
+      }
+      try {
+        applyInvalidations(safeInvalidate, payload);
+      } catch (err) {
+        devWarn(`applyInvalidations(${payload.event}) threw:`, err);
+      }
+    };
+
+    const namedListener: EventListenerOrEventListenerObject = (evt) => {
+      try {
+        dispatch((evt as MessageEvent<string> | null | undefined)?.data);
+      } catch (err) {
+        // A throw escaping a listener can mark the polyfill connection
+        // permanently failed. dispatch() already catches; this is belt-and-
+        // suspenders for the rare case where the cast above throws.
+        devWarn('Named listener threw:', err);
+      }
+    };
+
+    try {
+      for (const name of BANK_EVENT_NAMES) {
+        es.addEventListener(name, namedListener);
+      }
+      // Fallback for default `message` events (servers that omit `event:` header).
+      es.onmessage = (evt) => {
+        try {
+          dispatch((evt as MessageEvent<string> | null | undefined)?.data);
+        } catch (err) {
+          devWarn('onmessage threw:', err);
+        }
+      };
+      es.onerror = (evt) => {
+        const status = (evt as SseErrorEvent | null | undefined)?.status;
+        // 401/403: token expired or revoked mid-stream. The polyfill would
+        // otherwise reconnect forever with the dead bearer and 401-storm
+        // the BE. Close here; the next page navigation or auth boot picks
+        // up a fresh token and a new subscription opens.
+        if (status === 401 || status === 403) {
+          safeClose();
+          return;
+        }
+        // Transient network errors: the polyfill auto-reconnects with backoff.
+        // SSE has no replay, so refetch the dashboard's primary surfaces on
+        // each error — invalidate is cheap and idempotent.
+        safeInvalidate(['bank']);
+        safeInvalidate(['notifications']);
+      };
+    } catch (err) {
+      devWarn('Failed to wire listeners:', err);
+      safeClose();
+      return;
+    }
 
     return () => {
-      es.close();
+      safeClose();
     };
-  }, [enabled]);
+  }, [enabled, qc]);
 }
+
+function applyInvalidations(
+  invalidate: (queryKey: readonly unknown[]) => void,
+  p: StreamEnvelope,
+): void {
+  const data = p.data && typeof p.data === 'object' ? p.data : ({} as Record<string, unknown>);
+  switch (p.event) {
+    // ── Legacy Phase 4 events (still emitted alongside the new names) ────
+    case 'loan.disbursed':
+    case 'loan.repayment_paid':
+    case 'loan.risk_changed': {
+      invalidate(['bank', 'risk-radar']);
+      invalidate(['bank', 'portfolio', 'loan-book']);
+      invalidate(['bank', 'loans']);
+      const loanId = typeof data.loanId === 'string' ? data.loanId : undefined;
+      if (loanId) {
+        invalidate(['bank', 'loans', loanId]);
+      }
+      if (p.event === 'loan.risk_changed' || p.event === 'loan.disbursed') {
+        invalidate(['notifications']);
+      }
+      break;
+    }
+    case 'application.decided': {
+      invalidate(['bank', 'applications']);
+      invalidate(['bank', 'risk-radar']);
+      invalidate(['bank', 'portfolio', 'loan-book']);
+      invalidate(['bank', 'loans']);
+      const applicationId =
+        typeof data.applicationId === 'string' ? data.applicationId : undefined;
+      if (applicationId) {
+        invalidate(['bank', 'applications', applicationId]);
+      }
+      break;
+    }
+    // ── Part C names from the underwriting+attribution brief ─────────────
+    case 'loan.lifecycle_changed': {
+      // Any loan status / risk-level flip. Refresh list, detail, and the
+      // risk-radar tile so the dashboard reflects the new state.
+      invalidate(['bank', 'loans']);
+      invalidate(['bank', 'risk-radar']);
+      invalidate(['bank', 'portfolio', 'loan-book']);
+      const loanId = typeof data.loanId === 'string' ? data.loanId : undefined;
+      if (loanId) {
+        invalidate(['bank', 'loans', loanId]);
+        // The bank-web detail-page query key is `['bank', 'loans', id]`
+        // (see the loans/[id] page). Some callers also use a 'detail' tag.
+        invalidate(['bank', 'loans', 'detail', loanId]);
+      }
+      break;
+    }
+    case 'loan_application.lifecycle_changed': {
+      invalidate(['bank', 'applications']);
+      const applicationId =
+        typeof data.applicationId === 'string' ? data.applicationId : undefined;
+      if (applicationId) {
+        invalidate(['bank', 'applications', applicationId]);
+        invalidate(['bank', 'applications', 'detail', applicationId]);
+      }
+      break;
+    }
+    case 'loan_repayment.updated': {
+      // A repayment row changed — refresh the parent loan's detail and the
+      // portfolio-level rollup (outstanding moves, risk may flip).
+      invalidate(['bank', 'risk-radar']);
+      invalidate(['bank', 'portfolio', 'loan-book']);
+      const loanId = typeof data.loanId === 'string' ? data.loanId : undefined;
+      if (loanId) {
+        invalidate(['bank', 'loans', loanId]);
+        invalidate(['bank', 'loans', 'detail', loanId]);
+      }
+      break;
+    }
+    case 'risk-radar.refreshed': {
+      // Nightly aggregate ran. Invalidate the radar; React Query refetches
+      // active queries on the visible page.
+      invalidate(['bank', 'risk-radar']);
+      break;
+    }
+    case 'analytics.refreshed': {
+      // Performance Attribution page reads `['bank','analytics',…]`.
+      // Broad prefix invalidates period / attribution / cohorts / vintage.
+      invalidate(['bank', 'analytics']);
+      break;
+    }
+    case 'borrower.transaction_updated': {
+      // §11 worker withdrawal completed/failed/reversed on a borrower with
+      // an active loan at this bank. Refresh the loan detail (outstanding
+      // balance may shift) and the radar (risk could flip). Also invalidate
+      // borrower-profile queries so the embedded loan list reflects the
+      // movement.
+      const loanId = typeof data.loanId === 'string' ? data.loanId : undefined;
+      const workerId =
+        typeof data.workerId === 'string' ? data.workerId : undefined;
+      if (loanId) {
+        invalidate(['bank', 'loans', loanId]);
+        invalidate(['bank', 'loans', 'detail', loanId]);
+      }
+      invalidate(['bank', 'loans']);
+      invalidate(['bank', 'risk-radar']);
+      if (workerId) {
+        // Borrower profile query is keyed `['bank','borrowers', type, id]`.
+        // A two-segment prefix invalidates both worker and business variants
+        // for this id (cheaper than enumerating both types).
+        invalidate(['bank', 'borrowers']);
+      }
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+/**
+ * Side effects bound to a specific event payload — currently just the
+ * loan-detail toast on `borrower.transaction_updated`. Gated on the
+ * loan-detail query being *observed* (mounted), not merely cached, so
+ * navigation away suppresses the toast immediately rather than waiting
+ * for cache GC.
+ */
+function applySideEffects(qc: QueryClient, p: StreamEnvelope): void {
+  if (p.event !== 'borrower.transaction_updated') return;
+  const data =
+    p.data && typeof p.data === 'object'
+      ? p.data
+      : ({} as Record<string, unknown>);
+  const loanId = typeof data.loanId === 'string' ? data.loanId : null;
+  if (!loanId) return;
+  const observersForLoanDetail =
+    qc
+      .getQueryCache()
+      .find({ queryKey: ['bank', 'loans', loanId] })
+      ?.getObserversCount() ?? 0;
+  if (observersForLoanDetail === 0) return;
+
+  const status = typeof data.status === 'string' ? data.status : 'completed';
+  const amount = typeof data.amountNaira === 'number' ? data.amountNaira : null;
+  const outstanding =
+    typeof data.outstandingBalance === 'number' ? data.outstandingBalance : null;
+
+  // Amount is signed (negative for the debit). Display the magnitude.
+  const magnitude = amount != null ? Math.abs(amount) : null;
+  const tone =
+    status === 'failed' || status === 'reversed' ? 'warning' : 'info';
+  const verb =
+    status === 'completed'
+      ? 'withdrew'
+      : status === 'failed'
+        ? 'withdrawal failed'
+        : 'reversed a withdrawal';
+  const title =
+    magnitude != null
+      ? `Borrower ${verb} ${formatCurrency(magnitude)}`
+      : `Borrower wallet activity`;
+  const description =
+    outstanding != null
+      ? `Remaining loan balance ${formatCurrency(outstanding)}.`
+      : undefined;
+
+  toast({ tone, title, description, durationMs: 5000 });
+}
+

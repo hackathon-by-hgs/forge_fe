@@ -2353,6 +2353,311 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/employer/credit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Composite credit page payload — score, 12-week trend, factor breakdown, eligibility, loans.
+         * @description **Audience:** Employer-web. **Powers:** `/credit` page in one round-trip.
+         *
+         *
+         *
+         *     **Trend / factor history.** `trend12Week` and each `factors[].trend` are SYNTHETIC at the current value
+         *
+         *     until the score-recalc cron writes a real history table. `scoreDeltaPoints` is `0` for the same reason
+         *
+         *     — the FE should not render an up/down arrow against it.
+         *
+         *
+         *
+         *     **Eligibility (BRIEF §11.8).** Score ≥ 80 → `pre_approved` (3× monthly avg labour spend, capped ₦5m,
+         *
+         *     12% APR). Score 70–79 → `eligible` (2× monthly avg, capped ₦2m, 14% APR). Score < 70 → `ineligible`.
+         */
+        get: operations["EmployerCreditController_credit"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/credit/score-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Longer-form score history (12 monthly snapshots).
+         * @description Synthetic until the score-recalc cron writes real history rows. Same caveats as `GET /credit.trend12Week`.
+         */
+        get: operations["EmployerCreditController_scoreHistory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/loans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the calling employer's loans (active + past).
+         * @description **Audience:** Employer-web. **Powers:** `/credit` page "Past loans" panel.
+         */
+        get: operations["EmployerLoansController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/loans/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Single loan with the full repayment schedule + totals.
+         * @description **Audience:** Employer-web. **Powers:** `/credit/loans/[id]` detail.
+         */
+        get: operations["EmployerLoansController_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/loans/{id}/repayments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Repayment schedule only — for the schedule table view.
+         * @description Same data as embedded on `GET /loans/:id`; exposed separately for tables that just need the schedule.
+         */
+        get: operations["EmployerLoansController_repayments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/loan-applications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the calling employer's loan applications.
+         * @description **Audience:** Employer-web. **Powers:** `/credit` page applications panel.
+         */
+        get: operations["EmployerLoanApplicationsController_list"];
+        put?: never;
+        /**
+         * Apply for a business loan. Owner + admin only. Idempotent.
+         * @description **Audience:** Employer-web. **Powers:** `/credit/apply` form submit.
+         *
+         *
+         *
+         *     **Behavior.** Creates a `LoanApplication` against the chosen bank (or the earliest-onboarded lender
+         *
+         *     when `bankId` is omitted). Sets `status=pending` and computes an indicative `recommendedDecision` +
+         *
+         *     confidence + reason from the employer's current credit score (BRIEF §11.7 / §11.8). The bank-side
+         *
+         *     underwriting flow at `/v1/bank/loan-applications/:id/{approve,reject}` makes the real decision.
+         *
+         *
+         *
+         *     **Idempotency.** Required `Idempotency-Key` (UUID v4). Same key + body replays the row; same key +
+         *
+         *     different body returns 409 `CONFLICT`.
+         */
+        post: operations["EmployerLoanApplicationsController_apply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/loan-applications/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Single loan application — status, indicative decision, term. */
+        get: operations["EmployerLoanApplicationsController_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/analytics/labor-cost-trend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Daily labour-spend series for the area chart.
+         * @description **Audience:** Employer-web. **Powers:** `/analytics` labour-cost area chart.
+         *
+         *
+         *
+         *     Sums every `succeeded` job-payment transaction per UTC day in the window. Days with zero spend
+         *
+         *     are included (zero-filled). Accepts either `?range=7|30|90` (last N days ending now) OR `?from=&to=`
+         *
+         *     (inclusive `from`, exclusive `to`). Default window: last 30 days.
+         */
+        get: operations["EmployerAnalyticsController_laborCostTrend"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/analytics/cost-by-job-type": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Spend share by job type — donut input.
+         * @description Each row carries `valueNaira` + `share` (0..1). Sorted by `valueNaira desc`. Same `?from=&to=` semantics.
+         */
+        get: operations["EmployerAnalyticsController_costByJobType"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/analytics/worker-utilization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Top 8 workers by completed-job count in the window.
+         * @description Each row carries `jobs` (completed for this employer) + `earnedNaira`. Sorted by jobs desc.
+         */
+        get: operations["EmployerAnalyticsController_workerUtilization"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/analytics/time-to-fill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Weekly average time-to-first-application (minutes) for jobs posted in the window.
+         * @description Weeks are bucketed UTC Monday → Sunday. The point is calculated only over jobs that received at
+         *
+         *     least one application — jobs still unfilled at query time are excluded so the trend isn't skewed.
+         */
+        get: operations["EmployerAnalyticsController_timeToFill"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/analytics/demand-heatmap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Demand grid: jobs scheduled to start per (UTC day-of-week, hour-of-day).
+         * @description Returns one cell per non-zero (dayOfWeek, hour) pair. `dayOfWeek`: 0 = Sunday, …, 6 = Saturday.
+         *
+         *     `hour`: 0..23. The bucket is keyed off `Job.scheduledStartAt`, not the post time — this is "when work
+         *
+         *     happens", not "when you create it".
+         */
+        get: operations["EmployerAnalyticsController_demandHeatmap"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/employer/analytics/roi-by-type": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Per-type rollup: job count, avg cost (completed only), avg fill time, completion rate.
+         * @description Sorted by job count desc. Useful for the "where is my money going" segment table.
+         */
+        get: operations["EmployerAnalyticsController_roiByType"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/employer/transactions/summary": {
         parameters: {
             query?: never;
@@ -5020,6 +5325,352 @@ export interface components {
             blockedAt: string;
             /** @example No-showed twice in April. */
             reason?: Record<string, never> | null;
+        };
+        ScorePointDto: {
+            /**
+             * @description Date (UTC midnight) for this snapshot. Week-bucketed on the 12-week trend, day-bucketed on score-history.
+             * @example 2026-03-04
+             */
+            date: string;
+            /** @example 78 */
+            score: number;
+        };
+        EmployerCreditFactorDto: {
+            /** @enum {string} */
+            key: "payment_timeliness" | "worker_retention" | "transaction_consistency" | "growth_trend" | "time_on_platform";
+            /** @example Payment timeliness */
+            label: string;
+            /** @example 0.92 */
+            value: number;
+            /**
+             * @description Weight in the composite score (BRIEF §11.7).
+             * @example 0.4
+             */
+            weight: number;
+            /**
+             * @description 12 most-recent weekly values. Synthetic at the current value until the score-recalc cron lands.
+             * @example [
+             *       0.88,
+             *       0.89,
+             *       0.9,
+             *       0.92,
+             *       0.91,
+             *       0.92,
+             *       0.93,
+             *       0.94,
+             *       0.94,
+             *       0.93,
+             *       0.92,
+             *       0.92
+             *     ]
+             */
+            trend: number[];
+            /** @example Paid 47 of last 50 jobs on time. */
+            rationale: string;
+        };
+        EmployerEligibilityDto: {
+            /** @enum {string} */
+            tier: "ineligible" | "eligible" | "pre_approved";
+            /**
+             * @description Maximum loan amount allowed at the current tier. 0 when ineligible.
+             * @example 1500000
+             */
+            maxAmountNaira: number;
+            /**
+             * @description Indicative APR as a decimal. 0 when ineligible.
+             * @example 0.12
+             */
+            aprPct: number;
+            /**
+             * @description Estimated decision time when applying right now. Null when ineligible.
+             * @example 2026-05-13T12:00:00+01:00
+             */
+            estimatedDecisionAt?: Record<string, never> | null;
+        };
+        EmployerLoanSummaryDto: {
+            /** @example loan_8a3f2c */
+            id: string;
+            /** @enum {string} */
+            status: "draft" | "pending_review" | "approved" | "active" | "at_risk" | "repaid" | "defaulted" | "rejected" | "written_off";
+            /** @example 500000 */
+            principalNaira: number;
+            /** @example 320000 */
+            outstandingNaira: number;
+            /** @example 0.14 */
+            apr: number;
+            /** @example 6 */
+            termMonths?: Record<string, never> | null;
+            /** @example 2026-02-12T09:00:00+01:00 */
+            disbursedAt?: Record<string, never> | null;
+            /** @example 2026-05-15T09:00:00+01:00 */
+            nextPaymentDueAt?: Record<string, never> | null;
+            /** @example 2026-08-12T09:00:00+01:00 */
+            expectedFullRepaymentAt?: Record<string, never> | null;
+            /** @example GTBank */
+            bankName?: Record<string, never> | null;
+            /** @enum {string} */
+            riskLevel: "green" | "yellow" | "red";
+        };
+        EmployerCreditDto: {
+            /** @example 82 */
+            score: number;
+            /**
+             * @description Score change vs. 12 weeks ago (synthetic until score-history lands).
+             * @example 3
+             */
+            scoreDeltaPoints: number;
+            /** @description 12 weekly snapshots ending today. Synthetic until score-recalc cron lands. */
+            trend12Week: components["schemas"]["ScorePointDto"][];
+            factors: components["schemas"]["EmployerCreditFactorDto"][];
+            eligibility: components["schemas"]["EmployerEligibilityDto"];
+            /** @description Current active or at-risk loan. Null when none open. */
+            activeLoan?: components["schemas"]["EmployerLoanSummaryDto"] | null;
+            /** @description Repaid + defaulted + rejected loans, most recent first. */
+            pastLoans: components["schemas"]["EmployerLoanSummaryDto"][];
+        };
+        EmployerScoreHistoryDto: {
+            /** @description 12 monthly snapshots ending today. Synthetic until score-history table lands. */
+            data: components["schemas"]["ScorePointDto"][];
+        };
+        EmployerLoanDto: {
+            /** @example loan_8a3f2c */
+            id: string;
+            /** @example bnk2_gtbank */
+            bankId: string;
+            /** @example GTBank */
+            bankName: string;
+            /** @example 500000 */
+            principalNaira: number;
+            /** @example 320000 */
+            outstandingNaira: number;
+            /** @example 0.14 */
+            apr: number;
+            /** @example 6 */
+            termMonths?: Record<string, never> | null;
+            /** @example 0.15 */
+            repaymentPercentPerJob: number;
+            /** @enum {string} */
+            status: "draft" | "pending_review" | "approved" | "active" | "at_risk" | "repaid" | "defaulted" | "rejected" | "written_off";
+            /** @enum {string} */
+            riskLevel: "green" | "yellow" | "red";
+            purpose?: Record<string, never> | null;
+            disbursedAt?: Record<string, never> | null;
+            expectedFullRepaymentAt?: Record<string, never> | null;
+            nextPaymentDueAt?: Record<string, never> | null;
+            rejectionReason?: Record<string, never> | null;
+            createdAt: string;
+        };
+        EmployerLoansListResponseDto: {
+            data: components["schemas"]["EmployerLoanDto"][];
+            pagination: components["schemas"]["PaginationMetaDto"];
+        };
+        EmployerLoanDetailDto: {
+            /** @example loan_8a3f2c */
+            id: string;
+            /** @example bnk2_gtbank */
+            bankId: string;
+            /** @example GTBank */
+            bankName: string;
+            /** @example 500000 */
+            principalNaira: number;
+            /** @example 320000 */
+            outstandingNaira: number;
+            /** @example 0.14 */
+            apr: number;
+            /** @example 6 */
+            termMonths?: Record<string, never> | null;
+            /** @example 0.15 */
+            repaymentPercentPerJob: number;
+            /** @enum {string} */
+            status: "draft" | "pending_review" | "approved" | "active" | "at_risk" | "repaid" | "defaulted" | "rejected" | "written_off";
+            /** @enum {string} */
+            riskLevel: "green" | "yellow" | "red";
+            purpose?: Record<string, never> | null;
+            disbursedAt?: Record<string, never> | null;
+            expectedFullRepaymentAt?: Record<string, never> | null;
+            nextPaymentDueAt?: Record<string, never> | null;
+            rejectionReason?: Record<string, never> | null;
+            createdAt: string;
+            repayments: components["schemas"]["LoanRepaymentDto"][];
+            /**
+             * @description Total paid to date.
+             * @example 180000
+             */
+            totalPaidNaira: number;
+            /** @example 0.85 */
+            onTimeRepaymentRate: number;
+        };
+        EmployerLoanRepaymentsResponseDto: {
+            data: components["schemas"]["LoanRepaymentDto"][];
+        };
+        CreateEmployerLoanApplicationDto: {
+            /**
+             * @description Requested principal in integer Naira.
+             * @example 500000
+             */
+            amountNaira: number;
+            /** @example 6 */
+            termMonths: number;
+            /** @description Optional bank to file the application against. Defaults to the first onboarded bank. */
+            bankId?: string;
+            /** @example Buying a second pickup truck for the Apapa run. */
+            purpose?: string;
+        };
+        EmployerLoanApplicationDto: {
+            /** @example lap_8a3f2c */
+            id: string;
+            /** @example bnk2_gtbank */
+            bankId: string;
+            /** @example GTBank */
+            bankName: string;
+            /** @example business */
+            borrowerType: string;
+            /** @example 500000 */
+            amountRequestedNaira: number;
+            /** @example 6 */
+            termMonths: number;
+            /** @example Buying a second pickup truck for the Apapa run. */
+            purpose?: Record<string, never> | null;
+            /** @example 2026-05-10T12:00:00+01:00 */
+            appliedAt: string;
+            /** @enum {string} */
+            status: "pending" | "approved" | "rejected";
+            /** @example 2026-05-11T14:30:00+01:00 */
+            decidedAt?: Record<string, never> | null;
+            /**
+             * @description Indicative decision from the scoring engine.
+             * @enum {string}
+             */
+            recommendedDecision: "approve" | "reject" | "review";
+            /** @example 88 */
+            recommendationConfidencePct: number;
+            /** @example Pre-approved at score 82; payment-timeliness 92% over the last 90 days. */
+            recommendationReason: string;
+        };
+        EmployerLoanApplicationsListResponseDto: {
+            data: components["schemas"]["EmployerLoanApplicationDto"][];
+            pagination: components["schemas"]["PaginationMetaDto"];
+        };
+        LaborCostPointDto: {
+            /**
+             * @description Day in the bucket (UTC date).
+             * @example 2026-05-09
+             */
+            date: string;
+            /**
+             * @description Total paid to workers on this day (succeeded transactions only).
+             * @example 145000
+             */
+            costNaira: number;
+        };
+        AnalyticsWindowDto: {
+            /** @example 2026-04-10T00:00:00.000Z */
+            from: string;
+            /** @example 2026-05-10T00:00:00.000Z */
+            to: string;
+        };
+        LaborCostTrendResponseDto: {
+            data: components["schemas"]["LaborCostPointDto"][];
+            window: components["schemas"]["AnalyticsWindowDto"];
+        };
+        CostByJobTypePointDto: {
+            /** @enum {string} */
+            type: "loader" | "driver" | "unloader" | "general";
+            /** @example Loader */
+            label: string;
+            /** @example 425000 */
+            valueNaira: number;
+            /**
+             * @description Share of total spend in this window.
+             * @example 0.31
+             */
+            share: number;
+        };
+        CostByJobTypeResponseDto: {
+            data: components["schemas"]["CostByJobTypePointDto"][];
+            window: components["schemas"]["AnalyticsWindowDto"];
+        };
+        WorkerUtilizationItemDto: {
+            /** @example wkr_0042 */
+            workerId: string;
+            /** @example Tunde Adeyemi */
+            name: string;
+            /**
+             * @description Completed jobs for the calling employer in the window.
+             * @example 12
+             */
+            jobs: number;
+            /**
+             * @description Total earned from this employer in the window.
+             * @example 68000
+             */
+            earnedNaira: number;
+        };
+        WorkerUtilizationResponseDto: {
+            /** @description Top 8 workers by job count in the window. */
+            data: components["schemas"]["WorkerUtilizationItemDto"][];
+            window: components["schemas"]["AnalyticsWindowDto"];
+        };
+        TimeToFillPointDto: {
+            /**
+             * @description Monday of the week (UTC).
+             * @example 2026-05-04
+             */
+            weekStartDate: string;
+            /**
+             * @description Average minutes from `postedAt` to first application, across jobs posted in this week.
+             * @example 92
+             */
+            averageMinutes: number;
+            /**
+             * @description Number of jobs measured in the bucket.
+             * @example 6
+             */
+            jobs: number;
+        };
+        TimeToFillResponseDto: {
+            data: components["schemas"]["TimeToFillPointDto"][];
+            window: components["schemas"]["AnalyticsWindowDto"];
+        };
+        DemandHeatmapCellDto: {
+            /**
+             * @description 0 = Sunday, 1 = Monday, …, 6 = Saturday (UTC).
+             * @example 1
+             */
+            dayOfWeek: number;
+            /** @example 9 */
+            hour: number;
+            /**
+             * @description Jobs posted in this hour-of-week bucket.
+             * @example 4
+             */
+            jobs: number;
+        };
+        DemandHeatmapResponseDto: {
+            /** @description Up to 7×24 = 168 cells, zero-cells omitted. */
+            data: components["schemas"]["DemandHeatmapCellDto"][];
+            window: components["schemas"]["AnalyticsWindowDto"];
+        };
+        RoiByTypeItemDto: {
+            /** @enum {string} */
+            type: "loader" | "driver" | "unloader" | "general";
+            /** @example Loader */
+            label: string;
+            /** @example 28 */
+            jobs: number;
+            /** @example 6500 */
+            avgCostNaira: number;
+            /**
+             * @description Average minutes from post → first application.
+             * @example 92
+             */
+            avgFillTimeMinutes: number;
+            /** @example 0.93 */
+            completionRate: number;
+        };
+        RoiByTypeResponseDto: {
+            data: components["schemas"]["RoiByTypeItemDto"][];
+            window: components["schemas"]["AnalyticsWindowDto"];
         };
         TransactionsSummaryDto: {
             /**
@@ -8387,6 +9038,416 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerCreditController_credit: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployerCreditDto"];
+                };
+            };
+            /** @description NO_EMPLOYER_SCOPE */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerCreditController_scoreHistory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployerScoreHistoryDto"];
+                };
+            };
+        };
+    };
+    EmployerLoansController_list: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                status?: "draft" | "pending_review" | "approved" | "active" | "at_risk" | "repaid" | "defaulted" | "rejected" | "written_off";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployerLoansListResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerLoansController_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployerLoanDetailDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerLoansController_repayments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployerLoanRepaymentsResponseDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerLoanApplicationsController_list: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+                status?: "pending" | "approved" | "rejected";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployerLoanApplicationsListResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerLoanApplicationsController_apply: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description UUID v4 — server caches the response for 24h and returns the same body on retry. */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEmployerLoanApplicationDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployerLoanApplicationDto"];
+                };
+            };
+            /** @description IDEMPOTENCY_KEY_REQUIRED | VALIDATION_FAILED */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description NOT_FOUND (bank id) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description CONFLICT (idempotency reuse with different body) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+            /** @description NO_LENDERS_AVAILABLE */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerLoanApplicationsController_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployerLoanApplicationDto"];
+                };
+            };
+            /** @description NOT_FOUND */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerAnalyticsController_laborCostTrend: {
+        parameters: {
+            query?: {
+                /** @description Inclusive lower bound (ISO date or datetime). */
+                from?: string;
+                /** @description Exclusive upper bound (ISO date or datetime). */
+                to?: string;
+                /** @description Shortcut for `labor-cost-trend`. Last `range` days, ending now. Ignored if `from`/`to` are set. */
+                range?: "7" | "30" | "90";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LaborCostTrendResponseDto"];
+                };
+            };
+            /** @description NO_EMPLOYER_SCOPE */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerAnalyticsController_costByJobType: {
+        parameters: {
+            query?: {
+                /** @description Inclusive lower bound (ISO date or datetime). */
+                from?: string;
+                /** @description Exclusive upper bound (ISO date or datetime). */
+                to?: string;
+                /** @description Shortcut for `labor-cost-trend`. Last `range` days, ending now. Ignored if `from`/`to` are set. */
+                range?: "7" | "30" | "90";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostByJobTypeResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerAnalyticsController_workerUtilization: {
+        parameters: {
+            query?: {
+                /** @description Inclusive lower bound (ISO date or datetime). */
+                from?: string;
+                /** @description Exclusive upper bound (ISO date or datetime). */
+                to?: string;
+                /** @description Shortcut for `labor-cost-trend`. Last `range` days, ending now. Ignored if `from`/`to` are set. */
+                range?: "7" | "30" | "90";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkerUtilizationResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerAnalyticsController_timeToFill: {
+        parameters: {
+            query?: {
+                /** @description Inclusive lower bound (ISO date or datetime). */
+                from?: string;
+                /** @description Exclusive upper bound (ISO date or datetime). */
+                to?: string;
+                /** @description Shortcut for `labor-cost-trend`. Last `range` days, ending now. Ignored if `from`/`to` are set. */
+                range?: "7" | "30" | "90";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimeToFillResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerAnalyticsController_demandHeatmap: {
+        parameters: {
+            query?: {
+                /** @description Inclusive lower bound (ISO date or datetime). */
+                from?: string;
+                /** @description Exclusive upper bound (ISO date or datetime). */
+                to?: string;
+                /** @description Shortcut for `labor-cost-trend`. Last `range` days, ending now. Ignored if `from`/`to` are set. */
+                range?: "7" | "30" | "90";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemandHeatmapResponseDto"];
+                };
+            };
+        };
+    };
+    EmployerAnalyticsController_roiByType: {
+        parameters: {
+            query?: {
+                /** @description Inclusive lower bound (ISO date or datetime). */
+                from?: string;
+                /** @description Exclusive upper bound (ISO date or datetime). */
+                to?: string;
+                /** @description Shortcut for `labor-cost-trend`. Last `range` days, ending now. Ignored if `from`/`to` are set. */
+                range?: "7" | "30" | "90";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RoiByTypeResponseDto"];
                 };
             };
         };

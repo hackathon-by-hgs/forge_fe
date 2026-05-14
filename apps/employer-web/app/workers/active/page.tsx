@@ -39,26 +39,31 @@ export default function WorkersActivePage() {
   const assignments = activeQuery.data?.data ?? [];
 
   /** Use session id for pin `id` so two workers on the same job do not duplicate React / Maps keys. */
-  const pins = assignments
-    .filter(
-      (a) =>
-        a.sessionId &&
-        a.job?.id &&
-        Number.isFinite(a.job.lat) &&
-        Number.isFinite(a.job.lng),
-    )
-    .map((a) => ({
-      id: a.sessionId,
-      jobId: a.job.id,
-      lat: a.job.lat,
-      lng: a.job.lng,
-      tone:
-        a.gpsVerification.overall === 'verified'
-          ? ('success' as const)
-          : a.gpsVerification.overall === 'flagged'
-            ? ('danger' as const)
-            : ('warning' as const),
-    }));
+  const pins = assignments.flatMap((a) => {
+    if (
+      !a.sessionId ||
+      !a.job?.id ||
+      !Number.isFinite(a.job.lat) ||
+      !Number.isFinite(a.job.lng)
+    ) {
+      return [];
+    }
+    const overall = a.gpsVerification?.overall;
+    return [
+      {
+        id: a.sessionId,
+        jobId: a.job.id,
+        lat: a.job.lat,
+        lng: a.job.lng,
+        tone:
+          overall === 'verified'
+            ? ('success' as const)
+            : overall === 'flagged'
+              ? ('danger' as const)
+              : ('warning' as const),
+      },
+    ];
+  });
 
   const columns: DataTableColumn<ActiveAssignmentDto>[] = [
     {
@@ -84,11 +89,14 @@ export default function WorkersActivePage() {
     {
       key: 'job',
       header: 'Job',
-      cell: (a) => (
-        <Link href={`/jobs/${a.job.id}`} className="text-sm hover:underline">
-          {a.job.title}
-        </Link>
-      ),
+      cell: (a) =>
+        a.job?.id ? (
+          <Link href={`/jobs/${a.job.id}`} className="text-sm hover:underline">
+            {a.job.title ?? 'Untitled job'}
+          </Link>
+        ) : (
+          <span className="text-xs text-neutral-500">—</span>
+        ),
     },
     {
       key: 'started',
@@ -108,7 +116,7 @@ export default function WorkersActivePage() {
       key: 'gps',
       header: 'GPS',
       cell: (a) => {
-        const overall = a.gpsVerification.overall;
+        const overall = a.gpsVerification?.overall ?? 'pending';
         const tone =
           overall === 'verified' ? 'success' : overall === 'flagged' ? 'danger' : 'warning';
         return (
@@ -136,7 +144,7 @@ export default function WorkersActivePage() {
       key: 'distance',
       header: 'Last GPS',
       cell: (a) =>
-        a.gpsVerification.lastEventDistanceMeters != null ? (
+        a.gpsVerification?.lastEventDistanceMeters != null ? (
           <span className="text-xs text-neutral-500 tabular-nums" data-numeric>
             {a.gpsVerification.lastEventDistanceMeters}m
           </span>

@@ -1,7 +1,12 @@
-import { redirect } from 'next/navigation';
+'use client';
 
-/** Search / bookmarks open `/payments/transactions/:id` — land on the list with the drawer. */
-export default function PaymentTransactionDetailPage({ params }: { params: { id: string } }) {
-  const id = encodeURIComponent(params.id);
-  redirect(`/payments/transactions?txn=${id}`);
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+
+export default function PaymentTransactionDetailPage() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace('/payments/transactions');
+  }, [router]);
+  return null;
 }

@@ -6,8 +6,6 @@ import {
   IconPortfolio,
   IconSandbox,
   IconAttribution,
-  IconReports,
-  IconSettings,
 } from '@forge/ui/icons';
 
 export const bankNav: SidebarSection[] = [
@@ -30,10 +28,6 @@ export const bankNav: SidebarSection[] = [
     items: [
       { label: 'Underwriting Sandbox', href: '/sandbox', icon: IconSandbox },
       { label: 'Performance Attribution', href: '/performance', icon: IconAttribution },
-      { label: 'Reports', href: '/reports', icon: IconReports },
     ],
-  },
-  {
-    items: [{ label: 'Settings', href: '/settings', icon: IconSettings }],
   },
 ];

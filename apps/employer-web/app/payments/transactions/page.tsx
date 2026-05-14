@@ -1,7 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { browseWorkers, type WorkerSummaryDto } from '../../../lib/workersApi';
 import {
@@ -34,7 +33,7 @@ import {
   Textarea,
   type DataTableColumn,
 } from '@forge/ui';
-import { IconAdd, IconSearch } from '@forge/ui/icons';
+import { IconAdd, IconBank, IconCredit, IconSearch } from '@forge/ui/icons';
 import {
   formatAbsoluteDate,
   formatCurrency,
@@ -45,14 +44,17 @@ import { paymentsTabs } from '../../../lib/nav';
 import { useAuth } from '../../../lib/auth';
 import { isHiringManager } from '../../../lib/roles';
 import {
+  classifyEmployerTxn,
   createManualTransaction,
   downloadTransactionsCsv,
   getTransaction,
   getTransactionsSummary,
+  isRealSquadReference,
   listTransactions,
   TRANSACTION_STATUS_LABEL,
   TRANSACTION_STATUS_TONE,
   type CreateManualTransactionInput,
+  type EmployerTxnRowKind,
   type TransactionDto,
   type TransactionStatus,
   type TransactionsListQuery,
@@ -68,11 +70,7 @@ const STATUS_OPTIONS: { label: string; value: 'all' | TransactionStatus }[] = [
   { label: 'Reversed', value: 'reversed' },
 ];
 
-function TransactionsPageContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const txnFromUrl = searchParams.get('txn');
-
+export default function TransactionsPage() {
   const role = useAuth((s) => s.user?.role);
   const canSend = !isHiringManager(role);
 
@@ -93,15 +91,10 @@ function TransactionsPageContent() {
     return () => clearTimeout(t);
   }, [search]);
 
+  // Reset only on pageSize change — filter changes preserve pagination.
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, from, to, debouncedSearch, pageSize]);
-
-  useEffect(() => {
-    if (!txnFromUrl) return;
-    setSelectedId(txnFromUrl);
-    router.replace('/payments/transactions', { scroll: false });
-  }, [txnFromUrl, router]);
+  }, [pageSize]);
 
   const query: TransactionsListQuery = useMemo(
     () => ({
@@ -153,17 +146,9 @@ function TransactionsPageContent() {
       ),
     },
     {
-      key: 'worker',
-      header: 'Worker',
-      cell: (t) =>
-        t.workerName ? (
-          <div className="flex items-center gap-2">
-            <Avatar name={t.workerName} size="sm" />
-            <span className="text-sm">{t.workerName}</span>
-          </div>
-        ) : (
-          <span className="text-xs text-neutral-400">{t.workerId}</span>
-        ),
+      key: 'counterparty',
+      header: 'Counterparty',
+      cell: (t) => <CounterpartyCell t={t} />,
     },
     {
       key: 'job',
@@ -177,7 +162,16 @@ function TransactionsPageContent() {
       align: 'right',
       sortBy: (t) => t.amountNaira,
       cellClassName: 'tabular-nums font-medium',
-      cell: (t) => formatCurrency(t.amountNaira),
+      cell: (t) => {
+        const kind = classifyEmployerTxn(t);
+        const isCredit = kind === 'top_up' || kind === 'loan_disbursement' || kind === 'wallet_credit';
+        return (
+          <span className={isCredit ? 'text-success-700' : undefined}>
+            {isCredit ? '+' : ''}
+            {formatCurrency(t.amountNaira)}
+          </span>
+        );
+      },
     },
     {
       key: 'status',
@@ -194,7 +188,11 @@ function TransactionsPageContent() {
       header: 'Squad ref',
       cellClassName: 'font-mono text-xs text-neutral-500',
       cell: (t) =>
-        t.squadReference ? formatTransactionId(t.squadReference) : '—',
+        isRealSquadReference(t.squadReference)
+          ? formatTransactionId(t.squadReference!)
+          : t.squadReference
+            ? <span className="text-neutral-400" title="Internal book entry, not a Squad reference">internal</span>
+            : '—',
     },
   ];
 
@@ -337,22 +335,40 @@ function TransactionsPageContent() {
   );
 }
 
-export default function TransactionsPage() {
+function CounterpartyCell({ t }: { t: TransactionDto }) {
+  const kind = classifyEmployerTxn(t);
+  if (kind === 'job_payment') {
+    return t.workerName ? (
+      <div className="flex items-center gap-2">
+        <Avatar name={t.workerName} size="sm" />
+        <span className="text-sm">{t.workerName}</span>
+      </div>
+    ) : (
+      <span className="text-xs text-neutral-400">{t.workerId ?? '—'}</span>
+    );
+  }
+  const meta: Record<Exclude<EmployerTxnRowKind, 'job_payment'>, { label: string; icon: ReactNode }> = {
+    top_up: {
+      label: 'External top-up',
+      icon: <IconBank className="!h-3.5 !w-3.5" />,
+    },
+    loan_disbursement: {
+      label: 'Loan disbursement',
+      icon: <IconCredit className="!h-3.5 !w-3.5" />,
+    },
+    wallet_credit: {
+      label: 'Wallet credit',
+      icon: <IconBank className="!h-3.5 !w-3.5" />,
+    },
+  };
+  const { label, icon } = meta[kind];
   return (
-    <Suspense
-      fallback={
-        <div className="space-y-4 p-6">
-          <div className="h-9 max-w-lg animate-pulse rounded-lg bg-surface-container-high" />
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-24 animate-pulse rounded-xl bg-surface-container-high" />
-            ))}
-          </div>
-        </div>
-      }
-    >
-      <TransactionsPageContent />
-    </Suspense>
+    <div className="flex items-center gap-2">
+      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-info-50 text-info-600">
+        {icon}
+      </span>
+      <span className="text-sm text-neutral-700">{label}</span>
+    </div>
   );
 }
 
@@ -466,15 +482,22 @@ function TransactionDrawer({
                   },
                   {
                     label: 'Squad reference',
-                    value: detail.data.squadReference ? (
+                    value: isRealSquadReference(detail.data.squadReference) ? (
                       <span className="font-mono text-xs">{detail.data.squadReference}</span>
+                    ) : detail.data.squadReference ? (
+                      <span
+                        className="text-xs text-neutral-500"
+                        title="Internal book entry, not a Squad reference"
+                      >
+                        Internal book entry
+                      </span>
                     ) : (
                       '—'
                     ),
                   },
                   {
                     label: 'Worker',
-                    value: detail.data.workerName ?? detail.data.workerId,
+                    value: detail.data.workerName ?? detail.data.workerId ?? '—',
                   },
                   {
                     label: 'Job',

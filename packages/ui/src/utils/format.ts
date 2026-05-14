@@ -38,18 +38,33 @@ export function formatDistance(meters: number): string {
   return `${(meters / 1000).toFixed(meters < 10000 ? 1 : 0)}km`;
 }
 
-export function formatRelativeTime(input: string | Date): string {
+/**
+ * Returns a valid Date or null. Guards against the `RangeError: Invalid time value`
+ * that date-fns throws when handed `new Date(undefined | '' | null | 'garbage')`.
+ * Bad timestamps from upstream APIs would otherwise crash whichever component
+ * is rendering them — including the layout-level NotificationsPopover.
+ */
+function toValidDate(input: string | Date | null | undefined): Date | null {
+  if (input == null || input === '') return null;
   const d = typeof input === 'string' ? new Date(input) : input;
+  return Number.isFinite(d.getTime()) ? d : null;
+}
+
+export function formatRelativeTime(input: string | Date | null | undefined): string {
+  const d = toValidDate(input);
+  if (!d) return '—';
   return `${formatDistanceToNowStrict(d, { addSuffix: false })} ago`;
 }
 
-export function formatAbsoluteDate(input: string | Date): string {
-  const d = typeof input === 'string' ? new Date(input) : input;
+export function formatAbsoluteDate(input: string | Date | null | undefined): string {
+  const d = toValidDate(input);
+  if (!d) return '—';
   return format(d, 'd MMM yyyy, HH:mm');
 }
 
-export function formatShortDate(input: string | Date): string {
-  const d = typeof input === 'string' ? new Date(input) : input;
+export function formatShortDate(input: string | Date | null | undefined): string {
+  const d = toValidDate(input);
+  if (!d) return '—';
   return format(d, 'd MMM');
 }
 

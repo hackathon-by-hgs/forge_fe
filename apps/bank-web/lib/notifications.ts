@@ -19,18 +19,13 @@ export interface AppNotification {
 }
 
 function mapKind(kind: DashboardNotificationDto['kind']): NotificationKind {
-  switch (kind) {
-    case 'application_update':
-      return 'application';
-    case 'loan':
-      return 'loan';
-    case 'payment':
-      return 'payment';
-    case 'new_job':
-    case 'system':
-    default:
-      return 'system';
-  }
+  // Phase 4 (risk-flagging cron) added `loan_at_risk` and `loan_defaulted`
+  // which aren't in the generated DTO union yet — collapse them into 'loan'.
+  const raw = kind as string;
+  if (raw === 'loan' || raw === 'loan_at_risk' || raw === 'loan_defaulted') return 'loan';
+  if (raw === 'application_update') return 'application';
+  if (raw === 'payment') return 'payment';
+  return 'system';
 }
 
 function deeplinkToHref(deeplink: DashboardNotificationDto['deeplink']): string | undefined {

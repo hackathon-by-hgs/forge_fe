@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertBanner,
   Avatar,
@@ -17,16 +17,19 @@ import {
   Skeleton,
   type DataTableColumn,
 } from '@forge/ui';
-import { IconSearch } from '@forge/ui/icons';
+import { IconCheck, IconSearch } from '@forge/ui/icons';
 import { formatNumber } from '@forge/ui/utils';
 import { workersTabs } from '../../../lib/nav';
 import type { JobTypeWire } from '../../../lib/jobsApi';
 import {
+  addTeamMember,
   browseWorkers,
   type WorkerBrowseQuery,
   type WorkerEligibility,
   type WorkerSummaryDto,
 } from '../../../lib/workersApi';
+import { ApiError } from '../../../lib/api';
+import { toastApiError, toastSuccess } from '../../../lib/toast';
 
 const SKILLS: { label: string; value: 'all' | JobTypeWire }[] = [
   { label: 'All skills', value: 'all' },
@@ -64,9 +67,11 @@ export default function BrowseTalentPage() {
     return () => clearTimeout(t);
   }, [search]);
 
+  // Reset only on pageSize change — page 3 of 25-per-page becomes meaningless
+  // at 100-per-page. Filter changes preserve the page per UX spec.
   useEffect(() => {
     setPage(1);
-  }, [skill, scoreTier, eligibility, debouncedSearch, pageSize]);
+  }, [pageSize]);
 
   const query: WorkerBrowseQuery = useMemo(() => {
     const q: WorkerBrowseQuery = {
@@ -93,6 +98,34 @@ export default function BrowseTalentPage() {
 
   const rows = browseQuery.data?.data ?? [];
   const pagination = browseQuery.data?.pagination;
+
+  const queryClient = useQueryClient();
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
+  const addMutation = useMutation({
+    mutationFn: (workerId: string) => addTeamMember(workerId),
+    onSuccess: (_data, workerId) => {
+      setSavedIds((prev) => {
+        const next = new Set(prev);
+        next.add(workerId);
+        return next;
+      });
+      void queryClient.invalidateQueries({ queryKey: ['employer', 'workers', 'team'] });
+      toastSuccess('Saved to your team');
+    },
+    onError: (err, workerId) => {
+      // 409 = already on team. Treat as success-shaped so the UI converges.
+      if (err instanceof ApiError && err.status === 409) {
+        setSavedIds((prev) => {
+          const next = new Set(prev);
+          next.add(workerId);
+          return next;
+        });
+        toastSuccess('Already on your team');
+        return;
+      }
+      toastApiError(err, 'Couldn’t save worker');
+    },
+  });
 
   const columns: DataTableColumn<WorkerSummaryDto>[] = [
     {
@@ -165,6 +198,34 @@ export default function BrowseTalentPage() {
         ) : (
           <Badge>—</Badge>
         ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      align: 'right',
+      cell: (w) => {
+        const saved = savedIds.has(w.id);
+        const saving =
+          addMutation.isPending && addMutation.variables === w.id;
+        if (saved) {
+          return (
+            <Badge tone="success" variant="soft">
+              <IconCheck className="!h-3 !w-3 mr-0.5" />
+              Saved
+            </Badge>
+          );
+        }
+        return (
+          <Button
+            size="sm"
+            variant="secondary"
+            loading={saving}
+            onClick={() => addMutation.mutate(w.id)}
+          >
+            Save to team
+          </Button>
+        );
+      },
     },
   ];
 

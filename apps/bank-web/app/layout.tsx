@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import { type ReactNode } from 'react';
-import { ThemeProvider, ThemeScript } from '@forge/ui';
+import { ThemeProvider, ThemeScript, Toaster } from '@forge/ui';
 import { SessionProvider } from '../lib/auth/SessionProvider';
 import './globals.css';
 
@@ -35,6 +35,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body className="font-sans antialiased">
         <ThemeProvider>
           <SessionProvider>{children}</SessionProvider>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

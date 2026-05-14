@@ -85,6 +85,7 @@ import {
 import { ApiError } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { isHiringManager } from '../../../lib/roles';
+import { toastApiError, toastSuccess } from '../../../lib/toast';
 
 const TYPES: JobTypeWire[] = ['loader', 'driver', 'unloader', 'general'];
 const AUDIENCES: JobAudience[] = ['public', 'team_first'];
@@ -136,20 +137,34 @@ export function JobDetailView({ jobId }: { jobId: string }) {
 
   const publishMutation = useMutation({
     mutationFn: () => publishJob(jobId),
-    onSuccess: invalidateAll,
-    onError: (err) => setActionError(humanError(err)),
+    onSuccess: (job) => {
+      invalidateAll();
+      toastSuccess('Job published', {
+        description: `“${job.title}” is now visible to workers.`,
+      });
+    },
+    onError: (err) => {
+      setActionError(humanError(err));
+      toastApiError(err, 'Couldn’t publish the job');
+    },
   });
 
   const [showCancel, setShowCancel] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const cancelMutation = useMutation({
     mutationFn: (reason?: string) => cancelJob(jobId, reason),
-    onSuccess: () => {
+    onSuccess: (job) => {
       invalidateAll();
       setShowCancel(false);
       setCancelReason('');
+      toastSuccess('Job cancelled', {
+        description: `“${job.title}” has been cancelled and pending applications were rejected.`,
+      });
     },
-    onError: (err) => setActionError(humanError(err)),
+    onError: (err) => {
+      setActionError(humanError(err));
+      toastApiError(err, 'Couldn’t cancel the job');
+    },
   });
 
   const [showEdit, setShowEdit] = useState(false);
@@ -160,8 +175,14 @@ export function JobDetailView({ jobId }: { jobId: string }) {
     onSuccess: (inv) => {
       setInvoiceResult({ number: inv.number });
       invalidateAll();
+      toastSuccess(`Invoice ${inv.number} created`, {
+        description: 'The PDF will be available once processing finishes.',
+      });
     },
-    onError: (err) => setActionError(humanError(err)),
+    onError: (err) => {
+      setActionError(humanError(err));
+      toastApiError(err, 'Couldn’t generate the invoice');
+    },
   });
 
   if (jobQuery.isLoading) {
@@ -173,12 +194,20 @@ export function JobDetailView({ jobId }: { jobId: string }) {
         />
         <div className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
-            <Skeleton className="h-48 w-full rounded-xl" />
-            <Skeleton className="h-64 w-full rounded-xl" />
+            {/* Job summary card: status pill + pay + description + key/value grid */}
+            <Skeleton className="h-56 w-full rounded-xl" />
+            {/* Timeline */}
+            <Skeleton className="h-72 w-full rounded-xl" />
+            {/* Map card (16/8 aspect) */}
+            <Skeleton className="aspect-[16/8] w-full rounded-xl" />
           </div>
           <div className="space-y-6">
-            <Skeleton className="h-40 w-full rounded-xl" />
-            <Skeleton className="h-40 w-full rounded-xl" />
+            {/* Assigned worker card */}
+            <Skeleton className="h-44 w-full rounded-xl" />
+            {/* Applications card */}
+            <Skeleton className="h-56 w-full rounded-xl" />
+            {/* Schedule card */}
+            <Skeleton className="h-32 w-full rounded-xl" />
           </div>
         </div>
       </>
@@ -336,7 +365,10 @@ export function JobDetailView({ jobId }: { jobId: string }) {
                   },
                   {
                     label: 'Location',
-                    value: job.location.neighborhood ?? job.location.address,
+                    value:
+                      job.location?.neighborhood ??
+                      job.location?.address ??
+                      '—',
                   },
                   { label: 'Posted', value: formatRelativeTime(job.postedAt) },
                   {
@@ -376,9 +408,15 @@ export function JobDetailView({ jobId }: { jobId: string }) {
             </CardHeader>
             <CardBody>
               {timelineQuery.isLoading ? (
-                <div className="space-y-2">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <Skeleton key={i} className="h-8 w-full" />
+                <div className="space-y-3">
+                  {/* Timeline rows: dot + icon + label + timestamp. Typical jobs see
+                      8–15 events across their lifecycle. */}
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <Skeleton className="h-2 w-2 rounded-full" />
+                      <Skeleton className="h-4 flex-1" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
                   ))}
                 </div>
               ) : timelineItems.length === 0 ? (
@@ -396,7 +434,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
               <CardTitle>Job site</CardTitle>
               <span className="text-xs text-neutral-500">
                 <IconLocation className="!h-3 !w-3 -mt-0.5 mr-0.5 inline-block" />
-                {job.location.neighborhood ?? job.location.address}, Lagos
+                {job.location?.neighborhood ?? job.location?.address ?? '—'}
               </span>
             </CardHeader>
             <CardBody>
@@ -628,14 +666,30 @@ function ApplicationsCard({
 }) {
   const accept = useMutation({
     mutationFn: (appId: string) => acceptApplication(jobId, appId),
-    onSuccess: onAfterMutate,
-    onError: (err) => onActionError(humanError(err)),
+    onSuccess: (app) => {
+      onAfterMutate();
+      toastSuccess(`Accepted ${app.worker.fullName}`, {
+        description: 'They’ve been notified and will show up for the shift.',
+      });
+    },
+    onError: (err) => {
+      onActionError(humanError(err));
+      toastApiError(err, 'Couldn’t accept the application');
+    },
   });
 
   const reject = useMutation({
     mutationFn: (appId: string) => rejectApplication(jobId, appId),
-    onSuccess: onAfterMutate,
-    onError: (err) => onActionError(humanError(err)),
+    onSuccess: (app) => {
+      onAfterMutate();
+      toastSuccess(`Rejected ${app.worker.fullName}`, {
+        description: 'They won’t be assigned to this job.',
+      });
+    },
+    onError: (err) => {
+      onActionError(humanError(err));
+      toastApiError(err, 'Couldn’t reject the application');
+    },
   });
 
   const canDecide = jobStatus === 'open' || jobStatus === 'applications_in';
@@ -876,11 +930,21 @@ function EditJobDrawer({
 
   const mutate = useMutation({
     mutationFn: (input: UpdateJobInput) => updateJob(job.id, input),
-    onSuccess: onSaved,
+    onSuccess: (updated) => {
+      onSaved();
+      toastSuccess('Job updated', {
+        description: `Changes to “${updated.title}” are saved.`,
+      });
+    },
     onError: (err) => {
       const fe = fieldErrorsFromApi(err);
-      if (fe) setFieldErrors(fe);
+      if (fe) {
+        setFieldErrors(fe);
+        toastApiError(err, 'Please fix the highlighted fields');
+        return;
+      }
       onError(humanError(err));
+      toastApiError(err, 'Couldn’t save your changes');
     },
   });
 

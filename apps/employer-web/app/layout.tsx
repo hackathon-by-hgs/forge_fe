@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import { type ReactNode } from 'react';
-import { ThemeProvider, ThemeScript } from '@forge/ui';
+import { ThemeProvider, ThemeScript, Toaster } from '@forge/ui';
 import { AppChrome } from '../components/AppChrome';
 import { Providers } from './providers';
 import './globals.css';
@@ -38,6 +38,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <Providers>
             <AppChrome>{children}</AppChrome>
           </Providers>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   AlertBanner,
@@ -50,6 +50,30 @@ const STATUS_VALUES: JobStatusWire[] = [
 const TYPE_VALUES: JobTypeWire[] = ['loader', 'driver', 'unloader', 'general'];
 
 export default function JobsListPage() {
+  return (
+    <Suspense fallback={<JobsListFallback />}>
+      <JobsListInner />
+    </Suspense>
+  );
+}
+
+function JobsListFallback() {
+  return (
+    <>
+      <PageHeader
+        title="Jobs"
+        description="Every job your team has posted, filtered any which way."
+      />
+      <div className="space-y-2 p-6">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <Skeleton key={i} className="h-10 w-full" />
+        ))}
+      </div>
+    </>
+  );
+}
+
+function JobsListInner() {
   const router = useRouter();
   const sp = useSearchParams();
 

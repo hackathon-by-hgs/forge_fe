@@ -154,10 +154,7 @@ export default function InvoicesPage() {
           <select
             aria-label="Status"
             value={status}
-            onChange={(e) => {
-              setStatus(e.target.value as 'all' | InvoiceStatus);
-              setPage(1);
-            }}
+            onChange={(e) => setStatus(e.target.value as 'all' | InvoiceStatus)}
             className="h-9 rounded-md border border-neutral-200 bg-white px-3 text-sm"
           >
             {STATUS_OPTIONS.map((o) => (
@@ -170,20 +167,14 @@ export default function InvoicesPage() {
             type="date"
             aria-label="From"
             value={from}
-            onChange={(e) => {
-              setFrom(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => setFrom(e.target.value)}
             className="w-40"
           />
           <Input
             type="date"
             aria-label="To"
             value={to}
-            onChange={(e) => {
-              setTo(e.target.value);
-              setPage(1);
-            }}
+            onChange={(e) => setTo(e.target.value)}
             className="w-40"
           />
         </div>
