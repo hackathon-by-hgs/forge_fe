@@ -121,13 +121,161 @@ export function ratingIdempotencyKey(sessionId: string, employerId: string): str
   return `rating-${sanitizeForIdempotencyKey(sessionId)}-${sanitizeForIdempotencyKey(employerId)}`;
 }
 
-// ── Calls ──────────────────────────────────────────────────────────────────
+// ── Normalization ──────────────────────────────────────────────────────────
 
-export function getPendingRatings(): Promise<PendingRatingsResponse> {
-  return api.get<PendingRatingsResponse>('/v1/employer/pending-ratings');
+/**
+ * The ratings module on the BE ships snake_case (`session_id`, `completed_at`,
+ * `author_role`, `visible_to_subject`, `photo_url`). The rest of the FE
+ * codebase is camelCase end-to-end, so we normalize at the API boundary
+ * rather than scattering snake/camel branches through render code. The
+ * normalizers read both casings (snake preferred per BE audit, camel as
+ * fallback in case BE flips later or adds a global transform).
+ */
+function isObj(raw: unknown): raw is Record<string, unknown> {
+  return Boolean(raw) && typeof raw === 'object' && !Array.isArray(raw);
 }
 
-export function listReceivedRatings(query: {
+function pickString(o: Record<string, unknown>, ...keys: string[]): string | null {
+  for (const k of keys) {
+    const v = o[k];
+    if (typeof v === 'string' && v.trim().length > 0) return v;
+  }
+  return null;
+}
+
+function pickNumber(o: Record<string, unknown>, ...keys: string[]): number | null {
+  for (const k of keys) {
+    const v = o[k];
+    if (typeof v === 'number' && Number.isFinite(v)) return v;
+  }
+  return null;
+}
+
+function pickBool(o: Record<string, unknown>, ...keys: string[]): boolean | null {
+  for (const k of keys) {
+    const v = o[k];
+    if (typeof v === 'boolean') return v;
+  }
+  return null;
+}
+
+function normalizePendingWorker(raw: unknown): PendingRatingWorker {
+  if (!isObj(raw)) return { id: 'unknown', name: 'Worker', photoUrl: null };
+  return {
+    id: pickString(raw, 'id') ?? 'unknown',
+    name: pickString(raw, 'name', 'fullName', 'full_name') ?? 'Worker',
+    photoUrl: pickString(raw, 'photoUrl', 'photo_url'),
+  };
+}
+
+function normalizePendingJob(raw: unknown): PendingRatingJob {
+  if (!isObj(raw)) return { id: '', title: 'Untitled job' };
+  return {
+    id: pickString(raw, 'id') ?? '',
+    title: pickString(raw, 'title') ?? 'Untitled job',
+  };
+}
+
+function normalizePendingRatingItem(raw: unknown): PendingRatingItem | null {
+  if (!isObj(raw)) return null;
+  const sessionId = pickString(raw, 'sessionId', 'session_id');
+  if (!sessionId) return null;
+  return {
+    sessionId,
+    completedAt:
+      pickString(raw, 'completedAt', 'completed_at') ?? new Date(0).toISOString(),
+    worker: normalizePendingWorker(raw.worker),
+    job: normalizePendingJob(raw.job),
+  };
+}
+
+function normalizeReceivedFrom(raw: unknown): ReceivedRatingItem['from'] {
+  if (!isObj(raw)) return { id: 'unknown', name: 'Unknown', photoUrl: null };
+  return {
+    id: pickString(raw, 'id') ?? 'unknown',
+    name: pickString(raw, 'name', 'fullName', 'full_name') ?? 'Unknown',
+    photoUrl: pickString(raw, 'photoUrl', 'photo_url'),
+  };
+}
+
+function normalizeReceivedRating(raw: unknown): ReceivedRatingItem | null {
+  if (!isObj(raw)) return null;
+  const id = pickString(raw, 'id');
+  if (!id) return null;
+  // `author_role` is the spec field; `kind` is the legacy duplicate the BE
+  // kept for backward compat (per the audit). Read either.
+  const fromObj = isObj(raw.from) ? raw.from : {};
+  const authorRoleFromTop = pickString(raw, 'authorRole', 'author_role');
+  const authorRoleFromFrom = pickString(fromObj, 'kind', 'authorRole', 'author_role');
+  const authorRole =
+    authorRoleFromTop === 'worker' || authorRoleFromFrom === 'worker'
+      ? 'worker'
+      : 'worker'; // employer→worker ratings never surface here; default safe.
+  const tags = Array.isArray(raw.tags)
+    ? raw.tags.filter((t): t is string => typeof t === 'string')
+    : [];
+  return {
+    id,
+    sessionId: pickString(raw, 'sessionId', 'session_id') ?? '',
+    authorRole,
+    from: normalizeReceivedFrom(raw.from),
+    job: normalizePendingJob(raw.job),
+    stars: pickNumber(raw, 'stars') ?? 0,
+    tags,
+    comment: pickString(raw, 'comment'),
+    submittedAt:
+      pickString(raw, 'submittedAt', 'submitted_at') ?? new Date(0).toISOString(),
+  };
+}
+
+function normalizePagination(raw: unknown, fallbackPage: number, fallbackPageSize: number) {
+  if (!isObj(raw)) {
+    return { page: fallbackPage, pageSize: fallbackPageSize, total: 0, totalPages: 1 };
+  }
+  const pageSize =
+    pickNumber(raw, 'pageSize', 'page_size') ?? fallbackPageSize;
+  const total = pickNumber(raw, 'total') ?? 0;
+  const totalPages =
+    pickNumber(raw, 'totalPages', 'total_pages') ??
+    Math.max(1, Math.ceil(total / Math.max(1, pageSize)));
+  const page = pickNumber(raw, 'page') ?? fallbackPage;
+  return { page, pageSize, total, totalPages };
+}
+
+function normalizeSubmittedRating(raw: unknown): SubmittedRating | null {
+  if (!isObj(raw)) return null;
+  const id = pickString(raw, 'id');
+  if (!id) return null;
+  const tags = Array.isArray(raw.tags)
+    ? raw.tags.filter((t): t is string => typeof t === 'string')
+    : [];
+  return {
+    id,
+    authorRole: 'employer',
+    stars: pickNumber(raw, 'stars') ?? 0,
+    tags,
+    comment: pickString(raw, 'comment'),
+    submittedAt:
+      pickString(raw, 'submittedAt', 'submitted_at') ?? new Date().toISOString(),
+    visibleToSubject:
+      pickBool(raw, 'visibleToSubject', 'visible_to_subject') ?? false,
+  };
+}
+
+// ── Calls ──────────────────────────────────────────────────────────────────
+
+export async function getPendingRatings(): Promise<PendingRatingsResponse> {
+  const raw = await api.get<unknown>('/v1/employer/pending-ratings');
+  const itemsRaw =
+    isObj(raw) && Array.isArray(raw.items) ? (raw.items as unknown[]) : [];
+  return {
+    items: itemsRaw
+      .map(normalizePendingRatingItem)
+      .filter((it): it is PendingRatingItem => it !== null),
+  };
+}
+
+export async function listReceivedRatings(query: {
   page?: number;
   pageSize?: number;
 }): Promise<ReceivedRatingsResponse> {
@@ -135,19 +283,39 @@ export function listReceivedRatings(query: {
   if (query.page) params.set('page', String(query.page));
   if (query.pageSize) params.set('pageSize', String(query.pageSize));
   const qs = params.toString();
-  return api.get<ReceivedRatingsResponse>(
+  const raw = await api.get<unknown>(
     `/v1/employer/ratings${qs ? `?${qs}` : ''}`,
   );
+  const fallbackPage = query.page ?? 1;
+  const fallbackPageSize = query.pageSize ?? 20;
+  const dataRaw =
+    isObj(raw) && Array.isArray(raw.data) ? (raw.data as unknown[]) : [];
+  return {
+    data: dataRaw
+      .map(normalizeReceivedRating)
+      .filter((r): r is ReceivedRatingItem => r !== null),
+    pagination: normalizePagination(
+      isObj(raw) ? raw.pagination : undefined,
+      fallbackPage,
+      fallbackPageSize,
+    ),
+  };
 }
 
-export function submitRating(
+export async function submitRating(
   sessionId: string,
   employerId: string,
   input: SubmitRatingInput,
 ): Promise<SubmitRatingResponse> {
-  return api.post<SubmitRatingResponse, SubmitRatingInput>(
+  const raw = await api.post<unknown, SubmitRatingInput>(
     `/v1/employer/work-sessions/${encodeURIComponent(sessionId)}/rating`,
     input,
     { idempotencyKey: ratingIdempotencyKey(sessionId, employerId) },
   );
+  const ratingRaw = isObj(raw) ? raw.rating : null;
+  const rating = normalizeSubmittedRating(ratingRaw);
+  if (!rating) {
+    throw new Error('Server returned an unexpected rating payload.');
+  }
+  return { rating };
 }

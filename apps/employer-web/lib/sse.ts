@@ -35,6 +35,10 @@ const EMPLOYER_EVENT_NAMES = [
   'worker.clock_event',
   'session.pending_review',
   'session.review_resolved',
+  // §27 ratings: fires when a rating row is created (employer-side and, once
+  // the BE wires worker-side push, worker-side too). Used to auto-clear the
+  // pending-ratings inbox without an explicit refetch in the dialog.
+  'rating.created',
   // NOTE: `withdrawal.terminal` is a *broadcast* event the BE emits to all
   // SSE subscribers for admin/ops visibility into worker withdrawals. The
   // employer dashboard intentionally does NOT subscribe to it — omitting it
@@ -557,6 +561,16 @@ function applyInvalidations(
       invalidate(['employer', 'overview']);
       invalidate(['notifications']);
       invalidate(['employer', 'transactions']);
+      break;
+    case 'rating.created':
+      // §27: a rating row was just inserted (employer-side: a rating they
+      // submitted clears the row from their pending inbox; worker-side: a
+      // counterpart rating arrived, may unblind aggregates). Both surfaces
+      // refetch on this signal — cheaper than threading invalidation through
+      // every submit handler.
+      invalidate(['employer', 'pending-ratings']);
+      invalidate(['employer', 'ratings']);
+      invalidate(['employer', 'overview']);
       break;
     default:
       break;
