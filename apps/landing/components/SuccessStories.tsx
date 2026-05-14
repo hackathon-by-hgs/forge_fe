@@ -188,7 +188,7 @@ export default function SuccessStories() {
   );
 
   return (
-    <section ref={sectionRef} id="cases" className="relative bg-[#050505] overflow-hidden">
+    <section ref={sectionRef} id="cases" className="relative bg-[#050505] pb-32 overflow-hidden">
       {/* Heading */}
       <div className="relative z-10 pt-20 md:pt-32 pb-10 md:pb-12 px-4 md:px-16">
         <div className="flex items-center gap-4 mb-6 md:mb-8">

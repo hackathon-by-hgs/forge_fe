@@ -100,40 +100,42 @@ export default function Hero() {
         </div>
 
         {/* Bottom Details Section */}
-        <div className="grid min-h-[60vh] items-start gap-12 md:grid-cols-2 md:gap-24">
+        <div className="flex flex-col md:grid min-h-[60vh] items-start gap-12 md:grid-cols-[5fr_7fr] lg:grid-cols-[4fr_7fr] md:gap-16 lg:gap-24 w-full max-w-full">
           {/* Left: Showreel box */}
-          <div className="hero-demo-box group relative aspect-video w-full mx-auto overflow-hidden bg-neutral-100 shadow-2xl md:sticky md:top-32 rounded-2xl">
-            <video
-              className="absolute inset-0 h-full w-full object-cover"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-            >
-              <source src="/videos/hero-showreel.mp4" type="video/mp4" />
-            </video>
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-            <div className="absolute inset-0 bg-dot-grid opacity-20" />
+          <div className="w-full min-w-0 md:sticky md:top-32 lg:top-24">
+            <div className="hero-demo-box group relative aspect-[4/3] md:aspect-[4/5] lg:aspect-[3/4] max-h-[85vh] w-full mx-auto overflow-hidden bg-[#0A0A0A] shadow-2xl rounded-3xl">
+              <video
+                className="absolute inset-0 h-full w-full object-cover"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+              >
+                <source src="/videos/hero-showreel.mp4" type="video/mp4" />
+              </video>
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+              <div className="absolute inset-0 bg-dot-grid opacity-20" />
 
-            <div className="flex h-full w-full items-center justify-center">
-              <div className="relative z-20 text-center">
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-black/85 text-white transition-transform group-hover:scale-110">
-                  <svg className="ml-1 h-6 w-6 fill-current" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
+              <div className="flex h-full w-full items-center justify-center">
+                <div className="relative z-20 text-center">
+                  <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-black/85 text-white transition-transform group-hover:scale-110">
+                    <svg className="ml-1 h-6 w-6 fill-current" viewBox="0 0 24 24">
+                      <path d="M8 5v14l11-7z" />
+                    </svg>
+                  </div>
+                  <span className="text-[11px] font-black uppercase tracking-widest text-white/80">
+                    WATCH SHOWREEL - 01:24
+                  </span>
                 </div>
-                <span className="text-[11px] font-black uppercase tracking-widest text-white/80">
-                  WATCH SHOWREEL - 01:24
-                </span>
               </div>
             </div>
           </div>
 
           {/* Right: Details */}
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-12 md:gap-12 w-full min-w-0 px-2 sm:px-0">
             {/* item 1 */}
-            <div className="hero-detail-card inset-0 mb-32 flex flex-col justify-center">
+            <div className="hero-detail-card mb-16 md:mb-32 flex flex-col justify-center w-full min-w-0">
               <h2 className="text-2xl font-medium leading-[1.2] tracking-tight text-black md:text-4xl">
                 Empowering <span className="text-black/30">Nigeria&apos;s workforce</span> with verified identity and{' '}
                 <span className="font-bold underline decoration-[#FF4D00] decoration-4 underline-offset-8">
@@ -147,17 +149,17 @@ export default function Hero() {
             </div>
 
             {/* item 2 */}
-            <div className="hero-detail-card inset-0 mb-32 flex flex-col justify-center">
-              <span className="mb-10 block text-[11px] font-bold uppercase tracking-[0.4em] text-[#FF4D00]">
+            <div className="hero-detail-card mb-16 md:mb-32 flex flex-col justify-center w-full min-w-0">
+              <span className="mb-8 md:mb-10 block text-[11px] font-bold uppercase tracking-[0.4em] text-[#FF4D00]">
                 Strategic Partners
               </span>
 
-              <div className="relative w-full overflow-hidden before:absolute before:left-0 before:top-0 before:z-10 before:h-full before:w-16 before:bg-gradient-to-r before:from-white before:to-transparent after:absolute after:right-0 after:top-0 after:z-10 after:h-full after:w-16 after:bg-gradient-to-l after:from-white after:to-transparent">
+              <div className="relative w-full overflow-hidden before:absolute before:left-0 before:top-0 before:z-10 before:h-full before:w-8 md:before:w-16 before:bg-gradient-to-r before:from-white before:to-transparent after:absolute after:right-0 after:top-0 after:z-10 after:h-full after:w-8 md:after:w-16 after:bg-gradient-to-l after:from-white after:to-transparent">
                 <div className="flex animate-marquee whitespace-nowrap py-4">
                   {[...PARTNERS, ...PARTNERS].map((name, i) => (
-                    <div key={i} className="mx-10 flex items-center gap-3">
+                    <div key={i} className="mx-6 md:mx-10 flex items-center gap-3">
                       <span className="text-[#FF4D00]">*</span>
-                      <span className="cursor-default text-xl font-black uppercase tracking-[0.2em] text-black transition-colors duration-500 hover:text-black/80">
+                      <span className="cursor-default text-lg md:text-xl font-black uppercase tracking-[0.2em] text-black transition-colors duration-500 hover:text-black/80">
                         {name}
                       </span>
                     </div>
@@ -170,12 +172,12 @@ export default function Hero() {
               </p>
             </div>
 
-            <div className="hero-detail-card inset-0 flex flex-col justify-center">
-              <span className="mb-10 block text-[11px] font-bold uppercase tracking-[0.4em] text-[#FF4D00]">
+            <div className="hero-detail-card flex flex-col justify-center w-full min-w-0">
+              <span className="mb-8 md:mb-10 block text-[11px] font-bold uppercase tracking-[0.4em] text-[#FF4D00]">
                 Proven Scale & Impact
               </span>
 
-              <div className="grid grid-cols-2 gap-x-8 gap-y-12">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-10 sm:gap-x-8 sm:gap-y-12">
                 {STATS.map((stat) => (
                   <div key={stat.label} className="group relative">
                     <div className="absolute -left-4 top-0 h-full w-[1px] bg-black/5 transition-colors group-hover:bg-[#FF4D00]/30" />
