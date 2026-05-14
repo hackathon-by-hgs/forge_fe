@@ -35,6 +35,11 @@ const EMPLOYER_EVENT_NAMES = [
   'worker.clock_event',
   'session.pending_review',
   'session.review_resolved',
+  // NOTE: `withdrawal.terminal` is a *broadcast* event the BE emits to all
+  // SSE subscribers for admin/ops visibility into worker withdrawals. The
+  // employer dashboard intentionally does NOT subscribe to it — omitting it
+  // from this array is the filter (the polyfill only fires
+  // addEventListener handlers for names we list here). Don't add it.
 ] as const;
 
 const SSE_LOG_PREFIX = '[forge-sse]';

@@ -1,8 +1,10 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { EventSourcePolyfill, type EventListenerOrEventListenerObject } from 'event-source-polyfill';
+import { toast } from '@forge/ui';
+import { formatCurrency } from '@forge/ui/utils';
 import { getApiBaseUrl } from './api/client';
 import { getAccessToken } from './auth/tokenStore';
 
@@ -30,6 +32,14 @@ const BANK_EVENT_NAMES = [
   'loan_repayment.updated',
   'risk-radar.refreshed',
   'analytics.refreshed',
+  // §11 withdrawal fan-out — fires when a borrower with an active loan at
+  // this bank completes/fails/reverses a withdrawal. Bank-scoped (BE only
+  // emits to banks holding the loan), so no extra filtering needed here.
+  'borrower.transaction_updated',
+  // NOTE: `withdrawal.terminal` is a *broadcast* event the BE emits for
+  // admin/ops visibility. We deliberately do NOT subscribe to it — the
+  // polyfill only fires `addEventListener(name)` for names we list, so
+  // omitting it from this array is the filter. Don't add it.
 ] as const;
 
 const SSE_LOG_PREFIX = '[forge-sse]';
@@ -150,6 +160,11 @@ export function useForgeStream(enabled: boolean): void {
         return;
       }
       if (payload.event === 'heartbeat') return;
+      try {
+        applySideEffects(qc, payload);
+      } catch (err) {
+        devWarn(`applySideEffects(${payload.event}) threw:`, err);
+      }
       try {
         applyInvalidations(safeInvalidate, payload);
       } catch (err) {
@@ -292,8 +307,80 @@ function applyInvalidations(
       invalidate(['bank', 'analytics']);
       break;
     }
+    case 'borrower.transaction_updated': {
+      // §11 worker withdrawal completed/failed/reversed on a borrower with
+      // an active loan at this bank. Refresh the loan detail (outstanding
+      // balance may shift) and the radar (risk could flip). Also invalidate
+      // borrower-profile queries so the embedded loan list reflects the
+      // movement.
+      const loanId = typeof data.loanId === 'string' ? data.loanId : undefined;
+      const workerId =
+        typeof data.workerId === 'string' ? data.workerId : undefined;
+      if (loanId) {
+        invalidate(['bank', 'loans', loanId]);
+        invalidate(['bank', 'loans', 'detail', loanId]);
+      }
+      invalidate(['bank', 'loans']);
+      invalidate(['bank', 'risk-radar']);
+      if (workerId) {
+        // Borrower profile query is keyed `['bank','borrowers', type, id]`.
+        // A two-segment prefix invalidates both worker and business variants
+        // for this id (cheaper than enumerating both types).
+        invalidate(['bank', 'borrowers']);
+      }
+      break;
+    }
     default:
       break;
   }
+}
+
+/**
+ * Side effects bound to a specific event payload — currently just the
+ * loan-detail toast on `borrower.transaction_updated`. Gated on the
+ * loan-detail query being *observed* (mounted), not merely cached, so
+ * navigation away suppresses the toast immediately rather than waiting
+ * for cache GC.
+ */
+function applySideEffects(qc: QueryClient, p: StreamEnvelope): void {
+  if (p.event !== 'borrower.transaction_updated') return;
+  const data =
+    p.data && typeof p.data === 'object'
+      ? p.data
+      : ({} as Record<string, unknown>);
+  const loanId = typeof data.loanId === 'string' ? data.loanId : null;
+  if (!loanId) return;
+  const observersForLoanDetail =
+    qc
+      .getQueryCache()
+      .find({ queryKey: ['bank', 'loans', loanId] })
+      ?.getObserversCount() ?? 0;
+  if (observersForLoanDetail === 0) return;
+
+  const status = typeof data.status === 'string' ? data.status : 'completed';
+  const amount = typeof data.amountNaira === 'number' ? data.amountNaira : null;
+  const outstanding =
+    typeof data.outstandingBalance === 'number' ? data.outstandingBalance : null;
+
+  // Amount is signed (negative for the debit). Display the magnitude.
+  const magnitude = amount != null ? Math.abs(amount) : null;
+  const tone =
+    status === 'failed' || status === 'reversed' ? 'warning' : 'info';
+  const verb =
+    status === 'completed'
+      ? 'withdrew'
+      : status === 'failed'
+        ? 'withdrawal failed'
+        : 'reversed a withdrawal';
+  const title =
+    magnitude != null
+      ? `Borrower ${verb} ${formatCurrency(magnitude)}`
+      : `Borrower wallet activity`;
+  const description =
+    outstanding != null
+      ? `Remaining loan balance ${formatCurrency(outstanding)}.`
+      : undefined;
+
+  toast({ tone, title, description, durationMs: 5000 });
 }
 
