@@ -5,6 +5,7 @@ import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { SplitText } from 'gsap/SplitText';
+import Image from 'next/image';
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
 
@@ -49,10 +50,12 @@ export default function Testimonials() {
 
       const panels = gsap.utils.toArray<HTMLElement>('.testimonial-panel');
 
-      panels.forEach((panel, i) => {
+      panels.forEach((panel) => {
         const quoteEl = panel.querySelector('.testimonial-quote');
         const quoteMark = panel.querySelector('.testimonial-mark');
         const infoEl = panel.querySelector('.testimonial-info');
+        const avatarEl = panel.querySelector('.testimonial-avatar');
+        const glowEl = panel.querySelector('.testimonial-glow');
 
         // Pin each testimonial for one viewport scroll
         ScrollTrigger.create({
@@ -65,70 +68,77 @@ export default function Testimonials() {
 
         if (prefersReduced) return;
 
-        // Quote mark entrance
+        // Entrance animation
+        const entranceTl = gsap.timeline({
+          scrollTrigger: {
+            trigger: panel,
+            start: 'top 80%',
+            toggleActions: 'play none none reverse',
+          },
+        });
+
         if (quoteMark) {
-          gsap.fromTo(
-            quoteMark,
-            { scale: 0.6, opacity: 0 },
-            {
-              scale: 1,
-              opacity: 1,
-              duration: 0.8,
-              ease: 'power3.out',
-              scrollTrigger: {
-                trigger: panel,
-                start: 'top 60%',
-                toggleActions: 'play none none none',
-              },
-            }
+          entranceTl.fromTo(quoteMark, 
+            { scale: 0.4, opacity: 0, rotate: -15 }, 
+            { scale: 1, opacity: 0.2, rotate: 0, duration: 1.2, ease: 'back.out(1.7)' }
           );
         }
 
-        // SplitText quote lines
         if (quoteEl) {
-          const split = new SplitText(quoteEl, { type: 'lines' });
-
-          // Wrap each line for clip overflow
-          split.lines.forEach((line) => {
-            const wrapper = document.createElement('div');
-            wrapper.style.overflow = 'hidden';
-            wrapper.style.display = 'block';
-            line.parentNode!.insertBefore(wrapper, line);
-            wrapper.appendChild(line);
-          });
-
-          gsap.set(split.lines, { y: '100%', opacity: 0 });
-          gsap.to(split.lines, {
-            y: '0%',
+          const split = new SplitText(quoteEl, { type: 'chars,words' });
+          gsap.set(split.chars, { y: 100, opacity: 0, rotateX: -90 });
+          
+          entranceTl.to(split.chars, {
+            y: 0,
             opacity: 1,
-            stagger: 0.06,
-            duration: 0.7,
-            ease: 'power3.out',
+            rotateX: 0,
+            stagger: 0.01,
+            duration: 0.8,
+            ease: 'power4.out',
+          }, '-=0.8');
+        }
+
+        if (infoEl) {
+          entranceTl.fromTo(infoEl, 
+            { opacity: 0, x: -30 }, 
+            { opacity: 1, x: 0, duration: 0.8, ease: 'power3.out' }, 
+            '-=0.4'
+          );
+        }
+
+        if (avatarEl) {
+          entranceTl.fromTo(avatarEl, 
+            { opacity: 0, scale: 0.5, rotate: 15 }, 
+            { opacity: 1, scale: 1, rotate: 0, duration: 1, ease: 'back.out(1.7)' }, 
+            '-=0.6'
+          );
+        }
+
+        // Continuous scrub animation while pinned
+        gsap.to(glowEl, {
+          x: '20%',
+          y: '10%',
+          scale: 1.2,
+          opacity: 0.06,
+          scrollTrigger: {
+            trigger: panel,
+            start: 'top top',
+            end: '+=100%',
+            scrub: 1.5,
+          }
+        });
+
+        if (quoteEl) {
+          gsap.to(quoteEl, {
+            y: -20,
+            opacity: 0.8,
             scrollTrigger: {
               trigger: panel,
-              start: 'top 50%',
-              toggleActions: 'play none none none',
-            },
-          });
-        }
-
-        // Client info fade in
-        if (infoEl) {
-          gsap.fromTo(
-            infoEl,
-            { opacity: 0, y: 20 },
-            {
-              opacity: 1,
-              y: 0,
-              duration: 0.6,
-              ease: 'power3.out',
-              scrollTrigger: {
-                trigger: panel,
-                start: 'top 40%',
-                toggleActions: 'play none none none',
-              },
+              start: 'top top',
+              end: '+=100%',
+              scrub: true,
             }
-          );
+          });
         }
       });
     },
@@ -140,10 +150,10 @@ export default function Testimonials() {
       {TESTIMONIALS.map((item, i) => (
         <div
           key={item.author}
-          className="testimonial-panel relative min-h-screen flex items-center bg-[#050505]"
+          className="testimonial-panel relative min-h-screen flex items-center bg-[#050505] border-t border-white/[0.05] overflow-hidden"
         >
           {/* Background accent glow */}
-          <div className="absolute top-1/4 left-0 w-[400px] h-[400px] bg-[#FF4D00] opacity-[0.03] blur-[160px] pointer-events-none" />
+          <div className="testimonial-glow absolute top-1/4 left-0 w-[600px] h-[600px] bg-[#FF4D00] opacity-[0.03] blur-[160px] pointer-events-none" />
 
           <div className="section-container relative z-10 py-16 md:py-24">
             <div className="grid gap-12 md:grid-cols-[1fr_auto] items-center">
@@ -154,7 +164,7 @@ export default function Testimonials() {
                   &ldquo;
                 </span>
 
-                <blockquote className="testimonial-quote relative z-10 text-[clamp(1.5rem,4vw,4.5rem)] font-medium text-white leading-[1.2] tracking-tight mb-8 md:mb-12">
+                <blockquote className="testimonial-quote relative z-10 text-[clamp(1.5rem,4vw,4.5rem)] font-medium text-white leading-[1.2] tracking-tight mb-8 md:mb-12 perspective-1000">
                   {item.quote}
                 </blockquote>
 
@@ -174,11 +184,12 @@ export default function Testimonials() {
 
               {/* Avatar — hidden on smallest screens */}
               <div className="hidden sm:block flex-shrink-0">
-                <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-white/10">
-                  <img
+                <div className="testimonial-avatar relative w-24 h-24 md:w-32 md:h-32 rounded-full overflow-hidden border-2 border-white/10 shadow-2xl">
+                  <Image
                     src={item.avatar}
                     alt={item.author}
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover scale-110"
                   />
                 </div>
               </div>

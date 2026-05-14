@@ -5,6 +5,7 @@ import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { SplitText } from 'gsap/SplitText';
+import Image from 'next/image';
 
 gsap.registerPlugin(ScrollTrigger, SplitText);
 
@@ -59,9 +60,10 @@ function CaseCard({ item }: { item: typeof CASES[0] }) {
     >
       {/* Image — top 60% */}
       <div className="relative overflow-hidden" style={{ height: '60%' }}>
-        <img
+        <Image
           src={item.image}
           alt={item.client}
+          fill
           className="absolute inset-0 w-full h-full object-cover saturate-[0.7] contrast-[1.1] transition-transform duration-[400ms] ease-out group-hover:scale-[1.04]"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent" />
@@ -174,7 +176,7 @@ export default function SuccessStories() {
       const cards = gsap.utils.toArray<HTMLElement>('.case-card');
       cards.forEach((card) => {
         gsap.from(card, {
-          opacity: 0, y: 40, scale: 0.96, duration: 0.8, ease: 'power3.out',
+          opacity: 0.7, y: 20, scale: 0.98, duration: 1, ease: 'power3.out',
           scrollTrigger: {
             trigger: card, containerAnimation: scrollTween,
             start: 'left 90%', toggleActions: 'play none none none',
@@ -222,6 +224,22 @@ export default function SuccessStories() {
           style={{ transform: 'scaleX(0)' }}
         />
       </div>
+
+      {/* BOTTOM inverted arch */}
+      <svg
+        width="100%"
+        height="160"
+        viewBox="0 0 1000 160"
+        preserveAspectRatio="none"
+        style={{ position: 'absolute', bottom: 0, left: 0, display: 'block', zIndex: 20, pointerEvents: 'none' }}
+      >
+        <path
+          d="M 0,0 L 120,80 L 370,80 L 370,140
+             L 630,140 L 630,80 L 880,80
+             L 1000,0 L 1000,0 L 0,0 Z"
+          fill="#050505"
+        />
+      </svg>
     </section>
   );
 }

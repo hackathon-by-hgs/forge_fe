@@ -102,7 +102,7 @@ export default function Hero() {
         {/* Bottom Details Section */}
         <div className="grid min-h-[60vh] items-start gap-12 md:grid-cols-2 md:gap-24">
           {/* Left: Showreel box */}
-          <div className="hero-demo-box group relative aspect-[16/9] overflow-hidden bg-neutral-100 shadow-2xl lg:sticky lg:top-28">
+          <div className="hero-demo-box group relative aspect-video w-full mx-auto overflow-hidden bg-neutral-100 shadow-2xl md:sticky md:top-32 rounded-2xl">
             <video
               className="absolute inset-0 h-full w-full object-cover"
               autoPlay

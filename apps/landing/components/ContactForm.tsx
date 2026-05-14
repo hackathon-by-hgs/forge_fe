@@ -83,6 +83,15 @@ export default function ContactForm() {
         });
       }
 
+      // Pin section so footer slides over
+      ScrollTrigger.create({
+        trigger: section,
+        start: 'top top',
+        end: () => `+=${document.querySelector('#footer')?.clientHeight || window.innerHeight}`,
+        pin: true,
+        pinSpacing: false,
+      });
+
       // Micro stats
       const stats = gsap.utils.toArray<HTMLElement>('.contact-stat');
       if (!prefersReduced) {
@@ -149,7 +158,7 @@ export default function ContactForm() {
     <section
       ref={sectionRef}
       id="contact"
-      className=" bg-white py-20 md:py-40"
+      className="bg-white py-20 md:py-40 min-h-screen flex flex-col justify-center"
     >
       <div className="section-container relative z-10">
         <div className="grid gap-16 lg:grid-cols-2 lg:gap-24">

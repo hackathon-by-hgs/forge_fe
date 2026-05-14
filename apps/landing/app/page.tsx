@@ -22,7 +22,7 @@ export default function LandingPage() {
   useLenis();
 
   return (
-    <div className="bg-black">
+    <div className="bg-white">
       <NoiseOverlay />
       <CustomCursor />
       <Header />
@@ -74,9 +74,9 @@ export default function LandingPage() {
         </section>
 
         {/* Step 6: Industries — dark section */}
-        <section data-navbar-theme="dark" className="relative z-[23]">
+        <ArchSection id="industries" className="relative z-[23]">
           <Industries />
-        </section>
+        </ArchSection>
 
         {/* Step 7: Testimonials — self-pinning panels */}
         <section data-navbar-theme="dark" className="relative z-[24]">
@@ -84,7 +84,7 @@ export default function LandingPage() {
         </section>
 
         {/* Step 8: Contact — white */}
-        <section id="contact-section" data-navbar-theme="light" className="sticky top-0 min-h-screen z-[25] bg-white">
+        <section id="contact-section" data-navbar-theme="light" className="relative z-[25] bg-white">
           <ContactForm />
         </section>
       </main>

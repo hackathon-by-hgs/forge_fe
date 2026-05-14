@@ -100,58 +100,7 @@ export default function Industries() {
         },
       });
 
-      // GSAP hover for cards (interruptible)
-      cards.forEach((card) => {
-        const icon = card.querySelector('.industry-icon');
-        card.addEventListener('mouseenter', () => {
-          gsap.to(card, {
-            backgroundColor: '#FF4D00',
-            borderColor: '#FF4D00',
-            duration: 0.35,
-            ease: 'power2.out',
-            overwrite: true,
-          });
-          gsap.to(card.querySelectorAll('.industry-text'), {
-            color: '#000000',
-            duration: 0.25,
-            overwrite: true,
-          });
-          if (icon) {
-            gsap.to(icon, {
-              scale: 1.15,
-              rotation: 8,
-              color: '#000000',
-              duration: 0.35,
-              ease: 'power2.out',
-              overwrite: true,
-            });
-          }
-        });
-        card.addEventListener('mouseleave', () => {
-          gsap.to(card, {
-            backgroundColor: '#0a0a0a',
-            borderColor: 'rgba(255,255,255,0.08)',
-            duration: 0.35,
-            ease: 'power2.out',
-            overwrite: true,
-          });
-          gsap.to(card.querySelectorAll('.industry-text'), {
-            color: '',
-            duration: 0.25,
-            overwrite: true,
-          });
-          if (icon) {
-            gsap.to(icon, {
-              scale: 1,
-              rotation: 0,
-              color: '',
-              duration: 0.35,
-              ease: 'power2.out',
-              overwrite: true,
-            });
-          }
-        });
-      });
+
     },
     { scope: sectionRef }
   );
@@ -219,19 +168,36 @@ export default function Industries() {
         </h2>
 
         {/* Grid */}
-        <div className="industry-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[1px] bg-white/[0.04]">
+        <div className="industry-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
           {INDUSTRIES.map((item) => (
             <div
               key={item.name}
-              className="industry-card bg-[#0a0a0a] border border-white/[0.08] p-10 md:p-12 cursor-pointer"
+              className="industry-card relative group bg-white/[0.03] backdrop-blur-sm border border-white/10 p-10 md:p-12 cursor-pointer overflow-hidden flex flex-col justify-between min-h-[360px] hover:border-[#FF4D00]/40 transition-all duration-700 rounded-2xl"
             >
-              <div className="industry-icon text-white/40 mb-8">{item.icon}</div>
-              <h3 className="industry-text text-xl font-bold text-white mb-3 tracking-tight">
-                {item.name}
-              </h3>
-              <p className="industry-text text-sm text-white/30 leading-relaxed">
-                {item.desc}
-              </p>
+              <div className="absolute inset-0 bg-gradient-to-br from-[#FF4D00]/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+              <div className="absolute -inset-[1px] bg-gradient-to-br from-white/10 to-transparent rounded-2xl pointer-events-none" />
+              
+              <div className="relative z-10 flex flex-col h-full">
+                <div className="flex justify-between items-start mb-16">
+                  <div className="industry-icon w-16 h-16 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/60 group-hover:text-[#FF4D00] group-hover:border-[#FF4D00]/30 group-hover:bg-[#FF4D00]/5 transition-all duration-500 group-hover:scale-110 origin-center">
+                    {item.icon}
+                  </div>
+                  <div className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/0 group-hover:text-[#FF4D00] group-hover:border-[#FF4D00]/30 -translate-x-4 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-500 bg-white/5 backdrop-blur-md">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </div>
+                </div>
+
+                <div className="mt-auto">
+                  <h3 className="industry-text text-2xl md:text-3xl font-medium text-white mb-4 tracking-tight group-hover:text-[#FF4D00] transition-colors duration-500">
+                    {item.name}
+                  </h3>
+                  <p className="industry-text text-base text-white/40 leading-relaxed group-hover:text-white/60 transition-colors duration-500">
+                    {item.desc}
+                  </p>
+                </div>
+              </div>
             </div>
           ))}
         </div>

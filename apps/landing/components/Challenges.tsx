@@ -192,29 +192,9 @@ export default function Challenges() {
       className="relative bg-white text-black py-24 md:py-40"
     >
       <div className="section-container relative z-10">
-        <div className="grid gap-12 md:grid-cols-[1fr_1.2fr] md:gap-24">
-          {/* Left — sticky column */}
-          <div className="md:sticky md:top-32 md:self-start pb-8 md:pb-0 border-b border-black/[0.06] md:border-0">
-            <div className="flex items-center gap-4 mb-8">
-              <div className="h-[1px] w-12 bg-[#FF4D00]" />
-              <span className="text-[11px] font-bold uppercase tracking-[0.5em] text-[#FF4D00]">
-                The Problem Space
-              </span>
-            </div>
-            <h2 className="challenges-heading text-[clamp(1.75rem,5vw,4rem)] font-medium leading-[1.1] tracking-tight text-black mb-8 md:mb-10">
-              Built for the problems{' '}
-              <span className="text-black/30">you actually face</span>
-            </h2>
-            <p
-              ref={stickyTextRef}
-              className="hidden md:block text-lg text-black/40 leading-relaxed max-w-md transition-opacity"
-            >
-              {CHALLENGES[0]!.sticky}
-            </p>
-          </div>
-
-          {/* Right — scrolling items */}
-          <div>
+        <div className="grid gap-12 md:grid-cols-[1.2fr_1fr] md:gap-24">
+          {/* Left — scrolling items */}
+          <div className="order-2 md:order-1">
             {CHALLENGES.map((item) => (
               <div key={item.num} className="challenge-item relative pb-8 mb-8 md:pb-12 md:mb-12 last:mb-0 last:pb-0">
                 {/* Bottom rule */}
@@ -235,6 +215,26 @@ export default function Challenges() {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Right — sticky column */}
+          <div className="order-1 md:order-2 md:sticky md:top-32 md:self-start pb-8 md:pb-0 border-b border-black/[0.06] md:border-0">
+            <div className="flex items-center gap-4 mb-8">
+              <div className="h-[1px] w-12 bg-[#FF4D00]" />
+              <span className="text-[11px] font-bold uppercase tracking-[0.5em] text-[#FF4D00]">
+                The Problem Space
+              </span>
+            </div>
+            <h2 className="challenges-heading text-[clamp(1.75rem,5vw,4rem)] font-medium leading-[1.1] tracking-tight text-black mb-8 md:mb-10">
+              Built for the problems{' '}
+              <span className="text-black/30">you actually face</span>
+            </h2>
+            <p
+              ref={stickyTextRef}
+              className="hidden md:block text-lg text-black/40 leading-relaxed max-w-md transition-opacity"
+            >
+              {CHALLENGES[0]!.sticky}
+            </p>
           </div>
         </div>
       </div>

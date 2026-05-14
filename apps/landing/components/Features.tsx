@@ -94,10 +94,10 @@ export default function Features() {
         const tags = card.querySelectorAll('.feature-card-tag');
 
         const tl = gsap.timeline({
-          defaults: { ease: 'power3.out' },
+          defaults: { ease: 'power4.out' },
           scrollTrigger: {
             trigger: card,
-            start: 'top 85%',
+            start: 'top bottom+=100',
             toggleActions: 'play none none none',
             once: true,
           },
@@ -107,10 +107,10 @@ export default function Features() {
           card,
           {
             autoAlpha: 0,
-            y: 64,
-            x: direction * 20,
-            scale: 0.97,
-            clipPath: 'inset(0 0 14% 0)',
+            y: 40,
+            x: direction * 15,
+            scale: 0.98,
+            clipPath: 'inset(0 0 10% 0)',
           },
           {
             autoAlpha: 1,
@@ -118,8 +118,7 @@ export default function Features() {
             x: 0,
             scale: 1,
             clipPath: 'inset(0 0 0% 0)',
-            duration: 1.2,
-            ease: 'expo.out',
+            duration: 0.5,
           },
         );
 
@@ -137,9 +136,9 @@ export default function Features() {
               x: 0,
               y: 0,
               scale: 1,
-              duration: 0.95,
+              duration: 0.3,
             },
-            '-=0.48',
+            '-=0.3',
           );
         }
 
@@ -157,9 +156,9 @@ export default function Features() {
               y: 0,
               scale: 1,
               rotate: 0,
-              duration: 0.65,
+              duration: 0.2,
             },
-            '-=0.46',
+            '-=0.2',
           );
         }
 
@@ -167,8 +166,8 @@ export default function Features() {
           tl.fromTo(
             meta,
             { autoAlpha: 0, x: 12 },
-            { autoAlpha: 1, x: 0, duration: 0.55 },
-            '-=0.36',
+            { autoAlpha: 1, x: 0, duration: 0.4 },
+            '-=0.4',
           );
         }
 
@@ -183,10 +182,10 @@ export default function Features() {
             {
               autoAlpha: 1,
               y: 0,
-              clipPath: 'inset(0 0 0% 0)',
-              duration: 0.75,
+              clipPath: 'inset(0 0 0% 0)',  
+              duration: 0.2,
             },
-            '-=0.3',
+            '-=0.2',
           );
         }
 
@@ -194,8 +193,8 @@ export default function Features() {
           tl.fromTo(
             copy,
             { autoAlpha: 0, y: 16 },
-            { autoAlpha: 1, y: 0, duration: 0.62 },
-            '-=0.24',
+            { autoAlpha: 1, y: 0, duration: 0.2 },
+            '-=0.2',
           );
         }
 
@@ -206,10 +205,10 @@ export default function Features() {
             {
               autoAlpha: 1,
               y: 0,
-              duration: 0.45,
-              stagger: 0.08,
+              duration: 0.2,
+              stagger: 0.05,
             },
-            '-=0.16',
+            '-=0.2',
           );
         }
       });

@@ -1,7 +1,6 @@
 'use client';
 
 import { useRef } from 'react';
-import Link from 'next/link';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -69,6 +68,8 @@ const SOCIALS = [
 
 export default function Footer() {
   const footerRef = useRef<HTMLElement>(null);
+  const scanLineRef = useRef<HTMLDivElement>(null);
+  const bgWordRef = useRef<HTMLDivElement>(null);
 
   useGSAP(
     () => {
@@ -79,26 +80,56 @@ export default function Footer() {
         '(prefers-reduced-motion: reduce)'
       ).matches;
 
-      if (prefersReduced) return;
-
-      // Wordmark reveal — expand from center
-      const wordmark = footer.querySelector('.footer-wordmark');
-      if (wordmark) {
-        gsap.fromTo(
-          wordmark,
-          { clipPath: 'inset(0 50% 0 50%)' },
-          {
-            clipPath: 'inset(0 0% 0 0%)',
-            duration: 1.2,
-            ease: 'power3.out',
-            scrollTrigger: {
-              trigger: footer,
-              start: 'top 80%',
-              toggleActions: 'play none none none',
+      if (!prefersReduced && scanLineRef.current && bgWordRef.current) {
+        // Big word animation from PremiumCTA
+        const playScanSweep = () => {
+          if (!scanLineRef.current) return;
+          gsap.killTweensOf(scanLineRef.current);
+          gsap.set(scanLineRef.current, { top: '0%', opacity: 1 });
+          gsap.to(scanLineRef.current, {
+            top: '100%',
+            opacity: 1,
+            duration: 1.05,
+            ease: 'power3.inOut',
+            onComplete: () => {
+              if (!scanLineRef.current) return;
+              gsap.to(scanLineRef.current, { opacity: 0, duration: 0.18 });
             },
-          }
-        );
+          });
+        };
+
+        gsap.set(scanLineRef.current, { top: '0%', opacity: 0 });
+        gsap.set(bgWordRef.current, { x: 96, opacity: 0 });
+
+        gsap.to(bgWordRef.current, {
+          x: 0,
+          opacity: 1,
+          duration: 1.05,
+          ease: 'power4.out',
+          scrollTrigger: {
+            trigger: footer,
+            start: 'top 80%',
+            once: true,
+            onEnter: () => playScanSweep(),
+          },
+        });
+
+        gsap.to(bgWordRef.current, {
+          xPercent: -10,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: footer,
+            start: 'top bottom',
+            end: 'bottom top',
+            scrub: true,
+          },
+        });
+
+        const handleMouseEnter = () => playScanSweep();
+        footer.addEventListener('mouseenter', handleMouseEnter);
       }
+
+
 
       // Nav columns stagger
       const cols = gsap.utils.toArray<HTMLElement>('.footer-col');
@@ -164,16 +195,19 @@ export default function Footer() {
       ref={footerRef}
       id="footer"
       data-navbar-theme="dark"
-      className="relative bg-black pt-24 pb-8"
+      className="relative bg-black pt-24 pb-8 overflow-hidden min-h-[60vh] flex flex-col justify-end"
     >
-      <div className="section-container relative z-10">
-        {/* Row 1 — massive wordmark */}
-        <div className="footer-wordmark mb-14 md:mb-24 text-center overflow-hidden">
-          <span className="block text-[clamp(3.5rem,12vw,10rem)] font-bold tracking-tighter text-white leading-[0.9] uppercase">
-            FORGE
-          </span>
+      <div className="pointer-events-none absolute inset-0">
+        <div
+          ref={bgWordRef}
+          className="absolute left-0 top-1/2 -translate-y-1/2 select-none whitespace-nowrap text-[22vw] font-black uppercase tracking-[-0.08em] text-white/[0.03]"
+        >
+          FORGE FORGE FORGE
         </div>
+        <div ref={scanLineRef} className="absolute left-0 right-0 h-[2px] w-full bg-[#FF4D00] blur-[1px] opacity-0" />
+      </div>
 
+      <div className="section-container relative z-10 w-full mt-auto">
         {/* Row 2 — nav columns + newsletter */}
         <div className="footer-nav grid grid-cols-2 md:grid-cols-4 gap-10 md:gap-8 mb-16 md:mb-20">
           {FOOTER_NAV.map((col) => (
