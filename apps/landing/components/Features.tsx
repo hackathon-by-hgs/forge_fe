@@ -282,7 +282,7 @@ function FeatureCard({ service, mousePos }: {
   return (
     <div 
       ref={cardRef}
-      className={`feature-card group relative overflow-hidden border border-white/10 bg-[#0A0A0A] p-10 md:p-14 transition-all duration-700 hover:border-white/30 opacity-100 ${service.span}`}
+      className={`feature-card group relative overflow-hidden border border-white/10 bg-[#0A0A0A] p-8 md:p-14 transition-all duration-700 hover:border-white/30 opacity-100 ${service.span}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -293,19 +293,19 @@ function FeatureCard({ service, mousePos }: {
       />
 
       {/* Background Number */}
-      <span className="feature-card-num absolute -bottom-10 -right-6 text-[15rem] font-black leading-none text-white/[0.03] select-none pointer-events-none group-hover:text-[#FF4D00]/[0.05] transition-colors duration-700">
+      <span className="feature-card-num absolute -bottom-6 -right-4 md:-bottom-10 md:-right-6 text-[10rem] md:text-[15rem] font-black leading-none text-white/[0.03] select-none pointer-events-none group-hover:text-[#FF4D00]/[0.05] transition-colors duration-700">
         {service.num}
       </span>
 
       <div className="relative z-10 h-full flex flex-col">
-        <div className="flex items-start justify-between mb-12">
+        <div className="flex items-start justify-between mb-8 md:mb-12">
           <div className={`feature-card-icon p-4 bg-white/[0.05] border border-white/10 text-white transition-all duration-500 group-hover:scale-110 group-hover:bg-[#511d073d] group-hover:border-[#FF4D00] shadow-2xl`}>
             {service.icon}
           </div>
           <span className="feature-card-meta text-[10px] font-black tracking-[0.3em] text-white/30 uppercase">Module {service.num}</span>
         </div>
 
-        <h3 className="feature-card-title text-3xl md:text-5xl font-medium text-white mb-6 tracking-tight leading-none group-hover:translate-x-2 transition-transform duration-500">
+        <h3 className="feature-card-title text-2xl md:text-5xl font-medium text-white mb-4 md:mb-6 tracking-tight leading-[1.1] group-hover:translate-x-2 transition-transform duration-500">
           {service.title}
         </h3>
         

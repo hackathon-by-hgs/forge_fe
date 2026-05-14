@@ -203,6 +203,11 @@ html.lenis body {
   animation: marquee 40s linear infinite;
 }
 
+@keyframes marquee-reverse {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
 /* Component styles */
 @layer components {
   .btn-primary {
