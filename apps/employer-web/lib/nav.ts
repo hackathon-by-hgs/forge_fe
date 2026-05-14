@@ -45,6 +45,7 @@ export const jobsTabs: RoutedTab[] = [
 export const workersTabs: RoutedTab[] = [
   { label: 'Currently working', href: '/workers/active', exact: true },
   { label: 'My team', href: '/workers/team', exact: true },
+  { label: 'Pending ratings', href: '/workers/pending-ratings', exact: true },
   { label: 'Browse talent', href: '/workers/browse', exact: true },
 ];
 
