@@ -109,7 +109,7 @@ export default function Industries() {
     <section
       ref={sectionRef}
       id="industries"
-      className="relative bg-black py-24 md:py-40 overflow-hidden"
+      className="relative bg-black py-16 overflow-hidden"
     >
       {/* Marquee — counter-scrolling outlined text */}
       <div className="mb-14 md:mb-24 space-y-3 md:space-y-4 select-none pointer-events-none overflow-hidden">
@@ -122,7 +122,7 @@ export default function Industries() {
                 className="text-[clamp(2rem,8vw,5rem)] font-bold uppercase tracking-tight mx-4 md:mx-8"
                 style={{
                   color: 'transparent',
-                  WebkitTextStroke: '1px rgba(255,255,255,0.25)',
+                  WebkitTextStroke: '1px rgba(255,255,255,0.5)',
                 }}
               >
                 {item}
@@ -145,7 +145,7 @@ export default function Industries() {
                 className="text-[clamp(2rem,8vw,5rem)] font-bold uppercase tracking-tight mx-4 md:mx-8"
                 style={{
                   color: 'transparent',
-                  WebkitTextStroke: '1px rgba(255,255,255,0.12)',
+                  WebkitTextStroke: '1px rgba(255,255,255,0.4)',
                 }}
               >
                 {item}
@@ -156,7 +156,7 @@ export default function Industries() {
       </div>
 
       {/* Section heading */}
-      <div className="section-container relative z-10">
+      <div className="section-container relative z-10 pb-32">
         <div className="flex items-center gap-4 mb-8">
           <div className="h-[1px] w-12 bg-[#FF4D00]" />
           <span className="text-[11px] font-bold uppercase tracking-[0.5em] text-[#FF4D00]">
@@ -172,31 +172,62 @@ export default function Industries() {
           {INDUSTRIES.map((item) => (
             <div
               key={item.name}
-              className="industry-card relative group bg-white/[0.03] backdrop-blur-sm border border-white/10 p-10 md:p-12 cursor-pointer overflow-hidden flex flex-col justify-between min-h-[360px] hover:border-[#FF4D00]/40 transition-all duration-700 rounded-2xl"
+              className="industry-card group relative flex flex-col justify-between min-h-[400px] p-8 md:p-12 bg-[#0A0A0A] border border-white/5 rounded-3xl overflow-hidden transition-all duration-700 hover:border-[#FF4D00]/30 hover:shadow-[0_0_80px_-20px_rgba(255,77,0,0.15)]"
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-[#FF4D00]/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-              <div className="absolute -inset-[1px] bg-gradient-to-br from-white/10 to-transparent rounded-2xl pointer-events-none" />
-              
-              <div className="relative z-10 flex flex-col h-full">
+              {/* Animated Background Gradient */}
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-[#FF4D00]/10 blur-[100px] -translate-y-1/2 translate-x-1/2" />
+                <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#FF4D00]/5 blur-[100px] translate-y-1/2 -translate-x-1/2" />
+              </div>
+
+              {/* Internal Border/Stroke for Depth */}
+              <div className="absolute inset-[1px] rounded-[23px] border border-white/[0.03] pointer-events-none" />
+
+              <div className="relative z-10 h-full flex flex-col">
                 <div className="flex justify-between items-start mb-16">
-                  <div className="industry-icon w-16 h-16 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/60 group-hover:text-[#FF4D00] group-hover:border-[#FF4D00]/30 group-hover:bg-[#FF4D00]/5 transition-all duration-500 group-hover:scale-110 origin-center">
-                    {item.icon}
+                  {/* Technical Icon Frame */}
+                  <div className="relative">
+                    <div className="industry-icon w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center text-white/40 group-hover:text-[#FF4D00] group-hover:border-[#FF4D00]/30 transition-all duration-500 group-hover:scale-110">
+                      {item.icon}
+                    </div>
+                    {/* Decorative Corner Accents */}
+                    <div className="absolute -top-1 -left-1 w-3 h-3 border-t border-l border-[#FF4D00] opacity-0 group-hover:opacity-100 transition-all duration-500 delay-100" />
+                    <div className="absolute -bottom-1 -right-1 w-3 h-3 border-b border-r border-[#FF4D00] opacity-0 group-hover:opacity-100 transition-all duration-500 delay-100" />
                   </div>
-                  <div className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center text-white/0 group-hover:text-[#FF4D00] group-hover:border-[#FF4D00]/30 -translate-x-4 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-500 bg-white/5 backdrop-blur-md">
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                    </svg>
+
+                  <div className="flex flex-col items-end">
+                    <span className="text-[9px] font-black tracking-[0.4em] text-white/20 uppercase mb-1">Sector Verified</span>
+                    <div className="w-8 h-[1px] bg-[#FF4D00]/30" />
                   </div>
                 </div>
 
                 <div className="mt-auto">
-                  <h3 className="industry-text text-2xl md:text-3xl font-medium text-white mb-4 tracking-tight group-hover:text-[#FF4D00] transition-colors duration-500">
-                    {item.name}
-                  </h3>
-                  <p className="industry-text text-base text-white/40 leading-relaxed group-hover:text-white/60 transition-colors duration-500">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#FF4D00] group-hover:animate-pulse" />
+                    <h3 className="industry-text text-2xl md:text-3xl font-medium text-white tracking-tight transition-colors duration-500">
+                      {item.name}
+                    </h3>
+                  </div>
+                  
+                  <p className="industry-text text-base text-white/40 leading-relaxed group-hover:text-white/70 transition-colors duration-700 max-w-[280px]">
                     {item.desc}
                   </p>
+
+                  <div className="mt-8 flex items-center gap-2 text-[10px] font-bold text-[#FF4D00] uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-500">
+                    Explore Solution
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                  </div>
                 </div>
+              </div>
+
+              {/* Geometric Background Detail */}
+              <div className="absolute -bottom-10 -right-10 w-40 h-40 opacity-[0.02] group-hover:opacity-[0.05] transition-opacity duration-700 pointer-events-none">
+                <svg viewBox="0 0 100 100" className="w-full h-full fill-white">
+                  <path d="M0 0h100v100H0z" fill="none" stroke="currentColor" strokeWidth="0.5" strokeDasharray="2 2" />
+                  <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" strokeWidth="0.5" />
+                </svg>
               </div>
             </div>
           ))}

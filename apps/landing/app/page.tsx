@@ -9,7 +9,6 @@ import {
   Features,
   SuccessStories,
   Challenges,
-  Testimonials,
   Industries,
   ContactForm,
   Footer,
@@ -28,12 +27,12 @@ export default function LandingPage() {
       <Header />
 
       <main>
-        {/* Step 1: Hero (details pinned internally via GSAP) */}
+        {/* Step 1: Hero */}
         <section data-navbar-theme="light" className="relative z-[3] bg-black min-h-full">
           <Hero />
         </section>
 
-        {/* Step 2: Value Prop (light, sticky) */}
+        {/* Step 2: Value Prop */}
         <section
           data-navbar-theme="light"
           className="sticky top-0 z-[2] min-h-screen overflow-hidden bg-white"
@@ -49,50 +48,44 @@ export default function LandingPage() {
                 sizes="100vw"
                 className="scale-105 object-cover object-center opacity-[0.4] contrast-[1.15] saturate-[0.9]"
               />
-              {/* Decorative mesh/grid overlay */}
-              {/* <div className="absolute inset-0 bg-[radial-gradient(#000000_1px,transparent_1px)] [background-size:40px_40px] opacity-[0.08]" />
-              <div className="absolute inset-0 bg-[linear-gradient(110deg,rgba(255,255,255,0.92)_18%,rgba(255,255,255,0.68)_48%,rgba(255,255,255,0.28)_100%)]" />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),rgba(255,255,255,0.32)_52%,rgba(255,255,255,0.72)_100%)]" /> */}
             </div>
           </div>
           <ValueProp />
         </section>
 
-        {/* Step 3: Features (dark, slides over) */}
-        <ArchSection id="features" className="relative z-[20]">
+        {/* Step 3: Features */}
+        <ArchSection id="features" className="relative z-[20]" showBottomArch={false}>
           <Features />
         </ArchSection>
 
-        {/* Step 4: Case Studies — horizontal scroll, self-pinning */}
-        <section data-navbar-theme="dark" className="relative z-[21]" style={{ marginTop: '-160px' }}>
+        {/* Step 4: Case Studies */}
+        <section data-navbar-theme="dark" className="relative z-[21] bg-[#050505]">
           <SuccessStories />
         </section>
 
-        {/* Step 5: Challenges — white, flows naturally */}
+        {/* Step 5: Challenges */}
         <section data-navbar-theme="light" className="relative z-[22] bg-white">
           <Challenges />
         </section>
 
-        {/* Step 6: Industries — dark section */}
-        <ArchSection id="industries" className="relative z-[23]">
+        {/* Step 6: Industries */}
+        <ArchSection id="industries" className="relative z-[26]" archColor="#ffffff">
           <Industries />
         </ArchSection>
-
-        {/* Step 7: Testimonials — self-pinning panels */}
-        <section data-navbar-theme="dark" className="relative z-[24]">
-          <Testimonials />
-        </section>
-
-        {/* Step 8: Contact — white */}
-        <section id="contact-section" data-navbar-theme="light" className="relative z-[25] bg-white">
-          <ContactForm />
-        </section>
       </main>
 
-      {/* Footer */}
-      <footer className="relative z-[26]" data-navbar-theme="dark">
-        <Footer />
-      </footer>
+      {/* Contact & Footer Wrapper — native CSS sticky slide-over */}
+      <div className="relative z-[25]">
+        {/* Step 8: Contact */}
+        <section id="contact-section" data-navbar-theme="light" className="sticky top-0 min-h-screen bg-white">
+          <ContactForm />
+        </section>
+
+        {/* Footer */}
+        <footer className="relative z-[26] bg-black" data-navbar-theme="dark">
+          <Footer />
+        </footer>
+      </div>
     </div>
   );
 }

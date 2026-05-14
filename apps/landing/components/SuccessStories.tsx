@@ -226,20 +226,22 @@ export default function SuccessStories() {
       </div>
 
       {/* BOTTOM inverted arch */}
-      <svg
-        width="100%"
-        height="160"
-        viewBox="0 0 1000 160"
-        preserveAspectRatio="none"
-        style={{ position: 'absolute', bottom: 0, left: 0, display: 'block', zIndex: 20, pointerEvents: 'none' }}
-      >
-        <path
-          d="M 0,0 L 120,80 L 370,80 L 370,140
-             L 630,140 L 630,80 L 880,80
-             L 1000,0 L 1000,0 L 0,0 Z"
-          fill="#050505"
-        />
-      </svg>
+      <div className="absolute bottom-0 left-0 w-full h-[160px] pointer-events-none z-20">
+        <svg
+          width="100%"
+          height="100%"
+          viewBox="0 0 1000 160"
+          preserveAspectRatio="none"
+          className="block"
+        >
+          <path
+            d="M 0,0 L 120,80 L 370,80 L 370,140
+               L 630,140 L 630,80 L 880,80
+               L 1000,0 L 1000,160 L 0,160 Z"
+            fill="#ffffff"
+          />
+        </svg>
+      </div>
     </section>
   );
 }

@@ -227,7 +227,7 @@ export default function Features() {
   }, []);
 
   return (
-    <section ref={sectionRef} id="services" className="relative py-24 md:py-40 bg-black overflow-hidden">
+    <section ref={sectionRef} id="services" className="relative py-24 md:py-40 bg- overflow-hidden">
       {/* Decorative background glow */}
       <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-[#FF4D00] opacity-[0.05] blur-[120px] pointer-events-none" />
       
