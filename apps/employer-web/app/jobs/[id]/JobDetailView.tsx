@@ -194,12 +194,20 @@ export function JobDetailView({ jobId }: { jobId: string }) {
         />
         <div className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
-            <Skeleton className="h-48 w-full rounded-xl" />
-            <Skeleton className="h-64 w-full rounded-xl" />
+            {/* Job summary card: status pill + pay + description + key/value grid */}
+            <Skeleton className="h-56 w-full rounded-xl" />
+            {/* Timeline */}
+            <Skeleton className="h-72 w-full rounded-xl" />
+            {/* Map card (16/8 aspect) */}
+            <Skeleton className="aspect-[16/8] w-full rounded-xl" />
           </div>
           <div className="space-y-6">
-            <Skeleton className="h-40 w-full rounded-xl" />
-            <Skeleton className="h-40 w-full rounded-xl" />
+            {/* Assigned worker card */}
+            <Skeleton className="h-44 w-full rounded-xl" />
+            {/* Applications card */}
+            <Skeleton className="h-56 w-full rounded-xl" />
+            {/* Schedule card */}
+            <Skeleton className="h-32 w-full rounded-xl" />
           </div>
         </div>
       </>
@@ -357,7 +365,10 @@ export function JobDetailView({ jobId }: { jobId: string }) {
                   },
                   {
                     label: 'Location',
-                    value: job.location.neighborhood ?? job.location.address,
+                    value:
+                      job.location?.neighborhood ??
+                      job.location?.address ??
+                      '—',
                   },
                   { label: 'Posted', value: formatRelativeTime(job.postedAt) },
                   {
@@ -397,9 +408,15 @@ export function JobDetailView({ jobId }: { jobId: string }) {
             </CardHeader>
             <CardBody>
               {timelineQuery.isLoading ? (
-                <div className="space-y-2">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <Skeleton key={i} className="h-8 w-full" />
+                <div className="space-y-3">
+                  {/* Timeline rows: dot + icon + label + timestamp. Typical jobs see
+                      8–15 events across their lifecycle. */}
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <Skeleton className="h-2 w-2 rounded-full" />
+                      <Skeleton className="h-4 flex-1" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
                   ))}
                 </div>
               ) : timelineItems.length === 0 ? (
@@ -417,7 +434,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
               <CardTitle>Job site</CardTitle>
               <span className="text-xs text-neutral-500">
                 <IconLocation className="!h-3 !w-3 -mt-0.5 mr-0.5 inline-block" />
-                {job.location.neighborhood ?? job.location.address}, Lagos
+                {job.location?.neighborhood ?? job.location?.address ?? '—'}
               </span>
             </CardHeader>
             <CardBody>

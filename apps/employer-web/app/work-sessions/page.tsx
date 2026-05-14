@@ -49,10 +49,29 @@ export default function WorkSessionsQueuePage() {
 
       <div className="space-y-4 p-6">
         {query.isLoading ? (
-          <div className="space-y-3">
-            <Skeleton className="h-24 w-full rounded-xl" />
-            <Skeleton className="h-24 w-full rounded-xl" />
-            <Skeleton className="h-24 w-full rounded-xl" />
+          <div className="rounded-xl border border-outline bg-surface">
+            {/* Mirrors the eventual row layout: photo thumb + avatar + name/job + amount column */}
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex items-start gap-4 border-b border-outline-variant px-4 py-3 last:border-b-0"
+              >
+                <Skeleton className="h-14 w-14 shrink-0 rounded-md" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-6 w-6 rounded-full" />
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 w-14 rounded-full" />
+                  </div>
+                  <Skeleton className="h-3 w-40" />
+                  <Skeleton className="h-3 w-28" />
+                </div>
+                <div className="space-y-1 text-right">
+                  <Skeleton className="ml-auto h-4 w-20" />
+                  <Skeleton className="ml-auto h-3 w-12" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : null}
 

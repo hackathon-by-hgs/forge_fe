@@ -91,9 +91,10 @@ export default function TransactionsPage() {
     return () => clearTimeout(t);
   }, [search]);
 
+  // Reset only on pageSize change — filter changes preserve pagination.
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, from, to, debouncedSearch, pageSize]);
+  }, [pageSize]);
 
   const query: TransactionsListQuery = useMemo(
     () => ({

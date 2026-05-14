@@ -100,9 +100,10 @@ export default function LoanApplicationsPage() {
     return () => clearTimeout(t);
   }, [search]);
 
+  // Reset only on pageSize change — filter changes preserve pagination.
   useEffect(() => {
     setPage(1);
-  }, [status, borrowerType, recommendedDecision, debouncedSearch, pageSize]);
+  }, [pageSize]);
 
   const query: BankApplicationsListQuery = useMemo(
     () => ({

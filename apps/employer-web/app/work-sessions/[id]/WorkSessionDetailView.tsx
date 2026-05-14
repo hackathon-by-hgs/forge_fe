@@ -217,10 +217,19 @@ export function WorkSessionDetailView({ sessionId }: { sessionId: string }) {
           ]}
         />
         <div className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-3">
-          <Skeleton className="h-96 w-full rounded-xl lg:col-span-2" />
-          <div className="space-y-4">
-            <Skeleton className="h-32 w-full rounded-xl" />
+          <div className="space-y-6 lg:col-span-2">
+            {/* Proof photo card (16/9 aspect) + header pill + amount */}
+            <Skeleton className="aspect-[16/9] w-full rounded-xl" />
+            {/* Clock events card */}
             <Skeleton className="h-40 w-full rounded-xl" />
+          </div>
+          <div className="space-y-4">
+            {/* Worker card */}
+            <Skeleton className="h-36 w-full rounded-xl" />
+            {/* Job card */}
+            <Skeleton className="h-36 w-full rounded-xl" />
+            {/* Hold window card */}
+            <Skeleton className="h-32 w-full rounded-xl" />
           </div>
         </div>
       </>
