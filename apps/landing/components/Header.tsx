@@ -10,6 +10,16 @@ const NAV_LINKS = [
   { label: 'CONTACT', href: '#contact' },
 ];
 
+// Dashboard portal URLs. Env-driven so the landing page can point at staging,
+// preview, or production deploys without code changes. Defaults match the
+// live Railway services so local dev still resolves correctly.
+const EMPLOYER_URL =
+  process.env.NEXT_PUBLIC_EMPLOYER_URL ?? 'https://forgefe.up.railway.app';
+const BANK_URL =
+  process.env.NEXT_PUBLIC_BANK_URL ?? 'https://forgeem.up.railway.app';
+const EMPLOYER_LOGIN = `${EMPLOYER_URL.replace(/\/$/, '')}/login`;
+const BANK_LOGIN = `${BANK_URL.replace(/\/$/, '')}/login`;
+
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isScrollingDown, setIsScrollingDown] = useState(false);
@@ -98,7 +108,7 @@ export default function Header() {
           <div className="hidden lg:flex items-center gap-4">
             <Magnetic>
               <a
-                href="https://employer.forge.app/login"
+                href={EMPLOYER_LOGIN}
                 target='_blank'
                 className={`group px-8 py-5 text-[11px] font-bold tracking-[0.15em] uppercase flex items-center gap-4 transition-all duration-500 hover:scale-[1.02] active:scale-[0.98] ${s.cta} ${isScrollingDown ? 'px-12 py-5.5 text-[13px] translate-y-2 shadow-xl' : ''
                   }`}
@@ -116,7 +126,7 @@ export default function Header() {
             </Magnetic>
             <Magnetic>
               <a
-                href="https://bank.forge.app/login"
+                href={BANK_LOGIN}
                 target='_blank'
                 className={`group px-8 py-5 text-[11px] font-bold tracking-[0.15em] uppercase flex items-center gap-4 transition-all duration-500 hover:scale-[1.02] active:scale-[0.98] ${s.ctaSecondary} ${isScrollingDown ? 'px-12 py-5.5 text-[13px] translate-y-2 shadow-xl' : ''
                   }`}
@@ -175,7 +185,7 @@ export default function Header() {
           ))}
           <div className="mt-12 flex flex-col gap-6">
             <a
-              href="https://employer.forge.app/login"
+              href={EMPLOYER_LOGIN}
               onClick={() => setMobileOpen(false)}
               className="mt-12 text-2xl font-bold text-[#FF4D00] underline underline-offset-8"
               style={{
@@ -186,7 +196,7 @@ export default function Header() {
               EMPLOYER PORTAL
             </a>
             <a
-              href="https://bank.forge.app/login"
+              href={BANK_LOGIN}
               onClick={() => setMobileOpen(false)}
               className="text-2xl font-bold text-black underline underline-offset-8"
               style={{
