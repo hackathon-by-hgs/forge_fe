@@ -8,12 +8,22 @@ import { Logo, ScrollVelocity } from './';
 
 gsap.registerPlugin(ScrollTrigger);
 
+// Dashboard portal URLs. Env-driven so the landing page can point at staging,
+// preview, or production deploys without code changes. Defaults match the
+// live Railway services so local dev still resolves correctly.
+const EMPLOYER_URL =
+  process.env.NEXT_PUBLIC_EMPLOYER_URL ?? 'https://forgefe.up.railway.app';
+const BANK_URL =
+  process.env.NEXT_PUBLIC_BANK_URL ?? 'https://forgeem.up.railway.app';
+const EMPLOYER_LOGIN = `${EMPLOYER_URL.replace(/\/$/, '')}/login`;
+const BANK_LOGIN = `${BANK_URL.replace(/\/$/, '')}/login`;
+
 const FOOTER_NAV = [
   {
     title: 'Product',
     links: [
-      { label: 'For Employers', href: 'https://employer.forge.app/login' },
-      { label: 'For Banks', href: 'https://bank.forge.app/login' },
+      { label: 'For Employers', href: EMPLOYER_LOGIN },
+      { label: 'For Banks', href: BANK_LOGIN },
     ],
   },
   {
