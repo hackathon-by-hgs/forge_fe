@@ -405,16 +405,6 @@ function BrandPanel() {
   );
 }
 
-function PanelBackdrop() {
-  return (
-    <div aria-hidden className="pointer-events-none absolute inset-0">
-      <div className="absolute inset-0 bg-gradient-to-br from-surface via-surface to-surface-container/80" />
-      <div className="absolute -left-24 top-1/3 h-[28rem] w-[28rem] rounded-full bg-accent-500/[0.16] blur-3xl" />
-      <div className="absolute -bottom-24 right-0 h-[22rem] w-[22rem] rounded-full bg-secondary-500/[0.10] blur-3xl" />
-      <div className="absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-outline/80 to-transparent" />
-    </div>
-  );
-}
 
 function FeatureRow({
   icon,

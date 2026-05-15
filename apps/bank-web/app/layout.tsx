@@ -3,7 +3,6 @@ import { Manrope } from 'next/font/google';
 import { type ReactNode } from 'react';
 import { ThemeProvider, ThemeScript, Toaster } from '@forge/ui';
 import { SessionProvider } from '../lib/auth/SessionProvider';
-// @ts-expect-error No type declarations for CSS imports in this project
 import './globals.css';
 
 const sans = Manrope({

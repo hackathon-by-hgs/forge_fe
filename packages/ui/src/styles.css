@@ -5,7 +5,6 @@
 /* ─── Forge color tokens — light theme (default) ───────────────────────── */
 @layer base {
   :root {
-    --font-inter: 'Inter', system-ui, sans-serif;
     --font-jetbrains-mono: 'JetBrains Mono', ui-monospace, monospace;
 
     /* Warm neutrals */
