@@ -11,7 +11,7 @@ const nextConfig = {
     optimizePackageImports: ['@mui/icons-material', '@mui/material'],
   },
   output: 'standalone',
-  outputFileTracingRoot: path.join(__dirname, '../../'),
+
 };
 
 export default nextConfig;
