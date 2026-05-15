@@ -24,6 +24,7 @@ html {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-family: var(--font-inter) !important;
 }
 
 /* Tabular figures for numeric data (tables, balances, IDs). */
