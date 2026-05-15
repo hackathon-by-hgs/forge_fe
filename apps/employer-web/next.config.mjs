@@ -7,7 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const apiProxyTarget = process.env.FORGE_API_PROXY_TARGET?.replace(/\/+$/, '') ?? '';
 
 const nextConfig = {
-  output: 'standalone',
+
   outputFileTracingRoot: path.join(__dirname, '../../'),
   reactStrictMode: true,
   transpilePackages: ['@forge/ui', '@forge/types', '@forge/mock-data'],

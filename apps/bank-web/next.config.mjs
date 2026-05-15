@@ -9,7 +9,7 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['@mui/icons-material', '@mui/material'],
   },
-  output: 'standalone',
+
 };
 
 export default nextConfig;
