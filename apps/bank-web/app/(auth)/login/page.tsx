@@ -365,7 +365,7 @@ function BrandPanel() {
             style={{ animationDelay: '120ms' }}
           >
             Decide with{' '}
-            <span className="text-black">
+            <span className="text-black dark:text-white">
               confidence.
             </span>
           </h2>

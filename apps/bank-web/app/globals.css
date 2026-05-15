@@ -5,6 +5,21 @@
    Design tokens live in @forge/ui/styles.css.
    ────────────────────────────────────────────────────────────────────── */
 
+/* Single typeface across the app: route both sans + mono tokens to Manrope.
+   We still keep `font-variant-numeric: tabular-nums` on numeric cells so
+   columns align — Manrope ships solid tabular figures. */
+:root,
+.dark {
+  --font-jetbrains-mono: var(--font-inter);
+}
+
+.font-mono,
+[class*=' font-mono'],
+[class^='font-mono'] {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.005em;
+}
+
 html {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
