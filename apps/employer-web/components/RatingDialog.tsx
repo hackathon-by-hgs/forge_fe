@@ -73,12 +73,22 @@ export function RatingDialog({
     (s) => (s.user?.employerId as string | null | undefined) ?? null,
   );
 
-  // Queue is a local copy so optimistic pops happen instantly. When the
-  // parent `sessions` prop changes (BE refetch landed), reseed.
-  const [queue, setQueue] = useState<PendingRatingItem[]>(sessions);
+  // Derive the queue synchronously from props minus the rated set. Mirroring
+  // sessions into `useState` had a race: the dialog's open-effect ran before
+  // the sessions-effect applied, saw queue.length === 0, and fired
+  // onAllRated immediately on open — making the dialog flash open and shut
+  // for the first-clicked Rate button.
+  const [ratedIds, setRatedIds] = useState<Set<string>>(() => new Set());
+  // Reset the rated-set every time the dialog reopens, so prior cycles
+  // don't suppress queue items from a fresh batch.
   useEffect(() => {
-    setQueue(sessions);
-  }, [sessions]);
+    if (open) setRatedIds(new Set());
+  }, [open]);
+
+  const queue = useMemo<PendingRatingItem[]>(
+    () => sessions.filter((s) => !ratedIds.has(s.sessionId)),
+    [sessions, ratedIds],
+  );
 
   const current = queue[0] ?? null;
 
@@ -96,19 +106,21 @@ export function RatingDialog({
     setComment('');
   }, [current?.sessionId]);
 
-  // Fire `onAllRated` only when the queue empties while the dialog is open —
-  // not when the parent feeds in an empty list on mount.
+  // Fire `onAllRated` only when the user has actually rated ≥ 1 session in
+  // this open cycle AND the queue is now empty. `ratedIds.size > 0` is the
+  // gate — without it, an initial open with empty sessions or before sync
+  // would fire onAllRated and close the dialog instantly.
   const [allRatedFired, setAllRatedFired] = useState(false);
   useEffect(() => {
     if (!open) {
       setAllRatedFired(false);
       return;
     }
-    if (queue.length === 0 && !allRatedFired) {
+    if (ratedIds.size > 0 && queue.length === 0 && !allRatedFired) {
       setAllRatedFired(true);
       onAllRated?.();
     }
-  }, [queue.length, open, allRatedFired, onAllRated]);
+  }, [queue.length, ratedIds.size, open, allRatedFired, onAllRated]);
 
   const submit = useMutation({
     mutationFn: async () => {
@@ -126,17 +138,28 @@ export function RatingDialog({
         comment: comment.trim() ? comment.trim() : undefined,
       });
     },
-    onSuccess: (_resp, _vars) => {
+    onSuccess: (_resp) => {
       const ratedId = current?.sessionId;
+      const ratedName = current?.worker.name;
+      const submittedStars = stars;
       if (ratedId) {
-        // Optimistic pop. The next session surfaces automatically because
-        // `current` reads queue[0].
-        setQueue((q) => q.filter((s) => s.sessionId !== ratedId));
+        // Optimistic pop via ratedIds. queue is derived, so this is
+        // synchronous — the next session surfaces in the very next render.
+        setRatedIds((prev) => {
+          const next = new Set(prev);
+          next.add(ratedId);
+          return next;
+        });
         onRated?.(ratedId);
       }
       void queryClient.invalidateQueries({ queryKey: ['employer', 'pending-ratings'] });
       void queryClient.invalidateQueries({ queryKey: ['employer', 'ratings'] });
-      toastSuccess('Rating submitted');
+      toastSuccess(
+        ratedName ? `Rated ${ratedName}` : 'Rating submitted',
+        {
+          description: `${submittedStars} star${submittedStars === 1 ? '' : 's'} sent to the worker.`,
+        },
+      );
     },
     onError: (err) => {
       // UNKNOWN_TAG (422) means our vocabulary drifted from the BE — surface

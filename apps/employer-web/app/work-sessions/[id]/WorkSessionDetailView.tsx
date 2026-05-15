@@ -69,6 +69,11 @@ export function WorkSessionDetailView({ sessionId }: { sessionId: string }) {
     queryKey: detailKey,
     queryFn: () => getWorkSession(sessionId),
     retry: false,
+    // Tight polling while the worker is mid-session — session state (clock
+    // events, hold timer, GPS verdict) can change every few seconds. SSE
+    // handles the canonical signals; this catches drift. React Query
+    // pauses when the tab is hidden by default.
+    refetchInterval: 10_000,
   });
 
   const session = detailQuery.data;
