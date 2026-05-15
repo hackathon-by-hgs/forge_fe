@@ -1,7 +1,14 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const apiProxyTarget = process.env.FORGE_API_PROXY_TARGET?.replace(/\/+$/, '') ?? '';
 
 const nextConfig = {
+  output: 'standalone',
+  outputFileTracingRoot: path.join(__dirname, '../../'),
   reactStrictMode: true,
   transpilePackages: ['@forge/ui', '@forge/types', '@forge/mock-data'],
   experimental: {
