@@ -40,10 +40,12 @@ export default function BusinessSignupPage() {
     resolver: zodResolver(schema),
     defaultValues: {
       businessType: 'logistics',
+      // Map opens centered on the country (Lagos coords as a sensible default
+      // for a Nigeria-focused product); the user picks the actual pin.
       lat: 6.4541,
       lng: 3.3947,
-      neighborhood: 'Apapa',
-      address: '14 Wharf Road, Apapa, Lagos',
+      neighborhood: '',
+      address: '',
     },
   });
 

@@ -61,3 +61,5 @@ export { default as IconBuilding } from '@mui/icons-material/StorefrontOutlined'
 export { default as IconBank } from '@mui/icons-material/AccountBalanceOutlined';
 export { default as IconUser } from '@mui/icons-material/PersonOutlineOutlined';
 export { default as IconLogout } from '@mui/icons-material/LogoutOutlined';
+export { default as IconStar } from '@mui/icons-material/StarOutlined';
+export { default as IconStarBorder } from '@mui/icons-material/StarBorderOutlined';

@@ -7,6 +7,7 @@ import {
   IconAnalytics,
   IconCredit,
   IconSettings,
+  IconShield,
 } from '@forge/ui/icons';
 
 export const employerNav: SidebarSection[] = [
@@ -18,6 +19,7 @@ export const employerNav: SidebarSection[] = [
     items: [
       { label: 'Jobs', href: '/jobs', icon: IconBriefcase },
       { label: 'Workers', href: '/workers', icon: IconWorkers },
+      { label: 'Review queue', href: '/work-sessions', icon: IconShield },
       { label: 'Payments', href: '/payments', icon: IconPayments },
     ],
   },
@@ -43,6 +45,7 @@ export const jobsTabs: RoutedTab[] = [
 export const workersTabs: RoutedTab[] = [
   { label: 'Currently working', href: '/workers/active', exact: true },
   { label: 'My team', href: '/workers/team', exact: true },
+  { label: 'Pending ratings', href: '/workers/pending-ratings', exact: true },
   { label: 'Browse talent', href: '/workers/browse', exact: true },
 ];
 

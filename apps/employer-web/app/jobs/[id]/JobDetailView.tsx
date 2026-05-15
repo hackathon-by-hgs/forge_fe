@@ -53,6 +53,7 @@ import {
 } from '@forge/ui/utils';
 import {
   acceptApplication,
+  acceptApplicationSlot,
   cancelJob,
   generateJobInvoice,
   getJob,
@@ -85,6 +86,7 @@ import {
 import { ApiError } from '../../../lib/api';
 import { useAuth } from '../../../lib/auth';
 import { isHiringManager } from '../../../lib/roles';
+import { toastApiError, toastSuccess } from '../../../lib/toast';
 
 const TYPES: JobTypeWire[] = ['loader', 'driver', 'unloader', 'general'];
 const AUDIENCES: JobAudience[] = ['public', 'team_first'];
@@ -98,18 +100,27 @@ export function JobDetailView({ jobId }: { jobId: string }) {
     queryKey: ['employer', 'jobs', 'detail', jobId],
     queryFn: () => getJob(jobId),
     retry: false,
+    // Detail page polling — SSE's job.lifecycle_changed handles the
+    // primary signal; this is the fallback for when SSE drops or for
+    // the multi-worker acceptedCount drift between SSE ticks. React
+    // Query pauses refetchInterval when the tab is hidden by default
+    // (refetchIntervalInBackground is false), so no visibility guard
+    // is needed here.
+    refetchInterval: 15_000,
   });
   const timelineQuery = useQuery({
     queryKey: ['employer', 'jobs', 'timeline', jobId],
     queryFn: () => getJobTimeline(jobId),
     retry: false,
     enabled: !jobQuery.isError,
+    refetchInterval: 30_000,
   });
   const applicationsQuery = useQuery({
     queryKey: ['employer', 'jobs', 'applications', jobId],
     queryFn: () => getJobApplications(jobId),
     retry: false,
     enabled: !jobQuery.isError,
+    refetchInterval: 15_000,
   });
 
   const job = jobQuery.data;
@@ -136,20 +147,34 @@ export function JobDetailView({ jobId }: { jobId: string }) {
 
   const publishMutation = useMutation({
     mutationFn: () => publishJob(jobId),
-    onSuccess: invalidateAll,
-    onError: (err) => setActionError(humanError(err)),
+    onSuccess: (job) => {
+      invalidateAll();
+      toastSuccess('Job published', {
+        description: `“${job.title}” is now visible to workers.`,
+      });
+    },
+    onError: (err) => {
+      setActionError(humanError(err));
+      toastApiError(err, 'Couldn’t publish the job');
+    },
   });
 
   const [showCancel, setShowCancel] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const cancelMutation = useMutation({
     mutationFn: (reason?: string) => cancelJob(jobId, reason),
-    onSuccess: () => {
+    onSuccess: (job) => {
       invalidateAll();
       setShowCancel(false);
       setCancelReason('');
+      toastSuccess('Job cancelled', {
+        description: `“${job.title}” has been cancelled and pending applications were rejected.`,
+      });
     },
-    onError: (err) => setActionError(humanError(err)),
+    onError: (err) => {
+      setActionError(humanError(err));
+      toastApiError(err, 'Couldn’t cancel the job');
+    },
   });
 
   const [showEdit, setShowEdit] = useState(false);
@@ -160,8 +185,14 @@ export function JobDetailView({ jobId }: { jobId: string }) {
     onSuccess: (inv) => {
       setInvoiceResult({ number: inv.number });
       invalidateAll();
+      toastSuccess(`Invoice ${inv.number} created`, {
+        description: 'The PDF will be available once processing finishes.',
+      });
     },
-    onError: (err) => setActionError(humanError(err)),
+    onError: (err) => {
+      setActionError(humanError(err));
+      toastApiError(err, 'Couldn’t generate the invoice');
+    },
   });
 
   if (jobQuery.isLoading) {
@@ -173,12 +204,20 @@ export function JobDetailView({ jobId }: { jobId: string }) {
         />
         <div className="grid grid-cols-1 gap-6 p-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
-            <Skeleton className="h-48 w-full rounded-xl" />
-            <Skeleton className="h-64 w-full rounded-xl" />
+            {/* Job summary card: status pill + pay + description + key/value grid */}
+            <Skeleton className="h-56 w-full rounded-xl" />
+            {/* Timeline */}
+            <Skeleton className="h-72 w-full rounded-xl" />
+            {/* Map card (16/8 aspect) */}
+            <Skeleton className="aspect-[16/8] w-full rounded-xl" />
           </div>
           <div className="space-y-6">
-            <Skeleton className="h-40 w-full rounded-xl" />
-            <Skeleton className="h-40 w-full rounded-xl" />
+            {/* Assigned worker card */}
+            <Skeleton className="h-44 w-full rounded-xl" />
+            {/* Applications card */}
+            <Skeleton className="h-56 w-full rounded-xl" />
+            {/* Schedule card */}
+            <Skeleton className="h-32 w-full rounded-xl" />
           </div>
         </div>
       </>
@@ -301,7 +340,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
         <div className="space-y-6 lg:col-span-2">
           <Card>
             <CardHeader>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge tone={JOB_STATUS_TONE[job.status]}>
                   {JOB_STATUS_LABEL[job.status]}
                 </Badge>
@@ -313,13 +352,35 @@ export function JobDetailView({ jobId }: { jobId: string }) {
                     Team first
                   </Badge>
                 ) : null}
+                {job.maxWorkers > 1 ? (
+                  job.acceptedCount >= job.maxWorkers ? (
+                    <Badge tone="success" variant="soft">
+                      All slots filled
+                    </Badge>
+                  ) : (
+                    <Badge tone="info" variant="soft">
+                      {job.acceptedCount} of {job.maxWorkers} hired
+                    </Badge>
+                  )
+                ) : null}
               </div>
-              <span
-                className="text-2xl font-semibold text-neutral-900 tabular-nums"
-                data-numeric
-              >
-                {formatCurrency(job.payNaira)}
-              </span>
+              <div className="text-right">
+                <span
+                  className="text-2xl font-semibold text-neutral-900 tabular-nums"
+                  data-numeric
+                >
+                  {formatCurrency(job.payNaira)}
+                </span>
+                {job.maxWorkers > 1 ? (
+                  <p className="mt-0.5 text-[11px] text-neutral-500 tabular-nums" data-numeric>
+                    per worker ·{' '}
+                    <span className="font-medium text-neutral-700">
+                      {formatCurrency(job.payNaira * job.maxWorkers)}
+                    </span>{' '}
+                    reserved
+                  </p>
+                ) : null}
+              </div>
             </CardHeader>
             <CardBody className="space-y-4">
               <p className="whitespace-pre-line text-sm text-neutral-700">
@@ -336,7 +397,10 @@ export function JobDetailView({ jobId }: { jobId: string }) {
                   },
                   {
                     label: 'Location',
-                    value: job.location.neighborhood ?? job.location.address,
+                    value:
+                      job.location?.neighborhood ??
+                      job.location?.address ??
+                      '—',
                   },
                   { label: 'Posted', value: formatRelativeTime(job.postedAt) },
                   {
@@ -376,9 +440,15 @@ export function JobDetailView({ jobId }: { jobId: string }) {
             </CardHeader>
             <CardBody>
               {timelineQuery.isLoading ? (
-                <div className="space-y-2">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <Skeleton key={i} className="h-8 w-full" />
+                <div className="space-y-3">
+                  {/* Timeline rows: dot + icon + label + timestamp. Typical jobs see
+                      8–15 events across their lifecycle. */}
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <Skeleton className="h-2 w-2 rounded-full" />
+                      <Skeleton className="h-4 flex-1" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
                   ))}
                 </div>
               ) : timelineItems.length === 0 ? (
@@ -396,7 +466,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
               <CardTitle>Job site</CardTitle>
               <span className="text-xs text-neutral-500">
                 <IconLocation className="!h-3 !w-3 -mt-0.5 mr-0.5 inline-block" />
-                {job.location.neighborhood ?? job.location.address}, Lagos
+                {job.location?.neighborhood ?? job.location?.address ?? '—'}
               </span>
             </CardHeader>
             <CardBody>
@@ -467,6 +537,8 @@ export function JobDetailView({ jobId }: { jobId: string }) {
             isError={applicationsQuery.isError}
             error={applicationsQuery.error}
             jobStatus={job.status}
+            maxWorkers={job.maxWorkers}
+            acceptedCount={job.acceptedCount}
             onRetry={() => void applicationsQuery.refetch()}
             onAfterMutate={invalidateAll}
             onActionError={setActionError}
@@ -532,8 +604,24 @@ export function JobDetailView({ jobId }: { jobId: string }) {
           </DialogHeader>
           <DialogBody className="space-y-3">
             <p className="text-sm text-neutral-600">
-              Cancelling “{job.title}” auto-rejects every pending application and notifies
-              the assigned worker if there is one. This cannot be undone.
+              {job.maxWorkers > 1
+                ? `Cancelling “${job.title}” will reject ${
+                    apps.filter((a) => a.status === 'pending').length
+                  } pending application${
+                    apps.filter((a) => a.status === 'pending').length === 1 ? '' : 's'
+                  }${
+                    job.acceptedCount > 0
+                      ? ` and notify ${job.acceptedCount} hired worker${
+                          job.acceptedCount === 1 ? '' : 's'
+                        }`
+                      : ''
+                  }. The remaining ${formatCurrency(
+                    job.payNaira * (job.maxWorkers - job.acceptedCount),
+                  )} from your reserve will be refunded.`
+                : `Cancelling “${job.title}” auto-rejects every pending application and notifies the assigned worker if there is one. ${formatCurrency(
+                    job.payNaira,
+                  )} from your reserve will be refunded.`}{' '}
+              This cannot be undone.
             </p>
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-neutral-700">
@@ -612,6 +700,8 @@ function ApplicationsCard({
   isError,
   error,
   jobStatus,
+  maxWorkers,
+  acceptedCount,
   onRetry,
   onAfterMutate,
   onActionError,
@@ -622,29 +712,95 @@ function ApplicationsCard({
   isError: boolean;
   error: unknown;
   jobStatus: JobDto['status'];
+  maxWorkers: number;
+  acceptedCount: number;
   onRetry: () => void;
   onAfterMutate: () => void;
   onActionError: (msg: string) => void;
 }) {
+  const isMulti = maxWorkers > 1;
+  const slotsRemaining = Math.max(0, maxWorkers - acceptedCount);
+  const slotsFull = isMulti && slotsRemaining === 0;
+
   const accept = useMutation({
-    mutationFn: (appId: string) => acceptApplication(jobId, appId),
-    onSuccess: onAfterMutate,
-    onError: (err) => onActionError(humanError(err)),
+    // Route to the multi-worker endpoint when maxWorkers > 1. Single-worker
+    // jobs stay on the legacy `/accept` path (atomic single-pick + auto-
+    // reject siblings). Mismatching endpoint↔job is a 409 INVALID_STATE
+    // per the brief, so we branch on the wire shape, not local guesses.
+    mutationFn: (appId: string) =>
+      isMulti
+        ? acceptApplicationSlot(jobId, appId)
+        : acceptApplication(jobId, appId),
+    onSuccess: (app) => {
+      onAfterMutate();
+      const nextFilled = acceptedCount + 1;
+      const desc =
+        isMulti && nextFilled >= maxWorkers
+          ? `All ${maxWorkers} slots are now filled. Remaining pending applications were auto-rejected.`
+          : isMulti
+            ? `${nextFilled} of ${maxWorkers} slots filled.`
+            : 'They’ve been notified and will show up for the shift.';
+      toastSuccess(`Accepted ${app.worker.fullName}`, { description: desc });
+    },
+    onError: (err) => {
+      // Friendly mapping for the two race / mismatch errors the brief calls
+      // out. INVALID_STATE shouldn't fire if routing is correct above;
+      // SLOTS_FULL happens when another reviewer accepted the final slot
+      // between our last refresh and this click.
+      if (err instanceof ApiError) {
+        if (err.code === 'INVALID_STATE') {
+          onActionError(
+            'Job state changed — try refreshing the applications list.',
+          );
+          toastApiError(err, 'Couldn’t accept — job state changed');
+          onRetry();
+          return;
+        }
+        if (err.code === 'SLOTS_FULL') {
+          onActionError(
+            'All slots have been filled by another reviewer. Refresh to see the latest.',
+          );
+          toastApiError(err, 'All slots are filled');
+          onRetry();
+          return;
+        }
+      }
+      onActionError(humanError(err));
+      toastApiError(err, 'Couldn’t accept the application');
+    },
   });
 
   const reject = useMutation({
     mutationFn: (appId: string) => rejectApplication(jobId, appId),
-    onSuccess: onAfterMutate,
-    onError: (err) => onActionError(humanError(err)),
+    onSuccess: (app) => {
+      onAfterMutate();
+      toastSuccess(`Rejected ${app.worker.fullName}`, {
+        description: 'They won’t be assigned to this job.',
+      });
+    },
+    onError: (err) => {
+      onActionError(humanError(err));
+      toastApiError(err, 'Couldn’t reject the application');
+    },
   });
 
-  const canDecide = jobStatus === 'open' || jobStatus === 'applications_in';
+  const canDecide =
+    (jobStatus === 'open' || jobStatus === 'applications_in') && !slotsFull;
+
+  const acceptedApps = apps.filter((a) => a.status === 'accepted');
+  const otherApps = apps.filter((a) => a.status !== 'accepted');
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Applications</CardTitle>
-        <Badge tone="info">{apps.length}</Badge>
+        <CardTitle>{isMulti ? 'Hiring' : 'Applications'}</CardTitle>
+        {isMulti ? (
+          <Badge tone={slotsFull ? 'success' : 'info'} variant="soft">
+            {acceptedCount} / {maxWorkers} hired
+          </Badge>
+        ) : (
+          <Badge tone="info">{apps.length}</Badge>
+        )}
       </CardHeader>
       <CardBody>
         {isLoading ? (
@@ -669,74 +825,135 @@ function ApplicationsCard({
             No applications yet. Workers will appear here once they apply.
           </p>
         ) : (
-          <ul className="divide-y divide-neutral-100">
-            {apps.map((a) => {
-              const decidingThis =
-                (accept.isPending && accept.variables === a.id) ||
-                (reject.isPending && reject.variables === a.id);
-              return (
-                <li
-                  key={a.id}
-                  className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
-                >
-                  <Avatar
-                    name={a.worker.fullName}
-                    src={a.worker.photoUrl ?? undefined}
-                    size="md"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <Link
-                      href={`/workers/${a.workerId}`}
-                      className="block truncate text-sm font-medium text-neutral-900 hover:underline"
-                    >
-                      {a.worker.fullName}
-                    </Link>
-                    <p className="truncate text-xs text-neutral-500">
-                      Score {a.worker.reliabilityScore} ·{' '}
-                      {a.distanceMeters != null
-                        ? formatDistance(a.distanceMeters)
-                        : 'distance unknown'}{' '}
-                      · rank {(a.rankScore * 100).toFixed(0)}
-                    </p>
-                  </div>
-                  <Badge tone={APPLICATION_STATUS_TONE[a.status] ?? 'neutral'}>
-                    {APPLICATION_STATUS_LABEL[a.status] ?? a.status}
-                  </Badge>
-                  {a.status === 'pending' && canDecide ? (
-                    <div className="flex items-center gap-1">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => reject.mutate(a.id)}
-                        loading={
-                          decidingThis &&
-                          reject.isPending &&
-                          reject.variables === a.id
+          <div className="space-y-4">
+            {isMulti && acceptedApps.length > 0 ? (
+              <div>
+                <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-ink-muted">
+                  Hired workers ({acceptedApps.length} of {maxWorkers})
+                </p>
+                <ul className="divide-y divide-neutral-100 rounded-md border border-outline-variant">
+                  {acceptedApps.map((a) => (
+                    <ApplicationRow
+                      key={a.id}
+                      a={a}
+                      canDecide={false}
+                      onAccept={() => accept.mutate(a.id)}
+                      onReject={() => reject.mutate(a.id)}
+                      acceptLabel="Accept"
+                      acceptPending={false}
+                      rejectPending={false}
+                    />
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {otherApps.length > 0 ? (
+              <div>
+                {isMulti ? (
+                  <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-ink-muted">
+                    Open applications ({otherApps.filter((a) => a.status === 'pending').length} pending)
+                  </p>
+                ) : null}
+                <ul className="divide-y divide-neutral-100">
+                  {otherApps.map((a) => {
+                    const acceptLabel = isMulti
+                      ? `Accept (${acceptedCount + 1} of ${maxWorkers})`
+                      : 'Accept';
+                    return (
+                      <ApplicationRow
+                        key={a.id}
+                        a={a}
+                        canDecide={canDecide}
+                        onAccept={() => accept.mutate(a.id)}
+                        onReject={() => reject.mutate(a.id)}
+                        acceptLabel={acceptLabel}
+                        acceptPending={
+                          accept.isPending && accept.variables === a.id
                         }
-                        className="text-neutral-600"
-                      >
-                        Reject
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => accept.mutate(a.id)}
-                        loading={
-                          decidingThis &&
-                          accept.isPending &&
-                          accept.variables === a.id
+                        rejectPending={
+                          reject.isPending && reject.variables === a.id
                         }
-                      >
-                        Accept
-                      </Button>
-                    </div>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
+                      />
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : null}
+
+            {slotsFull ? (
+              <AlertBanner
+                tone="success"
+                title="All slots filled"
+                description="No more workers can be accepted for this job."
+              />
+            ) : null}
+          </div>
         )}
       </CardBody>
     </Card>
+  );
+}
+
+function ApplicationRow({
+  a,
+  canDecide,
+  onAccept,
+  onReject,
+  acceptLabel,
+  acceptPending,
+  rejectPending,
+}: {
+  a: JobApplicationItemDto;
+  canDecide: boolean;
+  onAccept: () => void;
+  onReject: () => void;
+  acceptLabel: string;
+  acceptPending: boolean;
+  rejectPending: boolean;
+}) {
+  return (
+    <li className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+      <Avatar
+        name={a.worker.fullName}
+        src={a.worker.photoUrl ?? undefined}
+        size="md"
+      />
+      <div className="min-w-0 flex-1">
+        <Link
+          href={`/workers/${a.workerId}`}
+          className="block truncate text-sm font-medium text-neutral-900 hover:underline"
+        >
+          {a.worker.fullName}
+        </Link>
+        <p className="truncate text-xs text-neutral-500">
+          Score {a.worker.reliabilityScore} ·{' '}
+          {a.distanceMeters != null
+            ? formatDistance(a.distanceMeters)
+            : 'distance unknown'}{' '}
+          · rank {(a.rankScore * 100).toFixed(0)}
+        </p>
+      </div>
+      <Badge tone={APPLICATION_STATUS_TONE[a.status] ?? 'neutral'}>
+        {APPLICATION_STATUS_LABEL[a.status] ?? a.status}
+      </Badge>
+      {a.status === 'pending' && canDecide ? (
+        <div className="flex items-center gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onReject}
+            loading={rejectPending}
+            className="text-neutral-600"
+          >
+            Reject
+          </Button>
+          <Button size="sm" onClick={onAccept} loading={acceptPending}>
+            {acceptLabel}
+          </Button>
+        </div>
+      ) : null}
+    </li>
   );
 }
 
@@ -876,11 +1093,21 @@ function EditJobDrawer({
 
   const mutate = useMutation({
     mutationFn: (input: UpdateJobInput) => updateJob(job.id, input),
-    onSuccess: onSaved,
+    onSuccess: (updated) => {
+      onSaved();
+      toastSuccess('Job updated', {
+        description: `Changes to “${updated.title}” are saved.`,
+      });
+    },
     onError: (err) => {
       const fe = fieldErrorsFromApi(err);
-      if (fe) setFieldErrors(fe);
+      if (fe) {
+        setFieldErrors(fe);
+        toastApiError(err, 'Please fix the highlighted fields');
+        return;
+      }
       onError(humanError(err));
+      toastApiError(err, 'Couldn’t save your changes');
     },
   });
 

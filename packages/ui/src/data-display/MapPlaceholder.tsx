@@ -1,6 +1,5 @@
 'use client';
 
-import type { Library } from '@googlemaps/js-api-loader';
 import {
   type ReactNode,
   useCallback,
@@ -17,6 +16,7 @@ import {
   useJsApiLoader,
 } from '@react-google-maps/api';
 import { cn } from '../utils/cn';
+import { FORGE_GOOGLE_MAPS_LOADER_ID, GOOGLE_MAP_LIBRARIES } from './_googleMaps';
 
 export interface MapPin {
   /** Stable unique key among pins (e.g. job id, or session id when several pins share one job). */
@@ -62,9 +62,6 @@ const DEFAULT_BOUNDS = {
 };
 
 const LAGOS_CENTER = { lat: 6.5244, lng: 3.3792 };
-
-/** Module-level stable reference — useJsApiLoader warns if `libraries` identity changes each render. */
-const GOOGLE_MAP_LIBRARIES: Library[] = ['maps', 'routes'];
 
 const TONE_SVG: Record<NonNullable<MapPin['tone']>, string> = {
   success: 'fill-success-500 stroke-white',
@@ -216,7 +213,7 @@ function MapPlaceholderGoogle({
   const routePins = useMemo(() => directionsSubset(coords), [coords]);
 
   const { isLoaded, loadError } = useJsApiLoader({
-    id: 'forge-google-maps',
+    id: FORGE_GOOGLE_MAPS_LOADER_ID,
     googleMapsApiKey,
     version: 'weekly',
     libraries: GOOGLE_MAP_LIBRARIES,

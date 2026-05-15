@@ -79,9 +79,10 @@ export default function ActiveLoansPage() {
     return () => clearTimeout(t);
   }, [search]);
 
+  // Reset only on pageSize change — filter changes preserve pagination.
   useEffect(() => {
     setPage(1);
-  }, [riskLevel, status, borrowerType, debouncedSearch, pageSize]);
+  }, [pageSize]);
 
   const query: BankLoansListQuery = useMemo(
     () => ({
@@ -100,6 +101,7 @@ export default function ActiveLoansPage() {
     queryFn: () => fetchLoans(query),
     retry: false,
     placeholderData: (prev) => prev,
+    refetchInterval: 30_000,
   });
 
   const rows = listQuery.data?.data ?? [];
