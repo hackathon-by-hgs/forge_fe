@@ -10,6 +10,7 @@ const nextConfig = {
     optimizePackageImports: ['@mui/icons-material', '@mui/material'],
   },
 
+
 };
 
 export default nextConfig;
