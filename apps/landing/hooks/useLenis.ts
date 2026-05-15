@@ -36,8 +36,32 @@ export function useLenis() {
 
     requestAnimationFrame(raf);
 
+    // Global click listener for smooth scroll on all # links
+    const handleAnchorClick = (e: MouseEvent) => {
+      // Find the closest anchor tag
+      const anchor = (e.target as HTMLElement).closest('a');
+      if (!anchor) return;
+
+      const href = anchor.getAttribute('href');
+      
+      // Only handle internal links that aren't just '#'
+      if (href && href.startsWith('#') && href.length > 1) {
+        const targetEl = document.querySelector(href) as HTMLElement;
+        if (targetEl) {
+          e.preventDefault();
+          lenis.scrollTo(targetEl, {
+            duration: 1.5,
+            easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+          });
+        }
+      }
+    };
+
+    window.addEventListener('click', handleAnchorClick);
+
     return () => {
       lenis.destroy();
+      window.removeEventListener('click', handleAnchorClick);
       lenisRef.current = null;
     };
   }, []);

@@ -44,9 +44,7 @@ const ArchSection: React.FC<ArchSectionProps> = ({
         </div>
       )}
 
-      <div className="relative z-0">
-        {children}
-      </div>
+      {children}
 
       {/* BOTTOM inverted arch — bracket shape biting into section below */}
       {showBottomArch && (

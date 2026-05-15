@@ -101,6 +101,28 @@ export default function ContactForm() {
           },
         });
       }
+
+      // Big word subtle scatter effect
+      const bgWord = section.querySelector('.contact-bg-word');
+      if (bgWord && !prefersReduced) {
+        const split = new SplitText(bgWord, { type: 'chars' });
+        
+        gsap.fromTo(split.chars, 
+          { x: 0, y: 0, rotation: 0 },
+          {
+            x: () => gsap.utils.random(-40, 40),
+            y: () => gsap.utils.random(-25, 25),
+            rotation: () => gsap.utils.random(-15, 15),
+            stagger: { amount: 0.4, from: 'center' },
+            scrollTrigger: {
+              trigger: section,
+              start: 'top bottom',
+              end: 'bottom top',
+              scrub: 1,
+            },
+          }
+        );
+      }
     },
     { scope: sectionRef }
   );
@@ -112,7 +134,7 @@ export default function ContactForm() {
     setSubmitted(true);
     setBtnText('Sending...');
 
-    // Animate form fields to 30% opacity
+    // Submission state transitions
     const fields = document.querySelectorAll('.contact-field');
     gsap.to(fields, { opacity: 0.3, duration: 0.4 });
 
@@ -150,28 +172,34 @@ export default function ContactForm() {
     <section
       ref={sectionRef}
       id="contact"
-      className="relative bg-white py-20 md:py-40 min-h-screen flex flex-col justify-center"
+      className="relative bg-white py-12 md:py-40 min-h-screen flex flex-col justify-center overflow-hidden"
     >
+      <div className="pointer-events-none absolute inset-0 z-0">
+        <div className="contact-bg-word absolute left-0 top-1/2 -translate-y-1/2 select-none whitespace-nowrap text-[22vw] font-black uppercase tracking-[-0.08em] text-black/[0.06]">
+          FORGE FORGE FORGE
+        </div>
+      </div>
+
       <div className="section-container relative z-10">
-        <div className="grid gap-16 lg:grid-cols-2 lg:gap-24">
-          {/* Left — pitch */}
+        <div className="grid gap-8 lg:grid-cols-2 lg:gap-24">
+          {/* Left: Content Pitch */}
           <div>
-            <div className="flex items-center gap-4 mb-8">
+            <div className="flex items-center gap-4 mb-6 md:mb-8">
               <div className="h-[1px] w-12 bg-[#FF4D00]" />
               <span className="text-[11px] font-bold uppercase tracking-[0.5em] text-[#FF4D00]">
                 Get in Touch
               </span>
             </div>
-            <h2 className="contact-heading text-[clamp(1.75rem,5vw,5rem)] font-medium leading-[1.05] tracking-tight text-black mb-8 md:mb-12">
+            <h2 className="contact-heading text-[clamp(1.75rem,5vw,5rem)] font-medium leading-[1.05] tracking-tight text-black mb-6 md:mb-12">
               Let&rsquo;s build Forge together
             </h2>
-            <p className="text-lg md:text-xl text-black/40 leading-relaxed mb-10 md:mb-16 max-w-md">
+            <p className="text-base md:text-xl text-black/40 leading-relaxed mb-8 md:mb-16 max-w-md">
               Whether you&rsquo;re an employer, a bank, or a worker — we&rsquo;d
               love to hear from you. No commitments, just a conversation.
             </p>
 
             {/* Micro stats */}
-            <div className="contact-stats space-y-5">
+            <div className="contact-stats space-y-3 md:space-y-5 hidden md:block">
               {MICRO_STATS.map((stat) => (
                 <div key={stat} className="contact-stat flex items-center gap-3">
                   <div className="w-1.5 h-1.5 bg-[#FF4D00]" />
@@ -183,7 +211,7 @@ export default function ContactForm() {
             </div>
           </div>
 
-          {/* Right — form */}
+          {/* Right: Contact Form */}
           <div className="relative">
             {/* Accent line on submit */}
             <div
@@ -193,48 +221,50 @@ export default function ContactForm() {
             />
 
             <form onSubmit={handleSubmit} className="contact-form space-y-0">
-              {[
-                { id: 'contact-name', type: 'text', placeholder: 'Your name *', required: true },
-                { id: 'contact-email', type: 'email', placeholder: 'Your email *', required: true },
-                { id: 'contact-company', type: 'text', placeholder: 'Company name', required: false },
-              ].map(({ id, type, placeholder, required }) => (
-                <div key={id} className="contact-field relative group">
-                  <input
-                    id={id}
-                    name={id}
-                    type={type}
-                    placeholder=" "
-                    required={required}
-                    autoComplete="off"
-                    className="peer w-full border-b border-black/[0.08] bg-transparent pt-8 pb-4 text-xl text-black focus:border-[#FF4D00] focus:outline-none transition-colors duration-300"
-                  />
-                  <label
-                    htmlFor={id}
-                    className="absolute left-0 top-8 text-lg text-black/25 transition-all duration-200 pointer-events-none peer-focus:top-2 peer-focus:text-xs peer-focus:text-[#FF4D00] peer-focus:font-bold peer-focus:tracking-widest peer-focus:uppercase peer-[:not(:placeholder-shown)]:top-2 peer-[:not(:placeholder-shown)]:text-xs peer-[:not(:placeholder-shown)]:text-black/30 peer-[:not(:placeholder-shown)]:font-bold peer-[:not(:placeholder-shown)]:tracking-widest peer-[:not(:placeholder-shown)]:uppercase"
-                  >
-                    {placeholder}
-                  </label>
-                </div>
-              ))}
+              <div className="grid grid-cols-2 md:grid-cols-1 gap-x-6 md:gap-x-0">
+                {[
+                  { id: 'contact-name', type: 'text', placeholder: 'Your name *', required: true },
+                  { id: 'contact-email', type: 'email', placeholder: 'Your email *', required: true },
+                  { id: 'contact-company', type: 'text', placeholder: 'Company name', required: false, fullWidth: true },
+                ].map(({ id, type, placeholder, required, fullWidth }) => (
+                  <div key={id} className={`contact-field relative group ${fullWidth ? 'col-span-2 md:col-span-1' : ''}`}>
+                    <input
+                      id={id}
+                      name={id}
+                      type={type}
+                      placeholder=" "
+                      required={required}
+                      autoComplete="off"
+                      className="peer w-full border-b border-black/[0.20] bg-transparent pt-6 pb-2 md:pt-8 md:pb-4 text-lg md:text-xl text-black focus:border-[#FF4D00] focus:outline-none transition-colors duration-300"
+                    />
+                    <label
+                      htmlFor={id}
+                      className="absolute left-0 top-6 md:top-8 text-base md:text-lg text-black/50 transition-all duration-200 pointer-events-none peer-focus:top-2 peer-focus:text-xs peer-focus:text-[#FF4D00] peer-focus:font-bold peer-focus:tracking-widest peer-focus:uppercase peer-[:not(:placeholder-shown)]:top-2 peer-[:not(:placeholder-shown)]:text-xs peer-[:not(:placeholder-shown)]:text-black/30 peer-[:not(:placeholder-shown)]:font-bold peer-[:not(:placeholder-shown)]:tracking-widest peer-[:not(:placeholder-shown)]:uppercase"
+                    >
+                      {placeholder}
+                    </label>
+                  </div>
+                ))}
+              </div>
 
               <div className="contact-field relative group">
                 <textarea
                   id="contact-message"
                   name="contact-message"
                   placeholder=" "
-                  rows={3}
+                  rows={2}
                   autoComplete="off"
-                  className="peer w-full resize-none border-b border-black/[0.08] bg-transparent pt-8 pb-4 text-xl text-black focus:border-[#FF4D00] focus:outline-none transition-colors duration-300"
+                  className="peer w-full resize-none border-b border-black/[0.20] bg-transparent pt-6 pb-2 md:pt-8 md:pb-4 text-lg md:text-xl text-black focus:border-[#FF4D00] focus:outline-none transition-colors duration-300"
                 />
                 <label
                   htmlFor="contact-message"
-                  className="absolute left-0 top-8 text-lg text-black/25 transition-all duration-200 pointer-events-none peer-focus:top-2 peer-focus:text-xs peer-focus:text-[#FF4D00] peer-focus:font-bold peer-focus:tracking-widest peer-focus:uppercase peer-[:not(:placeholder-shown)]:top-2 peer-[:not(:placeholder-shown)]:text-xs peer-[:not(:placeholder-shown)]:text-black/30 peer-[:not(:placeholder-shown)]:font-bold peer-[:not(:placeholder-shown)]:tracking-widest peer-[:not(:placeholder-shown)]:uppercase"
+                  className="absolute left-0 top-6 md:top-8 text-base md:text-lg text-black/50 transition-all duration-200 pointer-events-none peer-focus:top-2 peer-focus:text-xs peer-focus:text-[#FF4D00] peer-focus:font-bold peer-focus:tracking-widest peer-focus:uppercase peer-[:not(:placeholder-shown)]:top-2 peer-[:not(:placeholder-shown)]:text-xs peer-[:not(:placeholder-shown)]:text-black/30 peer-[:not(:placeholder-shown)]:font-bold peer-[:not(:placeholder-shown)]:tracking-widest peer-[:not(:placeholder-shown)]:uppercase"
                 >
                   Tell us about your workforce needs
                 </label>
               </div>
 
-              <div className="pt-12">
+              <div className="pt-8 md:pt-12">
                 <button
                   ref={btnRef}
                   type="submit"

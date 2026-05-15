@@ -4,14 +4,31 @@ import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
 import Magnetic from './Magnetic';
 import Odometer from './Odometer';
-import { STATS } from './Stats';
-import { PARTNERS } from './TrustStrip';
+import { SquigglyText } from './';
 
-/**
- * Hero - Section 1 (Light)
- * Clean white background with high-contrast black typography.
- * Combines Headline, CTAs, and Details (Showreel + Subtitle/Trust/Stats).
- */
+interface StatItemProps {
+  end: number;
+  suffix: string;
+  label: string;
+  decimals?: number;
+}
+
+const PARTNERS = [
+  'First Bank',
+  'GTBank',
+  'Paystack',
+  'Flutterwave',
+  'Sterling',
+  'Wema Bank',
+];
+
+const STATS: StatItemProps[] = [
+  { end: 50,  suffix: 'K+',  label: 'Workers Connected' },
+  { end: 120, suffix: 'K+',  label: 'Jobs Completed' },
+  { end: 2.5, suffix: 'B',   label: 'Naira Processed', decimals: 1 },
+  { end: 4,   suffix: 'hrs', label: 'Time-to-hire' },
+];
+
 export default function Hero() {
   const sectionRef = useRef<HTMLElement>(null);
 
@@ -27,7 +44,7 @@ export default function Hero() {
       });
 
       tl.from(
-        '.hero-title span',
+        '.hero-title > span:not(.no-stagger)',
         {
           opacity: 0,
           y: 60,
@@ -72,7 +89,11 @@ export default function Hero() {
             <span className="inline-block">Bridging the gap</span>{' '}
             <span className="inline-block">between talent,</span>{' '}
             <span className="inline-block">employment, and</span>{' '}
-            <span className="inline-block font-bold">financial access.</span>
+            <span className="inline-block no-stagger">
+              <SquigglyText className="text-[#FF4D00] font-bold" scale={[4, 6]}>
+                financial access.
+              </SquigglyText>
+            </span>
           </h1>
 
           {/* CTAs */}
@@ -100,10 +121,10 @@ export default function Hero() {
         </div>
 
         {/* Bottom Details Section */}
-        <div className="flex flex-col md:grid min-h-[60vh] items-start gap-12 md:grid-cols-[5fr_7fr] lg:grid-cols-[4fr_7fr] md:gap-16 lg:gap-24 w-full max-w-full">
+        <div className="flex flex-col md:grid min-h-[60vh] items-start gap-12 md:grid-cols-[5fr_7fr] lg:grid-cols-2 md:gap-16 lg:gap-24 w-full max-w-full">
           {/* Left: Showreel box */}
           <div className="w-full min-w-0 md:sticky md:top-32 lg:top-24">
-            <div className="hero-demo-box group relative aspect-[4/3] md:aspect-[4/5] lg:aspect-[3/4] max-h-[85vh] w-full mx-auto overflow-hidden bg-[#0A0A0A] shadow-2xl rounded-3xl">
+            <div className="hero-demo-box group relative aspect-[4/3] md:aspect-[4/5] lg:aspect-[3/4] max-h-[55vh] w-full mx-auto overflow-hidden bg-[#0A0A0A] shadow-2xl">
               <video
                 className="absolute inset-0 h-full w-full object-cover"
                 autoPlay
@@ -133,7 +154,7 @@ export default function Hero() {
           </div>
 
           {/* Right: Details */}
-          <div className="flex flex-col gap-12 md:gap-12 w-full min-w-0 px-2 sm:px-0">
+          <div className="flex flex-col gap-12 md:gap-12 w-full min-w-0 px-6 md:px-0">
             {/* item 1 */}
             <div className="hero-detail-card mb-16 md:mb-32 flex flex-col justify-center w-full min-w-0">
               <h2 className="text-2xl font-medium leading-[1.2] tracking-tight text-black md:text-4xl">
@@ -181,8 +202,8 @@ export default function Hero() {
                 {STATS.map((stat) => (
                   <div key={stat.label} className="group relative">
                     <div className="absolute -left-4 top-0 h-full w-[1px] bg-black/5 transition-colors group-hover:bg-[#FF4D00]/30" />
-                    <span className="mb-2 block text-3xl font-medium tracking-tighter transition-transform group-hover:translate-x-1 md:text-5xl">
-                      <Odometer value={stat.end} decimals={stat.decimals} />
+                    <span className="mb-2 flex items-center text-3xl font-medium tracking-tighter transition-transform group-hover:translate-x-1 md:text-5xl">
+                      <Odometer className='mt-1' value={stat.end} decimals={stat.decimals} />
                       <span className="font-bold text-[#FF4D00]">{stat.suffix}</span>
                     </span>
                     <span className="block text-[10px] font-black uppercase tracking-[0.25em] text-black/20 transition-colors group-hover:text-black/40">

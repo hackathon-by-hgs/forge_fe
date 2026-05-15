@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import Link from 'next/link';
-import { Magnetic } from './';
+import { Magnetic, Logo } from './';
 import { useNavbarTheme } from '@/hooks/useNavbarTheme';
+import { gsap } from 'gsap';
+
+gsap.registerPlugin();
 
 const NAV_LINKS = [
-  { label: 'SERVICES', href: '#services' },
+  { label: 'SERVICES', href: '#features' },
   { label: 'CONTACT', href: '#contact' },
 ];
 
@@ -42,7 +44,7 @@ export default function Header() {
       logo: 'text-black',
       links: 'text-neutral-800 hover:text-black',
       cta: 'bg-black text-white hover:bg-neutral-800',
-      ctaSecondary: 'border border-black text-black hover:bg-black hover:text-white',
+      ctaSecondary: 'bg-white border border-black text-black hover:bg-black hover:text-white shadow-sm',
       hamburger: 'bg-black',
     },
     dark: {
@@ -50,7 +52,7 @@ export default function Header() {
       logo: 'text-white',
       links: 'text-white/80 hover:text-white',
       cta: 'bg-white text-black hover:bg-neutral-100',
-      ctaSecondary: 'border border-white text-white hover:bg-white hover:text-black',
+      ctaSecondary: 'bg-black border border-white text-white hover:bg-white hover:text-black shadow-sm',
       hamburger: 'bg-white',
     }
   };
@@ -66,15 +68,16 @@ export default function Header() {
       >
         <div className="section-container flex items-center justify-between h-full">
           {/* Logo — minimalist asterisk + name */}
-          <Link
-            href="/"
-            className={`flex items-center gap-1.5 group transition-all duration-500 ${isScrollingDown ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'
-              }`}
-            id="logo-link"
-          >
-            <span className="text-[#FF4D00] text-2xl font-bold transition-transform duration-500 group-hover:rotate-180">∗</span>
-            <span className={`text-xl font-bold tracking-tight transition-colors duration-300 ${s.logo}`}>forge</span>
-          </Link>
+          <Magnetic>
+            <a
+              href="#hero"
+              className={`transition-all duration-500 ${isScrollingDown ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'
+                }`}
+              id="logo-link"
+            >
+              <Logo theme={theme} />
+            </a>
+          </Magnetic>
 
           {/* Desktop nav — center */}
           <nav
@@ -100,7 +103,7 @@ export default function Header() {
               <a
                 href="https://employer.forge.app/login"
                 target='_blank'
-                className={`group px-8 py-5 text-[11px] font-bold tracking-[0.15em] uppercase flex items-center gap-4 transition-all duration-500 hover:scale-[1.02] active:scale-[0.98] ${s.cta} ${isScrollingDown ? 'px-12 py-5.5 text-[13px] translate-y-2 shadow-xl' : ''
+                className={`group px-8 py-5 text-[11px] font-bold tracking-[0.15em] uppercase flex items-center gap-4 transition-[background-color,color,border-color,opacity,box-shadow] duration-500 hover:scale-[1.02] active:scale-[0.98] ${s.cta} ${isScrollingDown ? 'px-12 py-5.5 text-[13px] translate-y-2 shadow-xl' : ''
                   }`}
               >
                 EMPLOYER
@@ -118,7 +121,7 @@ export default function Header() {
               <a
                 href="https://bank.forge.app/login"
                 target='_blank'
-                className={`group px-8 py-5 text-[11px] font-bold tracking-[0.15em] uppercase flex items-center gap-4 transition-all duration-500 hover:scale-[1.02] active:scale-[0.98] ${s.ctaSecondary} ${isScrollingDown ? 'px-12 py-5.5 text-[13px] translate-y-2 shadow-xl' : ''
+                className={`group px-8 py-5 text-[11px] font-bold tracking-[0.15em] uppercase flex items-center gap-4 transition-[background-color,color,border-color,opacity,box-shadow] duration-500 hover:scale-[1.02] active:scale-[0.98] ${s.ctaSecondary} ${isScrollingDown ? 'px-12 py-5.5 text-[13px] translate-y-2 shadow-xl' : ''
                   }`}
               >
                 BANK

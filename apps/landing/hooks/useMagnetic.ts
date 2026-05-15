@@ -20,11 +20,11 @@ export function useMagnetic() {
       const y = clientY - (top + height / 2);
       
       const distance = Math.sqrt(x * x + y * y);
-      const radius = 60;
+      const radius = 100;
 
       if (distance < radius) {
-        xTo(x * 0.35);
-        yTo(y * 0.35);
+        xTo(x * 0.5);
+        yTo(y * 0.5);
       } else {
         xTo(0);
         yTo(0);
