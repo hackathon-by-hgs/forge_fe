@@ -51,7 +51,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="space-y-2">
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center space-y-2 px-6 py-10">
       <Brand />
       <Card>
         <CardHeader>

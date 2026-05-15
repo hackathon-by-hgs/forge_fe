@@ -1,17 +1,18 @@
 import type { Metadata } from 'next';
-import { Inter, JetBrains_Mono } from 'next/font/google';
+import { Onest, JetBrains_Mono } from 'next/font/google';
 import { type ReactNode } from 'react';
 import { ThemeProvider, ThemeScript, Toaster } from '@forge/ui';
 import { SessionProvider } from '../lib/auth/SessionProvider';
 import './globals.css';
 
-const inter = Inter({
+const sans = Onest({
   subsets: ['latin'],
   variable: '--font-inter',
   display: 'swap',
+  weight: ['400', '500', '600', '700'],
 });
 
-const jetbrains = JetBrains_Mono({
+const mono = JetBrains_Mono({
   subsets: ['latin'],
   variable: '--font-jetbrains-mono',
   display: 'swap',
@@ -26,7 +27,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${jetbrains.variable}`}
+      className={`${sans.variable} ${mono.variable}`}
       suppressHydrationWarning
     >
       <head>

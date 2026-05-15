@@ -62,7 +62,7 @@ function VerifyEmailContent() {
   }, [router, token]);
 
   return (
-    <div className="space-y-2">
+    <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center space-y-2 px-6 py-10">
       <Brand />
       <Card>
         <CardHeader>
@@ -97,7 +97,9 @@ export default function VerifyEmailPage() {
   return (
     <Suspense
       fallback={
-        <div className="text-center text-sm text-ink-muted">Loading…</div>
+        <div className="mx-auto flex min-h-screen w-full max-w-md items-center justify-center px-6 py-10 text-center text-sm text-ink-muted">
+          Loading…
+        </div>
       }
     >
       <VerifyEmailContent />
