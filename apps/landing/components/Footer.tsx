@@ -4,36 +4,42 @@ import { useRef } from 'react';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { Logo, ScrollVelocity } from './';
 
 gsap.registerPlugin(ScrollTrigger);
+
+// Dashboard portal URLs. Env-driven so the landing page can point at staging,
+// preview, or production deploys without code changes. Defaults match the
+// live Railway services so local dev still resolves correctly.
+const EMPLOYER_URL =
+  process.env.NEXT_PUBLIC_EMPLOYER_URL ?? 'https://forgefe.up.railway.app';
+const BANK_URL =
+  process.env.NEXT_PUBLIC_BANK_URL ?? 'https://forgeem.up.railway.app';
+const EMPLOYER_LOGIN = `${EMPLOYER_URL.replace(/\/$/, '')}/login`;
+const BANK_LOGIN = `${BANK_URL.replace(/\/$/, '')}/login`;
 
 const FOOTER_NAV = [
   {
     title: 'Product',
     links: [
-      { label: 'For Employers', href: '#services' },
-      { label: 'For Banks', href: '#services' },
-      { label: 'For Workers', href: '#services' },
-      { label: 'Pricing', href: '#' },
+      { label: 'For Employers', href: EMPLOYER_LOGIN },
+      { label: 'For Banks', href: BANK_LOGIN },
     ],
   },
   {
     title: 'Company',
     links: [
-      { label: 'About', href: '#about' },
       { label: 'Case Studies', href: '#cases' },
-      { label: 'Careers', href: '#' },
       { label: 'Contact', href: '#contact' },
     ],
   },
-  {
-    title: 'Legal',
-    links: [
-      { label: 'Terms of Service', href: '#' },
-      { label: 'Privacy Policy', href: '#' },
-      { label: 'Cookie Policy', href: '#' },
-    ],
-  },
+  // {
+  //   title: 'Legal',
+  //   links: [
+  //     { label: 'Terms of Service', href: '#' },
+  //     { label: 'Privacy Policy', href: '#' },
+  //   ],
+  // },
 ];
 
 const SOCIALS = [
@@ -68,7 +74,6 @@ const SOCIALS = [
 
 export default function Footer() {
   const footerRef = useRef<HTMLElement>(null);
-  const scanLineRef = useRef<HTMLDivElement>(null);
   const bgWordRef = useRef<HTMLDivElement>(null);
 
   useGSAP(
@@ -76,60 +81,9 @@ export default function Footer() {
       const footer = footerRef.current;
       if (!footer) return;
 
-      const prefersReduced = window.matchMedia(
-        '(prefers-reduced-motion: reduce)'
-      ).matches;
-
-      if (!prefersReduced && scanLineRef.current && bgWordRef.current) {
-        // Big word animation from PremiumCTA
-        const playScanSweep = () => {
-          if (!scanLineRef.current) return;
-          gsap.killTweensOf(scanLineRef.current);
-          gsap.set(scanLineRef.current, { top: '0%', opacity: 1 });
-          gsap.to(scanLineRef.current, {
-            top: '100%',
-            opacity: 1,
-            duration: 1.05,
-            ease: 'power3.inOut',
-            onComplete: () => {
-              if (!scanLineRef.current) return;
-              gsap.to(scanLineRef.current, { opacity: 0, duration: 0.18 });
-            },
-          });
-        };
-
-        gsap.set(scanLineRef.current, { top: '0%', opacity: 0 });
-        gsap.set(bgWordRef.current, { x: 96, opacity: 0 });
-
-        gsap.to(bgWordRef.current, {
-          x: 0,
-          opacity: 1,
-          duration: 1.05,
-          ease: 'power4.out',
-          scrollTrigger: {
-            trigger: footer,
-            start: 'top 80%',
-            once: true,
-            onEnter: () => playScanSweep(),
-          },
-        });
-
-        gsap.to(bgWordRef.current, {
-          xPercent: -10,
-          ease: 'none',
-          scrollTrigger: {
-            trigger: footer,
-            start: 'top bottom',
-            end: 'bottom top',
-            scrub: true,
-          },
-        });
-
-        const handleMouseEnter = () => playScanSweep();
-        footer.addEventListener('mouseenter', handleMouseEnter);
-      }
-
-
+      // const prefersReduced = window.matchMedia(
+      //   '(prefers-reduced-motion: reduce)'
+      // ).matches;
 
       // Nav columns stagger
       const cols = gsap.utils.toArray<HTMLElement>('.footer-col');
@@ -197,22 +151,28 @@ export default function Footer() {
       data-navbar-theme="dark"
       className="relative bg-black pt-24 pb-8 overflow-hidden min-h-[60vh] flex flex-col justify-end"
     >
-      <div className="pointer-events-none absolute inset-0">
-        <div
-          ref={bgWordRef}
-          className="absolute left-0 top-1/2 -translate-y-1/2 select-none whitespace-nowrap text-[22vw] font-black uppercase tracking-[-0.08em] text-white/[0.03]"
-        >
-          FORGE FORGE FORGE
-        </div>
-        <div ref={scanLineRef} className="absolute left-0 right-0 h-[2px] w-full bg-[#FF4D00] blur-[1px] opacity-0" />
+      <div 
+        ref={bgWordRef}
+        className="pointer-events-none absolute inset-0 flex flex-col justify-center opacity-20"
+      >
+        <ScrollVelocity
+          texts={['FORGE', 'B2B WORKFORCE']}
+          velocity={25}
+          className="text-[18vw] font-black uppercase tracking-tighter text-white/25"
+        />
       </div>
 
-      <div className="section-container relative z-10 w-full mt-auto">
+      <div className="section-container relative z-10 w-full mt-auto max-md:px-5">
+        {/* Logo and Nav Row */}
+        <div className="mb-16 md:mb-20">
+          <Logo theme="dark" />
+        </div>
+
         {/* Row 2 — nav columns + newsletter */}
-        <div className="footer-nav grid grid-cols-2 md:grid-cols-4 gap-10 md:gap-8 mb-16 md:mb-20">
+        <div className="footer-nav grid grid-cols-2 md:grid-cols-3 gap-10 md:gap-8 mb-16 md:mb-20">
           {FOOTER_NAV.map((col) => (
             <div key={col.title} className="footer-col">
-              <h4 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/15 mb-8">
+              <h4 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 mb-8">
                 {col.title}
               </h4>
               <ul className="space-y-4">
@@ -220,7 +180,9 @@ export default function Footer() {
                   <li key={link.label}>
                     <a
                       href={link.href}
-                      className="text-[15px] font-medium text-white/30 hover:text-[#FF4D00] transition-colors duration-300"
+                      target={link.href.startsWith('http') ? '_blank' : undefined}
+                      rel={link.href.startsWith('http') ? 'noopener noreferrer' : undefined}
+                      className="text-[15px] font-medium text-white/80 hover:text-[#FF4D00] transition-colors duration-300"
                     >
                       {link.label}
                     </a>
@@ -232,24 +194,24 @@ export default function Footer() {
 
           {/* Newsletter column */}
           <div className="footer-col col-span-2 md:col-span-1 pt-4 md:pt-0 border-t border-white/[0.04] md:border-0">
-            <h4 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/15 mb-8">
+            <h4 className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/50 mb-8">
               Newsletter
             </h4>
-            <p className="text-sm text-white/20 mb-6 leading-relaxed">
+            <p className="text-sm text-white mb-6 leading-relaxed">
               Get updates on the future of work in Africa.
             </p>
             <form
-              className="flex border-b border-white/10 focus-within:border-[#FF4D00] transition-colors"
+              className="flex border-b border-white/20 focus-within:border-[#FF4D00] transition-colors duration-500"
               onSubmit={(e) => e.preventDefault()}
             >
               <input
                 type="email"
                 placeholder="Your email"
-                className="flex-1 bg-transparent py-3 text-sm text-white placeholder:text-white/20 focus:outline-none"
+                className="flex-1 bg-transparent py-3 text-sm text-white placeholder:text-white/40 focus:outline-none"
               />
               <button
                 type="submit"
-                className="text-white/30 hover:text-[#FF4D00] transition-colors px-2"
+                className="text-white hover:text-[#FF4D00] transition-all duration-300 px-2 hover:scale-110 active:scale-90"
                 aria-label="Subscribe"
               >
                 <svg
@@ -271,14 +233,14 @@ export default function Footer() {
         </div>
 
         {/* Rule */}
-        <div className="footer-rule h-[1px] w-full bg-white/[0.06] mb-8 origin-left" />
+        <div className="footer-rule h-[1px] w-full bg-white/[0.1] mb-8 origin-left" />
 
         {/* Row 3 — bottom bar */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 md:gap-6">
-          <div className="flex flex-wrap items-center gap-6 text-[11px] font-bold tracking-[0.2em] text-white/10 uppercase">
-            <span className="text-[10px] md:text-[11px] font-bold tracking-[0.2em] text-white/10 uppercase">© {new Date().getFullYear()} Forge Technologies</span>
+          <div className="flex flex-wrap items-center gap-6 text-[11px] font-bold tracking-[0.2em] text-white/50 uppercase">
+            <span className="text-[10px] md:text-[11px] font-bold tracking-[0.2em] uppercase">© {new Date().getFullYear()} Forge Technologies</span>
             <span className="text-white/5 hidden sm:inline">·</span>
-            <span className="text-[10px] md:text-[11px] font-bold tracking-[0.2em] text-white/10 uppercase">Built in Lagos 🇳🇬</span>
+            <span className="text-[10px] md:text-[11px] font-bold tracking-[0.2em] text-white/1  uppercase">Built in Lagos 🇳🇬</span>
           </div>
 
           <div className="flex items-center gap-6">
@@ -286,7 +248,8 @@ export default function Footer() {
               <a
                 key={s.name}
                 href={s.href}
-                className="footer-social text-white/20 hover:text-white transition-colors duration-300"
+                target='_blank'
+                className="footer-social text-white hover:text-[#FF4D00] transition-colors duration-300"
                 aria-label={s.name}
               >
                 {s.icon}

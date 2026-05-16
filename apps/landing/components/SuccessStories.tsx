@@ -151,7 +151,7 @@ export default function SuccessStories() {
         scrollTrigger: {
           trigger: track,
           start: 'top 10%',
-          end: () => `+=${totalWidth}`,
+          end: () => `+=${totalWidth + 500}`, // Add extra buffer to ensure it stays pinned
           scrub: 1.2,
           pin: true,
           anticipatePin: 1,
@@ -166,7 +166,7 @@ export default function SuccessStories() {
           {
             scaleX: 1, ease: 'none',
             scrollTrigger: {
-              trigger: section, start: 'top top', end: () => `+=${totalWidth}`, scrub: 1.2,
+              trigger: section, start: 'top top', end: () => `+=${totalWidth + 500}`, scrub: 1.2,
             },
           }
         );
@@ -225,23 +225,6 @@ export default function SuccessStories() {
         />
       </div>
 
-      {/* BOTTOM inverted arch */}
-      <div className="absolute bottom-0 left-0 w-full h-[160px] pointer-events-none z-20">
-        <svg
-          width="100%"
-          height="100%"
-          viewBox="0 0 1000 160"
-          preserveAspectRatio="none"
-          className="block"
-        >
-          <path
-            d="M 0,0 L 120,80 L 370,80 L 370,140
-               L 630,140 L 630,80 L 880,80
-               L 1000,0 L 1000,160 L 0,160 Z"
-            fill="#ffffff"
-          />
-        </svg>
-      </div>
     </section>
   );
 }

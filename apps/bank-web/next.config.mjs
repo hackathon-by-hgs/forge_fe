@@ -1,3 +1,7 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -5,6 +9,8 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['@mui/icons-material', '@mui/material'],
   },
+
+
 };
 
 export default nextConfig;

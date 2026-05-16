@@ -114,6 +114,9 @@ function JobsListInner() {
     queryFn: () => listJobs(query),
     retry: false,
     placeholderData: (prev) => prev,
+    // List-level fallback poll. SSE invalidation covers most cases;
+    // 30s catches the rest (and naturally pauses on hidden tabs).
+    refetchInterval: 30_000,
   });
 
   const update = (patch: Partial<JobsListQuery>) => {

@@ -7,7 +7,9 @@
       "Bash(rm \"c:/Users/ADMIN/Documents/forge_fe/apps/bank-web/app/\\(app\\)/borrowers/[id]/page.tsx\")",
       "Bash(rmdir \"c:/Users/ADMIN/Documents/forge_fe/apps/bank-web/app/\\(app\\)/borrowers/[id]\")",
       "Bash(mkdir -p \"c:/Users/ADMIN/Documents/forge_fe/apps/bank-web/app/\\(app\\)/borrowers/[borrowerType]/[id]\")",
-      "Bash(pnpm --filter bank-web lint)"
+      "Bash(pnpm --filter bank-web lint)",
+      "Bash(pnpm build *)",
+      "Bash(pnpm --filter bank-web build)"
     ],
     "additionalDirectories": [
       "c:\\Users\\ADMIN"
