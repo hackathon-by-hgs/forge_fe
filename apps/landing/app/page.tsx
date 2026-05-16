@@ -27,12 +27,12 @@ export default function LandingPage() {
       <Header />
 
       <main>
-        {/* Step 1: Hero */}
+        {/* Hero Section */}
         <section data-navbar-theme="light" className="relative z-[3] bg-black min-h-full">
           <Hero />
         </section>
 
-        {/* Step 2: Value Prop */}
+        {/* Value Proposition */}
         <section
           data-navbar-theme="light"
           className="sticky top-0 z-[2] min-h-screen overflow-hidden bg-white"
@@ -53,31 +53,31 @@ export default function LandingPage() {
           <ValueProp />
         </section>
 
-        {/* Step 3: Features */}
+        {/* Key Features */}
         <ArchSection id="features" className="relative z-[20]" showBottomArch={false}>
           <Features />
         </ArchSection>
 
-        {/* Step 4: Case Studies */}
-        <section data-navbar-theme="dark" className="relative z-[21] bg-[#050505]">
+        {/* Case Studies */}
+        <ArchSection id="success" className="relative z-[21] bg-[#050505]" showBottomArch={true}>
           <SuccessStories />
-        </section>
+        </ArchSection>
 
-        {/* Step 5: Challenges */}
+        {/* Challenges & Solutions */}
         <section data-navbar-theme="light" className="relative z-[22] bg-white">
           <Challenges />
         </section>
 
-        {/* Step 6: Industries */}
+        {/* Industry Verticals */}
         <ArchSection id="industries" className="relative z-[26]" archColor="#ffffff">
           <Industries />
         </ArchSection>
       </main>
 
-      {/* Contact & Footer Wrapper — native CSS sticky slide-over */}
+      {/* Contact & Footer Wrapper */}
       <div className="relative z-[25]">
-        {/* Step 8: Contact */}
-        <section id="contact-section" data-navbar-theme="light" className="sticky top-0 min-h-screen bg-white">
+        {/* Contact Form */}
+        <section id="contact" data-navbar-theme="light" className="sticky top-0 min-h-[100vh] bg-white">
           <ContactForm />
         </section>
 

@@ -25,6 +25,7 @@ import {
   type PendingRatingItem,
 } from '../../../lib/ratingsApi';
 import { RatingDialog } from '../../../components/RatingDialog';
+import { BulkRatingDialog } from '../../../components/BulkRatingDialog';
 
 /**
  * Inbox for sessions that have settled (employer_confirmed / auto_released /
@@ -40,9 +41,16 @@ export default function PendingRatingsPage() {
     queryKey: ['employer', 'pending-ratings'],
     queryFn: getPendingRatings,
     retry: false,
+    // Low-urgency poll — the SSE `rating.created` event auto-invalidates
+    // this key the moment a rating lands. Polling is the fallback.
+    refetchInterval: 60_000,
   });
 
-  const [openQueue, setOpenQueue] = useState<PendingRatingItem[] | null>(null);
+  // Two independent dialogs:
+  //  - `singleTarget` opens RatingDialog for one worker (per-row Rate button)
+  //  - `bulkOpen`     opens BulkRatingDialog (top-bar Rate all button)
+  const [singleTarget, setSingleTarget] = useState<PendingRatingItem | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const items = useMemo(() => {
     const data = ratingsQuery.data?.items ?? [];
@@ -61,7 +69,7 @@ export default function PendingRatingsPage() {
           items.length > 0 ? (
             <Button
               leadingIcon={<IconStar className="!h-4 !w-4" />}
-              onClick={() => setOpenQueue(items)}
+              onClick={() => setBulkOpen(true)}
             >
               Rate all ({items.length})
             </Button>
@@ -156,7 +164,7 @@ export default function PendingRatingsPage() {
                     <Button
                       size="sm"
                       leadingIcon={<IconStar className="!h-3.5 !w-3.5" />}
-                      onClick={() => setOpenQueue([it])}
+                      onClick={() => setSingleTarget(it)}
                     >
                       Rate
                     </Button>
@@ -169,17 +177,20 @@ export default function PendingRatingsPage() {
       </div>
 
       <RatingDialog
-        open={openQueue !== null}
-        sessions={openQueue ?? []}
+        open={singleTarget !== null}
+        sessions={singleTarget ? [singleTarget] : []}
         dismissible
-        title={openQueue && openQueue.length > 1 ? 'Rate your workers' : 'Rate this worker'}
-        description={
-          openQueue && openQueue.length > 1
-            ? 'Walk through each one — submit ratings or skip back here anytime.'
-            : 'Your rating helps other employers find reliable workers.'
-        }
-        onAllRated={() => setOpenQueue(null)}
-        onDismiss={() => setOpenQueue(null)}
+        title="Rate this worker"
+        description="Your rating helps other employers find reliable workers."
+        onAllRated={() => setSingleTarget(null)}
+        onDismiss={() => setSingleTarget(null)}
+      />
+
+      <BulkRatingDialog
+        open={bulkOpen}
+        sessions={items}
+        onOpenChange={setBulkOpen}
+        onComplete={() => setBulkOpen(false)}
       />
     </>
   );

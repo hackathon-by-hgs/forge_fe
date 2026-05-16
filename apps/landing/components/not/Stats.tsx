@@ -1,7 +1,7 @@
 'use client';
 
 import { useScrollReveal } from '@/hooks';
-import Odometer from './Odometer';
+import Odometer from '../Odometer';
 
 export interface StatItemProps {
   end: number;

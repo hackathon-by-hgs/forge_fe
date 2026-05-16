@@ -1,0 +1,193 @@
+name: employer-web — CI/CD
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'apps/employer-web/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - 'turbo.json'
+      - 'apps/employer-web/Dockerfile'
+      - '.github/workflows/employer-web.yml'
+  pull_request:
+    branches: [master, main]
+    paths:
+      - 'apps/employer-web/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - 'turbo.json'
+      - 'apps/employer-web/Dockerfile'
+      - '.github/workflows/employer-web.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: employer-web-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_NAME: employer-web
+  APP_DIR: apps/employer-web
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9.0.0'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/employer-web
+
+jobs:
+  quality:
+    name: Lint, Typecheck & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm --filter employer-web... lint
+
+      - name: Typecheck
+        run: pnpm --filter employer-web... typecheck
+
+      - name: Test
+        run: pnpm --filter employer-web... test
+
+  build:
+    name: Build Next.js app
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Restore Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: apps/employer-web/.next/cache
+          key: ${{ runner.os }}-employer-web-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('apps/employer-web/**/*.ts', 'apps/employer-web/**/*.tsx', 'apps/employer-web/**/*.js', 'apps/employer-web/**/*.jsx', 'packages/**/*.ts', 'packages/**/*.tsx') }}
+          restore-keys: |
+            ${{ runner.os }}-employer-web-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-
+
+      - name: Build
+        run: pnpm --filter employer-web... build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.EMPLOYER_WEB_NEXT_PUBLIC_API_BASE_URL }}
+          NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${{ secrets.EMPLOYER_WEB_NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+
+  docker:
+    name: Build & push Docker image
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build & push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/employer-web/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=employer-web
+          cache-to: type=gha,scope=employer-web,mode=max
+          build-args: |
+            NEXT_PUBLIC_API_BASE_URL=${{ secrets.EMPLOYER_WEB_NEXT_PUBLIC_API_BASE_URL }}
+            NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=${{ secrets.EMPLOYER_WEB_NEXT_PUBLIC_GOOGLE_MAPS_API_KEY }}
+
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+    environment:
+      name: employer-web-production
+      url: ${{ vars.EMPLOYER_WEB_PRODUCTION_URL }}
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          envs: REGISTRY,IMAGE_NAME,GITHUB_SHA,GITHUB_ACTOR,GITHUB_TOKEN
+          script: |
+            set -euo pipefail
+            cd /opt/forge
+
+            echo "▶ Logging in to ${REGISTRY}"
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${REGISTRY} -u ${{ github.actor }} --password-stdin
+
+            echo "▶ Pulling image ${REGISTRY}/${IMAGE_NAME}:sha-${GITHUB_SHA::7}"
+            docker pull ${REGISTRY}/${IMAGE_NAME}:sha-${GITHUB_SHA::7}
+
+            echo "▶ Restarting employer-web service"
+            export EMPLOYER_WEB_IMAGE="${REGISTRY}/${IMAGE_NAME}:sha-${GITHUB_SHA::7}"
+            docker compose up -d --no-deps employer-web
+
+            echo "▶ Pruning old images"
+            docker image prune -f
+
+            echo "✅ employer-web deployed"
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}

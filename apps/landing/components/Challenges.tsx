@@ -189,10 +189,10 @@ export default function Challenges() {
     <section
       ref={sectionRef}
       id="about"
-      className="relative bg-white text-black py-24 md:py-40"
+      className="relative bg-white text-black py-24 md:py-44 max-md:pb-64"
     >
       <div className="section-container relative z-10">
-        <div className="grid gap-12 md:grid-cols-[1.2fr_1fr] md:gap-24">
+        <div className="grid gap-12 md:grid-cols-[1.2fr_1fr] md:gap-24 px-10">
           {/* Left — scrolling items */}
           <div className="order-2 md:order-1">
             {CHALLENGES.map((item) => (

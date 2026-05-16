@@ -1,0 +1,191 @@
+name: bank-web — CI/CD
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'apps/bank-web/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - 'turbo.json'
+      - 'apps/bank-web/Dockerfile'
+      - '.github/workflows/bank-web.yml'
+  pull_request:
+    branches: [master, main]
+    paths:
+      - 'apps/bank-web/**'
+      - 'packages/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - 'turbo.json'
+      - 'apps/bank-web/Dockerfile'
+      - '.github/workflows/bank-web.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: bank-web-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  APP_NAME: bank-web
+  APP_DIR: apps/bank-web
+  NODE_VERSION: '20'
+  PNPM_VERSION: '9.0.0'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/bank-web
+
+jobs:
+  quality:
+    name: Lint, Typecheck & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm --filter bank-web... lint
+
+      - name: Typecheck
+        run: pnpm --filter bank-web... typecheck
+
+      - name: Test
+        run: pnpm --filter bank-web... test
+
+  build:
+    name: Build Next.js app
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Restore Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: apps/bank-web/.next/cache
+          key: ${{ runner.os }}-bank-web-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('apps/bank-web/**/*.ts', 'apps/bank-web/**/*.tsx', 'apps/bank-web/**/*.js', 'apps/bank-web/**/*.jsx', 'packages/**/*.ts', 'packages/**/*.tsx') }}
+          restore-keys: |
+            ${{ runner.os }}-bank-web-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-
+
+      - name: Build
+        run: pnpm --filter bank-web... build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.BANK_WEB_NEXT_PUBLIC_API_BASE_URL }}
+
+  docker:
+    name: Build & push Docker image
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=sha-
+            type=ref,event=branch
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build & push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/bank-web/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=bank-web
+          cache-to: type=gha,scope=bank-web,mode=max
+          build-args: |
+            NEXT_PUBLIC_API_BASE_URL=${{ secrets.BANK_WEB_NEXT_PUBLIC_API_BASE_URL }}
+
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+    environment:
+      name: bank-web-production
+      url: ${{ vars.BANK_WEB_PRODUCTION_URL }}
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          envs: REGISTRY,IMAGE_NAME,GITHUB_SHA,GITHUB_ACTOR,GITHUB_TOKEN
+          script: |
+            set -euo pipefail
+            cd /opt/forge
+
+            echo "▶ Logging in to ${REGISTRY}"
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${REGISTRY} -u ${{ github.actor }} --password-stdin
+
+            echo "▶ Pulling image ${REGISTRY}/${IMAGE_NAME}:sha-${GITHUB_SHA::7}"
+            docker pull ${REGISTRY}/${IMAGE_NAME}:sha-${GITHUB_SHA::7}
+
+            echo "▶ Restarting bank-web service"
+            export BANK_WEB_IMAGE="${REGISTRY}/${IMAGE_NAME}:sha-${GITHUB_SHA::7}"
+            docker compose up -d --no-deps bank-web
+
+            echo "▶ Pruning old images"
+            docker image prune -f
+
+            echo "✅ bank-web deployed"
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}

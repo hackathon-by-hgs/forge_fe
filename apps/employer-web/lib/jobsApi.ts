@@ -64,6 +64,14 @@ export interface JobDto {
   assignedWorker?: AssignedWorkerSummary | null;
   cancelledReason?: string | null;
   requiredEquipment: string[];
+  /**
+   * Multi-worker slots. Always present on the wire — 1 means single-worker
+   * (legacy behaviour, `/accept` endpoint). >1 means multi-worker
+   * (`/accept-slot` endpoint, escrow = payNaira × maxWorkers).
+   */
+  maxWorkers: number;
+  /** Slots already filled. Bumps on every successful accept-slot. */
+  acceptedCount: number;
 }
 
 export interface PaginationMeta {
@@ -211,6 +219,11 @@ export interface CreateJobInput {
   scheduledStartAt: string;
   requiredEquipment?: string[];
   postNow: boolean;
+  /**
+   * Number of workers to hire (1–20). Omit or send 1 to use the legacy
+   * single-worker code path (regular `/accept`, full pay reserved once).
+   */
+  maxWorkers?: number;
 }
 
 export type UpdateJobInput = Partial<Omit<CreateJobInput, 'postNow'>>;
@@ -318,6 +331,21 @@ export function acceptApplication(
 ): Promise<JobApplicationItemDto> {
   return api.post<JobApplicationItemDto>(
     `/v1/employer/jobs/${encodeURIComponent(jobId)}/applications/${encodeURIComponent(appId)}/accept`,
+  );
+}
+
+/**
+ * Multi-worker accept. Use only when `job.maxWorkers > 1` — the BE returns
+ * 409 INVALID_STATE if called on a single-worker job. Each successful call
+ * bumps `acceptedCount` by 1; the final slot atomically auto-rejects any
+ * sibling pending applications.
+ */
+export function acceptApplicationSlot(
+  jobId: string,
+  appId: string,
+): Promise<JobApplicationItemDto> {
+  return api.post<JobApplicationItemDto>(
+    `/v1/employer/jobs/${encodeURIComponent(jobId)}/applications/${encodeURIComponent(appId)}/accept-slot`,
   );
 }
 

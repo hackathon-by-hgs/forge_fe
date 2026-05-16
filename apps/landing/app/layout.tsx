@@ -35,6 +35,9 @@ export const metadata: Metadata = {
     description:
       "Hire workers, manage payroll, and access credit. Built for Nigeria's real economy.",
   },
+  icons: {
+    icon: '/icon.svg',
+  },
 };
 
 export default function RootLayout({

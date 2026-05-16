@@ -19,6 +19,7 @@ import {
   Input,
   LocationPicker,
   Select,
+  Switch,
   Textarea,
 } from '@forge/ui';
 import { formatCurrency } from '@forge/ui/utils';
@@ -57,6 +58,12 @@ const schema = z
     geofenceRadiusMeters: z.coerce.number().int().min(1).max(25),
     postNow: z.boolean(),
     requiredEquipment: z.string().optional(),
+    multiWorker: z.boolean(),
+    maxWorkers: z.coerce
+      .number()
+      .int()
+      .min(1, 'At least 1 worker')
+      .max(20, 'Max 20 workers per job'),
   })
   .superRefine((data, ctx) => {
     if (data.locationId === OTHER_LOCATION_ID) {
@@ -103,6 +110,8 @@ const DEFAULTS: FormValues = {
   geofenceRadiusMeters: 5,
   postNow: true,
   requiredEquipment: '',
+  multiWorker: false,
+  maxWorkers: 2,
 };
 
 const LOCATION_OPTIONS = [
@@ -204,6 +213,8 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
       geofenceRadiusMeters: DEFAULTS.geofenceRadiusMeters,
       postNow: true,
       requiredEquipment: (template.requiredEquipment ?? []).join(', '),
+      multiWorker: false,
+      maxWorkers: 2,
     });
   }, [template, reset]);
 
@@ -214,6 +225,8 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
   const watchedLat = watch('lat');
   const watchedLng = watch('lng');
   const watchedPay = watch('payNaira');
+  const watchedMultiWorker = watch('multiWorker');
+  const watchedMaxWorkers = Number(watch('maxWorkers')) || 1;
   const watchedStartAt = watch('startAt');
   const watchedRadius = watch('geofenceRadiusMeters');
   const isOtherLocation = watchedLocationId === OTHER_LOCATION_ID;
@@ -324,6 +337,11 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
       scheduledStartAt: new Date(values.startAt).toISOString(),
       requiredEquipment: equipment.length ? equipment : undefined,
       postNow: values.postNow,
+      // Only send maxWorkers when the toggle is on AND > 1. Omitting it
+      // (or sending 1) keeps the BE on the legacy single-worker code path.
+      ...(values.multiWorker && values.maxWorkers > 1
+        ? { maxWorkers: values.maxWorkers }
+        : {}),
     };
     setLastPayload(payload);
     mutate.mutate(payload);
@@ -480,22 +498,85 @@ export function PostJobForm({ template }: { template?: JobTemplate | null }) {
         <CardHeader>
           <CardTitle>Compensation</CardTitle>
         </CardHeader>
-        <CardBody className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <FormField
-            label="Pay (₦)"
-            required
-            error={errors.payNaira?.message ?? fieldErrors.payNaira}
-            hint={`That's ${formatCurrency(watchedPay || 0)} flat.`}
-          >
-            <Input type="number" min={1500} step={500} {...register('payNaira')} />
-          </FormField>
-          <FormField
-            label="Duration (hours)"
-            required
-            error={errors.durationHours?.message ?? fieldErrors.durationHours}
-          >
-            <Input type="number" min={1} max={24} step={1} {...register('durationHours')} />
-          </FormField>
+        <CardBody className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <FormField
+              label="Pay (₦) per worker"
+              required
+              error={errors.payNaira?.message ?? fieldErrors.payNaira}
+              hint={`Each hired worker earns ${formatCurrency(watchedPay || 0)}.`}
+            >
+              <Input type="number" min={1500} step={500} {...register('payNaira')} />
+            </FormField>
+            <FormField
+              label="Duration (hours)"
+              required
+              error={errors.durationHours?.message ?? fieldErrors.durationHours}
+            >
+              <Input type="number" min={1} max={24} step={1} {...register('durationHours')} />
+            </FormField>
+          </div>
+
+          <div className="rounded-lg border border-outline bg-surface-container p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-ink">
+                  Hire multiple workers for this job
+                </p>
+                <p className="mt-0.5 text-xs text-ink-muted">
+                  Same job, same pay per worker. Useful for crews, big loads,
+                  or staffing more than one shift slot at once.
+                </p>
+              </div>
+              <Switch
+                checked={watchedMultiWorker}
+                onCheckedChange={(checked) =>
+                  setValue('multiWorker', checked, { shouldValidate: true })
+                }
+                aria-label="Hire multiple workers"
+              />
+            </div>
+
+            {watchedMultiWorker ? (
+              <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                <FormField
+                  label="How many workers?"
+                  required
+                  error={errors.maxWorkers?.message ?? fieldErrors.maxWorkers}
+                  hint={
+                    watchedMaxWorkers === 1
+                      ? 'Pick 2 or more — at 1, you may as well leave multi-worker off.'
+                      : 'Up to 20 workers per job.'
+                  }
+                >
+                  <Input
+                    type="number"
+                    min={1}
+                    max={20}
+                    step={1}
+                    {...register('maxWorkers')}
+                  />
+                </FormField>
+                <div className="flex flex-col justify-end">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-ink-muted">
+                    Reserved at publish
+                  </p>
+                  <p
+                    className="text-xl font-semibold tabular-nums text-ink"
+                    data-numeric
+                  >
+                    {formatCurrency(
+                      (watchedPay || 0) * Math.max(1, watchedMaxWorkers),
+                    )}
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-ink-muted">
+                    {formatCurrency(watchedPay || 0)} × {watchedMaxWorkers} ·
+                    refunded in full if you cancel.
+                  </p>
+                </div>
+              </div>
+            ) : null}
+          </div>
         </CardBody>
       </Card>
 

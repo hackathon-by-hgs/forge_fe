@@ -4,8 +4,10 @@ import { useRef } from 'react';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { SplitText } from 'gsap/SplitText';
+import { Magnetic } from './';
 
-gsap.registerPlugin(ScrollTrigger);
+gsap.registerPlugin(ScrollTrigger, SplitText);
 
 const INDUSTRIES = [
   {
@@ -84,18 +86,25 @@ export default function Industries() {
 
       if (prefersReduced) return;
 
-      // Grid cards stagger in
+      // Grid cards sophisticated animation
       const cards = gsap.utils.toArray<HTMLElement>('.industry-card');
-      gsap.set(cards, { y: 60, opacity: 0 });
+      gsap.set(cards, { 
+        y: 100, 
+        opacity: 0, 
+        rotationX: -15,
+        transformOrigin: 'top center'
+      });
+      
       gsap.to(cards, {
         y: 0,
         opacity: 1,
-        stagger: 0.08,
-        duration: 0.8,
-        ease: 'power3.out',
+        rotationX: 0,
+        stagger: 0.15,
+        duration: 1.5,
+        ease: 'power4.out',
         scrollTrigger: {
           trigger: section.querySelector('.industry-grid'),
-          start: 'top 80%',
+          start: 'top 85%',
           toggleActions: 'play none none none',
         },
       });
@@ -109,10 +118,10 @@ export default function Industries() {
     <section
       ref={sectionRef}
       id="industries"
-      className="relative bg-black py-16 overflow-hidden"
+      className="relative bg-black py-24 md:py-40 overflow-hidden"
     >
       {/* Marquee — counter-scrolling outlined text */}
-      <div className="mb-14 md:mb-24 space-y-3 md:space-y-4 select-none pointer-events-none overflow-hidden">
+      <div className="section-container relative z-10 mb-14 md:mb-24 space-y-3 md:space-y-4 select-none pointer-events-none overflow-hidden">
         {/* Row 1 — left */}
           <div className="overflow-hidden">
           <div className="flex whitespace-nowrap animate-marquee" style={{ width: 'max-content' }}>
@@ -172,7 +181,7 @@ export default function Industries() {
           {INDUSTRIES.map((item) => (
             <div
               key={item.name}
-              className="industry-card group relative flex flex-col justify-between min-h-[400px] p-8 md:p-12 bg-[#0A0A0A] border border-white/5 rounded-3xl overflow-hidden transition-all duration-700 hover:border-[#FF4D00]/30 hover:shadow-[0_0_80px_-20px_rgba(255,77,0,0.15)]"
+              className="industry-card group relative flex flex-col justify-between min-h-[400px] p-8 md:p-12 bg-[#0a0a0a95] border border-white/5 overflow-hidden transition-all duration-700 hover:border-[#FF4D00]/30 hover:shadow-[0_0_80px_-20px_rgba(255,77,0,0.15)]"
             >
               {/* Animated Background Gradient */}
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none">
@@ -181,19 +190,21 @@ export default function Industries() {
               </div>
 
               {/* Internal Border/Stroke for Depth */}
-              <div className="absolute inset-[1px] rounded-[23px] border border-white/[0.03] pointer-events-none" />
+              <div className="absolute inset-[1px] border border-white/[0.03] pointer-events-none" />
 
               <div className="relative z-10 h-full flex flex-col">
                 <div className="flex justify-between items-start mb-16">
-                  {/* Technical Icon Frame */}
-                  <div className="relative">
-                    <div className="industry-icon w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center text-white/40 group-hover:text-[#FF4D00] group-hover:border-[#FF4D00]/30 transition-all duration-500 group-hover:scale-110">
-                      {item.icon}
+                  {/* Technical Icon Frame with Magnetic Effect */}
+                  <Magnetic>
+                    <div className="relative">
+                      <div className="industry-icon w-16 h-16 bg-white/[0.03] border border-white/10 flex items-center justify-center text-white/40 group-hover:text-[#FF4D00] group-hover:border-[#FF4D00]/30 transition-[color,border-color,background-color,opacity] duration-500 group-hover:scale-110">
+                        {item.icon}
+                      </div>
+                      {/* Decorative Corner Accents */}
+                      <div className="absolute -top-1 -left-1 w-3 h-3 border-t border-l border-[#FF4D00] opacity-0 group-hover:opacity-100 transition-all duration-500 delay-100" />
+                      <div className="absolute -bottom-1 -right-1 w-3 h-3 border-b border-r border-[#FF4D00] opacity-0 group-hover:opacity-100 transition-all duration-500 delay-100" />
                     </div>
-                    {/* Decorative Corner Accents */}
-                    <div className="absolute -top-1 -left-1 w-3 h-3 border-t border-l border-[#FF4D00] opacity-0 group-hover:opacity-100 transition-all duration-500 delay-100" />
-                    <div className="absolute -bottom-1 -right-1 w-3 h-3 border-b border-r border-[#FF4D00] opacity-0 group-hover:opacity-100 transition-all duration-500 delay-100" />
-                  </div>
+                  </Magnetic>
 
                   <div className="flex flex-col items-end">
                     <span className="text-[9px] font-black tracking-[0.4em] text-white/20 uppercase mb-1">Sector Verified</span>

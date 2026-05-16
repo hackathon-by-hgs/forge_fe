@@ -1,0 +1,29 @@
+services:
+  bank-web:
+    image: ${BANK_WEB_IMAGE:-ghcr.io/${GITHUB_REPOSITORY:-local}/bank-web:latest}
+    container_name: bank-web
+    build:
+      context: .
+      dockerfile: apps/bank-web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${BANK_WEB_NEXT_PUBLIC_API_BASE_URL:-}
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    env_file:
+      - ./apps/bank-web/.env
+
+  employer-web:
+    image: ${EMPLOYER_WEB_IMAGE:-ghcr.io/${GITHUB_REPOSITORY:-local}/employer-web:latest}
+    container_name: employer-web
+    build:
+      context: .
+      dockerfile: apps/employer-web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${EMPLOYER_WEB_NEXT_PUBLIC_API_BASE_URL:-}
+        NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ${EMPLOYER_WEB_NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:-}
+    restart: unless-stopped
+    ports:
+      - "3002:3000"
+    env_file:
+      - ./apps/employer-web/.env

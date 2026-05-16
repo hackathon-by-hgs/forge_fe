@@ -123,6 +123,7 @@ export default function LoanApplicationsPage() {
     queryFn: () => fetchApplications(query),
     retry: false,
     placeholderData: (prev) => prev,
+    refetchInterval: 30_000,
   });
 
   const pagination = listQuery.data?.pagination;
