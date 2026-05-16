@@ -190,7 +190,7 @@ export default function ContactForm() {
                 Get in Touch
               </span>
             </div>
-            <h2 className="contact-heading text-[clamp(1.75rem,5vw,5rem)] font-medium leading-[1.05] tracking-tight text-black mb-6 md:mb-12">
+            <h2 className="contact-heading text-[clamp(1.75rem,5vw,5rem)] font-medium leading-[1.05] tracking-normal text-black mb-6 md:mb-12">
               Let&rsquo;s build Forge together
             </h2>
             <p className="text-base md:text-xl text-black/40 leading-relaxed mb-8 md:mb-16 max-w-md">
