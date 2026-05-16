@@ -10,6 +10,7 @@ import { getBusinessProfile } from '../lib/settingsApi';
 import { NotificationsPopover } from './NotificationsPopover';
 import { AccountMenu } from './AccountMenu';
 import { GlobalSearch } from './GlobalSearch';
+import { RouteProgress } from './RouteProgress';
 
 const Brand = (
   <div className="flex items-center gap-2">
@@ -46,32 +47,35 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 
   return (
-    <PageShell
-      sidebar={<Sidebar brand={Brand} sections={employerNav} footer={sidebarFooter} />}
-      topBar={
-        <TopBar
-          search={
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <span className="hidden max-w-[10rem] shrink-0 truncate text-sm font-semibold text-ink md:inline">
-                {businessName}
-              </span>
-              <GlobalSearch />
-            </div>
-          }
-          end={
-            <>
-              <NotificationsPopover />
-              <AccountMenu
-                userName={userName}
-                userEmail={userEmail}
-                businessName={businessName}
-              />
-            </>
-          }
-        />
-      }
-    >
-      {children}
-    </PageShell>
+    <>
+      <RouteProgress />
+      <PageShell
+        sidebar={<Sidebar brand={Brand} sections={employerNav} footer={sidebarFooter} />}
+        topBar={
+          <TopBar
+            search={
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <span className="hidden max-w-[10rem] shrink-0 truncate text-sm font-semibold text-ink md:inline">
+                  {businessName}
+                </span>
+                <GlobalSearch />
+              </div>
+            }
+            end={
+              <>
+                <NotificationsPopover />
+                <AccountMenu
+                  userName={userName}
+                  userEmail={userEmail}
+                  businessName={businessName}
+                />
+              </>
+            }
+          />
+        }
+      >
+        {children}
+      </PageShell>
+    </>
   );
 }

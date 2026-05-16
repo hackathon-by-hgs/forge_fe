@@ -56,9 +56,9 @@ function LoginForm() {
   return (
     <div className="mx-auto flex min-h-[calc(100vh-80px)] max-w-md items-center px-6 py-10">
       <Card className="w-full">
-        <CardHeader>
-          <CardTitle>Sign in</CardTitle>
-          <p className="text-xs text-ink-muted">
+        <CardHeader className="flex-col p-4">
+          <CardTitle className='text-left'>Sign in</CardTitle>
+          <p className="text-sm text-ink-muted text-center">
             Use a demo login from the handoff doc (password: <span className="font-mono">forge-demo-pass</span>).
           </p>
         </CardHeader>

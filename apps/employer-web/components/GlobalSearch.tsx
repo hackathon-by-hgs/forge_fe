@@ -107,7 +107,7 @@ export function GlobalSearch() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Search</DialogTitle>
-            <DialogDescription>Type to search across jobs, workers, and transactions.</DialogDescription>
+            <DialogDescription className="block">Type to search across jobs, workers, and transactions.</DialogDescription>
           </DialogHeader>
           <div className="px-5 pb-5">
             <Input

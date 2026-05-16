@@ -4,6 +4,7 @@ import { type ReactNode } from 'react';
 import { ThemeProvider, ThemeScript, Toaster } from '@forge/ui';
 import { AppChrome } from '../components/AppChrome';
 import { Providers } from './providers';
+// @ts-ignore
 import './globals.css';
 
 const inter = Inter({
