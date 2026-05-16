@@ -1,7 +1,4 @@
 'use client';
-
-import { IconBuilding } from '@forge/ui/icons';
-
 export interface PageLoaderProps {
   title?: string;
   description?: string;

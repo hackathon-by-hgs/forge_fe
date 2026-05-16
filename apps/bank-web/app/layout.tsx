@@ -3,6 +3,7 @@ import { Manrope } from 'next/font/google';
 import { type ReactNode } from 'react';
 import { ThemeProvider, ThemeScript, Toaster } from '@forge/ui';
 import { SessionProvider } from '../lib/auth/SessionProvider';
+// @ts-ignore - No types for this package
 import './globals.css';
 
 const sans = Manrope({
@@ -13,7 +14,7 @@ const sans = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: 'Bank Dashboard — Forge',
+  title: 'Bank Dashboard Forge',
   description:
     'Decide with confidence. Credit, risk, and portfolio dashboard for banks on the Forge platform.',
 };
