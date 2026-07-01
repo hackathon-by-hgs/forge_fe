@@ -73,9 +73,35 @@ const MARQUEE_ITEMS = [
   'Construction', 'Agriculture', 'Hospitality', 'Events',
 ];
 
+type HoverBounds = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
 export default function Industries() {
   const sectionRef = useRef<HTMLElement>(null);
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [hoverBounds, setHoverBounds] = useState<HoverBounds | null>(null);
+
+  const moveHoverBackground = (index: number) => {
+    const grid = gridRef.current;
+    const card = cardRefs.current[index];
+
+    if (!grid || !card) return;
+
+    const gridRect = grid.getBoundingClientRect();
+    const cardRect = card.getBoundingClientRect();
+
+    setHoverBounds({
+      left: cardRect.left - gridRect.left,
+      top: cardRect.top - gridRect.top,
+      width: cardRect.width,
+      height: cardRect.height,
+    });
+  };
 
   useGSAP(
     () => {
@@ -179,29 +205,47 @@ export default function Industries() {
         </h2>
 
         {/* Grid */}
-        <AnimatePresence>
-          <motion.div
-            layout
-            className="industry-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6"
-            onMouseLeave={() => setHoveredIndex(null)}
-          >
-            {INDUSTRIES.map((item, index) => (
-              <div
-                key={item.name}
-                className="industry-card group relative block h-full p-2"
-                onMouseEnter={() => setHoveredIndex(index)}
-              >
-                {hoveredIndex === index ? (
-                  <motion.span
-                    className="pointer-events-none absolute inset-0 block h-full w-full z-10"
-                    style={{ background: 'rgba(255, 77, 0, 0.14)' }}
-                    layoutId="industryHoverBackground"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1, transition: { duration: 0.15 } }}
-                    exit={{ opacity: 0, transition: { duration: 0.15 } }}
-                  />
-                ) : null}
+        <motion.div
+          ref={gridRef}
+          layout
+          className="industry-grid relative grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6"
+          onMouseLeave={() => setHoverBounds(null)}
+        >
+          <AnimatePresence>
+            {hoverBounds ? (
+              <motion.span
+                key="industry-hover-background"
+                className="pointer-events-none absolute z-0 block"
+                style={{ background: 'rgba(255, 77, 0, 0.14)' }}
+                initial={{
+                  opacity: 0,
+                  x: hoverBounds.left,
+                  y: hoverBounds.top,
+                  width: hoverBounds.width,
+                  height: hoverBounds.height,
+                }}
+                animate={{
+                  opacity: 1,
+                  x: hoverBounds.left,
+                  y: hoverBounds.top,
+                  width: hoverBounds.width,
+                  height: hoverBounds.height,
+                }}
+                exit={{ opacity: 0, transition: { duration: 0.15 } }}
+                transition={{ duration: 0.18, ease: [0.2, 0, 0, 1] }}
+              />
+            ) : null}
+          </AnimatePresence>
 
+          {INDUSTRIES.map((item, index) => (
+              <div
+                ref={(node) => {
+                  cardRefs.current[index] = node;
+                }}
+                key={item.name}
+                className="industry-card group relative z-10 block h-full p-2"
+                onMouseEnter={() => moveHoverBackground(index)}
+              >
                 <div className="relative z-50 flex h-full min-h-[400px] flex-col justify-between overflow-hidden border border-white/5 bg-[#000000] p-8 transition-all duration-700 group-hover:border-[#FF4D00]/30  md:p-12">
                   {/* Animated Background Gradient */}
                   <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-1000 pointer-events-none">
@@ -263,8 +307,7 @@ export default function Industries() {
                 </div>
               </div>
             ))}
-          </motion.div>
-        </AnimatePresence>
+        </motion.div>
       </div>
     </section>
   );
